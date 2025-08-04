@@ -6,7 +6,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 
 ## Recent Changes (August 2025)
 
-- **Dashboard Navigation**: Fixed home button to redirect authenticated users to their appropriate dashboards (farmer/buyer/admin) instead of landing page
+- **Dashboard Navigation**: Home button correctly redirects authenticated users to their appropriate dashboards (farmer/buyer/admin) instead of landing page. Navigation logic ensures role-based redirection for seamless user experience
 - **Funding Portal**: Implemented comprehensive Offtake Guarantee Fund system with application forms, document uploads, and admin approval workflow
 - **Logistics System**: Added delivery/pickup request system with status tracking and admin management
 - **User Experience**: Enhanced role-based redirects for seamless navigation after login/registration
