@@ -8,7 +8,17 @@ from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
 def home():
-    """Homepage route with featured produce data"""
+    """Homepage route - redirect authenticated users to their dashboard"""
+    # Redirect authenticated users to their appropriate dashboard
+    if current_user.is_authenticated:
+        if current_user.is_farmer():
+            return redirect(url_for('farmer_dashboard'))
+        elif current_user.is_buyer():
+            return redirect(url_for('buyer_dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin_dashboard'))
+    
+    # For non-authenticated users, show homepage with featured produce
     # List of featured produce with names and descriptions
     featured_produce = [
         {"name": "Yam Tubers", "desc": "Fresh from Kogi State"},
@@ -27,7 +37,7 @@ def home():
 def register():
     """User registration route"""
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
     
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -55,7 +65,7 @@ def register():
 def login():
     """User login route"""
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
     
     form = LoginForm()
     if form.validate_on_submit():
@@ -65,7 +75,7 @@ def login():
             login_user(user)
             next_page = request.args.get('next')
             if not next_page or urlparse(next_page).netloc != '':
-                next_page = url_for('dashboard')
+                next_page = url_for('home')  # This will redirect to appropriate dashboard
             flash(f'Welcome back, {user.name}!', 'success')
             return redirect(next_page)
         else:

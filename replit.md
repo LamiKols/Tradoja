@@ -2,7 +2,14 @@
 
 ## Overview
 
-AgroLink is a digital agricultural marketplace platform that connects farmers and buyers across Africa, starting with Lagos' food security initiative and expanding continent-wide. The platform enables farmers to list their produce, buyers to browse and search for fresh products, and administrators to oversee platform operations. Built as a Flask web application, it provides role-based access control with distinct user experiences for farmers, buyers, and admins.
+AgroLink is a comprehensive digital agricultural marketplace platform that connects farmers and buyers across Africa, starting with Lagos' food security initiative and expanding continent-wide. The platform enables farmers to list their produce, buyers to browse and search for fresh products, and administrators to oversee platform operations. Built as a Flask web application, it provides role-based access control with distinct user experiences for farmers, buyers, and admins.
+
+## Recent Changes (August 2025)
+
+- **Dashboard Navigation**: Fixed home button to redirect authenticated users to their appropriate dashboards (farmer/buyer/admin) instead of landing page
+- **Funding Portal**: Implemented comprehensive Offtake Guarantee Fund system with application forms, document uploads, and admin approval workflow
+- **Logistics System**: Added delivery/pickup request system with status tracking and admin management
+- **User Experience**: Enhanced role-based redirects for seamless navigation after login/registration
 
 ## User Preferences
 
