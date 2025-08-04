@@ -7,8 +7,34 @@ from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm
 
 @app.route('/')
 def home():
-    """Homepage route"""
-    return render_template('home.html', title='Welcome to AgroLink Lagos')
+    """Homepage route with featured produce data"""
+    # Featured produce mapping with royalty-free images
+    featured_produce = {
+        'Yam Tubers': {
+            'image': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
+            'description': 'Fresh from Kogi State'
+        },
+        'Tomatoes': {
+            'image': 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
+            'description': 'Organically grown, Ogun State'
+        },
+        'Pepper': {
+            'image': 'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=400&q=80',
+            'description': 'Direct from Niger State'
+        },
+        'Plantain': {
+            'image': 'https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80',
+            'description': 'Sweet and ripe, Lagos State'
+        }
+    }
+    
+    # Default placeholder image for missing produce
+    default_image = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=400&q=80'
+    
+    return render_template('home.html', 
+                         title='Welcome to AgroLink',
+                         featured_produce=featured_produce, 
+                         default_image=default_image)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

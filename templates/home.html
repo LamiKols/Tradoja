@@ -50,42 +50,20 @@
 <section class="container py-5">
     <h2 class="mb-4 text-center fw-bold">Featured Produce</h2>
     <div class="row justify-content-center">
+        {% for produce_name, produce_data in featured_produce.items() %}
         <div class="col-md-3 mb-3">
             <div class="card shadow-sm">
-                <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Yam Tubers">
+                <img src="{{ produce_data.image or default_image }}" 
+                     class="card-img-top" 
+                     alt="{{ produce_name }}"
+                     onerror="this.src='{{ default_image }}'">
                 <div class="card-body">
-                    <h5 class="card-title">Yam Tubers</h5>
-                    <p class="card-text">Fresh from Kogi State</p>
+                    <h5 class="card-title">{{ produce_name }}</h5>
+                    <p class="card-text">{{ produce_data.description }}</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm">
-                <img src="https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Tomatoes">
-                <div class="card-body">
-                    <h5 class="card-title">Tomatoes</h5>
-                    <p class="card-text">Organically grown, Ogun State</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm">
-                <img src="https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Pepper">
-                <div class="card-body">
-                    <h5 class="card-title">Pepper</h5>
-                    <p class="card-text">Direct from Niger State</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm">
-                <img src="https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Plantain">
-                <div class="card-body">
-                    <h5 class="card-title">Plantain</h5>
-                    <p class="card-text">Sweet and ripe, Lagos State</p>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </section>
 
