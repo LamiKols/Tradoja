@@ -53,10 +53,25 @@
                     <i class="fas fa-truck fa-2x text-primary mb-2"></i>
                     <h4>{{ deliveries_count }}</h4>
                     <p class="card-text">Deliveries</p>
+                    <div class="mt-2">
+                        <a href="{{ url_for('my_logistics_requests') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-truck me-1"></i>View All
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Logistics Info Alert -->
+    {% if purchases and purchases|selectattr('status', 'equalto', 'successful')|list %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Need delivery or pickup?</strong> You can request logistics services for any completed purchase. 
+        Look for the <i class="fas fa-truck"></i> button in your purchase history or the "Request service" link under the Logistics column.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
 
     <!-- Purchase History -->
     <div class="row">
@@ -129,7 +144,15 @@
                                             {% if transaction.logistics_fee > 0 %}
                                                 <span class="badge bg-info">₦{{ "%.2f"|format(transaction.logistics_fee) }}</span>
                                             {% else %}
-                                                <span class="text-muted">-</span>
+                                                <div class="d-flex flex-column">
+                                                    <span class="text-muted">-</span>
+                                                    {% if transaction.status == 'successful' and transaction.produce %}
+                                                        <small class="text-info mt-1">
+                                                            <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
+                                                               class="text-decoration-none">Request service</a>
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
                                             {% endif %}
                                         </td>
                                         <td><strong>₦{{ "%.2f"|format(transaction.total_amount) }}</strong></td>
@@ -152,7 +175,11 @@
                                                         <i class="fas fa-envelope"></i>
                                                     </a>
                                                 {% endif %}
-                                                {% if transaction.status == 'successful' %}
+                                                {% if transaction.status == 'successful' and transaction.produce %}
+                                                    <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
+                                                       class="btn btn-outline-info btn-sm" title="Request Logistics">
+                                                        <i class="fas fa-truck"></i>
+                                                    </a>
                                                     <button class="btn btn-outline-success btn-sm" 
                                                             onclick="downloadReceipt('{{ transaction.reference }}')" 
                                                             title="Download Receipt">

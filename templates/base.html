@@ -133,6 +133,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('my_purchases') }}">
                                         <i class="fas fa-shopping-bag me-1"></i>My Purchases
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('my_logistics_requests') }}">
+                                        <i class="fas fa-truck me-1"></i>My Logistics
+                                    </a></li>
                                 {% elif current_user.is_admin() %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
                                         <i class="fas fa-cog me-1"></i>Admin Dashboard
