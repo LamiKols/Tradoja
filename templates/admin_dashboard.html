@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Admin Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="fw-bold">
+                <i class="fas fa-cog me-2 text-warning"></i>Admin Dashboard
+            </h1>
+            <p class="text-muted mb-0">System oversight and management</p>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card stats-card">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_users }}</h3>
+                    <small>Total Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-tractor fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_farmers }}</h3>
+                    <small>Farmers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_buyers }}</h3>
+                    <small>Buyers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-seedling fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_produce }}</h3>
+                    <small>Total Produce</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.available_produce }}</h3>
+                    <small>Available</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Management -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>User Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Registration Date</th>
+                                        <th>Produce Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <td><span class="badge bg-secondary">#{{ user.id }}</span></td>
+                                        <td>
+                                            <div class="fw-bold">{{ user.name }}</div>
+                                        </td>
+                                        <td>
+                                            <a href="mailto:{{ user.email }}" class="text-decoration-none">
+                                                {{ user.email }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if user.role == 'farmer' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-tractor me-1"></i>Farmer
+                                                </span>
+                                            {% elif user.role == 'buyer' %}
+                                                <span class="badge bg-info">
+                                                    <i class="fas fa-shopping-cart me-1"></i>Buyer
+                                                </span>
+                                            {% elif user.role == 'admin' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-cog me-1"></i>Admin
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ user.registration_date.strftime('%B %d, %Y') }}</small>
+                                        </td>
+                                        <td>
+                                            {% if user.role == 'farmer' %}
+                                                <span class="badge bg-primary">{{ user.produce_listings|length }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No users found</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Produce Management -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-seedling me-2"></i>Produce Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if produce_listings %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Produce</th>
+                                        <th>Farmer</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Status</th>
+                                        <th>Date Listed</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for produce in produce_listings %}
+                                    <tr>
+                                        <td><span class="badge bg-secondary">#{{ produce.id }}</span></td>
+                                        <td>
+                                            <div class="fw-bold">{{ produce.name }}</div>
+                                            {% if produce.description %}
+                                                <small class="text-muted">{{ produce.description[:30] }}{% if produce.description|length > 30 %}...{% endif %}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>{{ produce.farmer.name }}</div>
+                                            <small class="text-muted">{{ produce.farmer.email }}</small>
+                                        </td>
+                                        <td>{{ produce.quantity }}</td>
+                                        <td class="fw-bold">{{ produce.formatted_price() }}</td>
+                                        <td>
+                                            {% if produce.is_available %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Available
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-pause me-1"></i>Unavailable
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ produce.date_listed.strftime('%b %d, %Y') }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('produce_detail', id=produce.id) }}" 
+                                                   class="btn btn-outline-info" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="mailto:{{ produce.farmer.email }}?subject=Admin: {{ produce.name }}" 
+                                                   class="btn btn-outline-primary" title="Contact Farmer">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-seedling fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No produce listings found</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>System Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Platform Status</h6>
+                            <p class="text-success">
+                                <i class="fas fa-check-circle me-1"></i>System Online
+                            </p>
+                            <p class="text-muted small">
+                                AgroLink Lagos is operating normally. All features are available.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Recent Activity</h6>
+                            <p class="text-info">
+                                <i class="fas fa-chart-line me-1"></i>Growing Platform
+                            </p>
+                            <p class="text-muted small">
+                                New registrations and produce listings are increasing daily.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

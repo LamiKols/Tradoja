@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('farmer_dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Add Produce</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-plus-circle me-2 text-success"></i>Add New Produce
+                    </h3>
+                    <p class="text-muted mb-0">List your fresh produce for buyers to discover</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <!-- Produce Name -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id }}" class="form-label">
+                                    <i class="fas fa-seedling me-1"></i>{{ form.name.label.text }}
+                                </label>
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="e.g., Fresh Tomatoes, Rice, Plantain") }}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Quantity -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.quantity.id }}" class="form-label">
+                                    <i class="fas fa-weight-hanging me-1"></i>{{ form.quantity.label.text }}
+                                </label>
+                                {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else ""), placeholder="e.g., 50 kg, 100 bags, 200 pieces") }}
+                                {% if form.quantity.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.quantity.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    Specify the total quantity available (e.g., "50 kg", "100 bags", "200 pieces")
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Price -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.price.id }}" class="form-label">
+                                    <i class="fas fa-tag me-1"></i>{{ form.price.label.text }}
+                                </label>
+                                <div class="input-group">
+                                    {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else ""), step="0.01", placeholder="0.00") }}
+                                    {% if form.price.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.price.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="form-text">
+                                    Price per unit (per kg, per bag, per piece, etc.)
+                                </div>
+                            </div>
+                            
+                            <!-- Currency -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.price_unit.id }}" class="form-label">
+                                    <i class="fas fa-money-bill-wave me-1"></i>{{ form.price_unit.label.text }}
+                                </label>
+                                {{ form.price_unit(class="form-select" + (" is-invalid" if form.price_unit.errors else "")) }}
+                                {% if form.price_unit.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.price_unit.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id }}" class="form-label">
+                                <i class="fas fa-info-circle me-1"></i>{{ form.description.label.text }}
+                            </label>
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4", placeholder="Describe your produce quality, harvest date, storage conditions, any special features...") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Provide details about quality, freshness, harvest date, storage conditions, etc.
+                            </div>
+                        </div>
+                        
+                        <!-- Availability -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_available(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.is_available.id }}">
+                                    <i class="fas fa-check-circle me-1 text-success"></i>{{ form.is_available.label.text }}
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                Uncheck this if the produce is temporarily unavailable
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus me-2"></i>Add Produce
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Tips for Better Listings
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Use clear, specific produce names
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Provide accurate quantity measurements
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Set competitive market prices
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Describe quality and freshness
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Mention harvest/storage dates
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Update availability regularly
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
