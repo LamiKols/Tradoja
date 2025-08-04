@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check me-2"></i>Registration Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Status Overview -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Registration Status</h6>
+                                    <span class="badge {{ registration.get_status_badge_class() }} fs-6">
+                                        {{ registration.registration_status.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Completion Progress</h6>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ registration.completion_percentage }}%">
+                                            {{ registration.completion_percentage }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Registration Details -->
+                    <div class="mb-4">
+                        <h6>Registration Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Role:</strong></td>
+                                <td>{{ registration.get_role_display_name() }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Started:</strong></td>
+                                <td>{{ registration.started_date.strftime('%B %d, %Y at %I:%M %p') if registration.started_date else 'N/A' }}</td>
+                            </tr>
+                            {% if registration.completed_date %}
+                            <tr>
+                                <td><strong>Completed:</strong></td>
+                                <td>{{ registration.completed_date.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if registration.approved_date %}
+                            <tr>
+                                <td><strong>Approved:</strong></td>
+                                <td>{{ registration.approved_date.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if registration.reviewed_by %}
+                            <tr>
+                                <td><strong>Reviewed by:</strong></td>
+                                <td>{{ registration.reviewer.name if registration.reviewer else 'Admin' }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+
+                    <!-- Admin Comments -->
+                    {% if registration.admin_comments %}
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-comment me-2"></i>Admin Comments</h6>
+                        <p class="mb-0">{{ registration.admin_comments }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Status-specific Actions -->
+                    {% if registration.registration_status == 'in_progress' %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Registration Incomplete</h6>
+                        <p class="mb-3">You need to complete your registration to participate in the Produce for Lagos program.</p>
+                        <a href="{{ url_for('onboarding_step', step=registration.current_step) }}" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Continue Registration
+                        </a>
+                    </div>
+                    {% elif registration.registration_status == 'completed' %}
+                    <div class="alert alert-primary">
+                        <h6><i class="fas fa-clock me-2"></i>Under Review</h6>
+                        <p class="mb-0">Your registration is complete and under review by our team. You will be notified once approved.</p>
+                    </div>
+                    {% elif registration.registration_status == 'approved' %}
+                    <div class="alert alert-success">
+                        <h6><i class="fas fa-check-circle me-2"></i>Registration Approved</h6>
+                        <p class="mb-3">Congratulations! Your registration has been approved. You can now access all Produce for Lagos program features.</p>
+                        <a href="{{ url_for('farmer_dashboard' if current_user.is_farmer() else 'buyer_dashboard') }}" class="btn btn-success">
+                            <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                        </a>
+                    </div>
+                    {% elif registration.registration_status == 'rejected' %}
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-times-circle me-2"></i>Registration Rejected</h6>
+                        <p class="mb-3">Unfortunately, your registration was not approved. Please review the admin comments above and contact support if you need assistance.</p>
+                        <div class="d-flex gap-2">
+                            <a href="mailto:support@agrolink.ng" class="btn btn-outline-primary">
+                                <i class="fas fa-envelope me-2"></i>Contact Support
+                            </a>
+                            <a href="{{ url_for('onboarding_start') }}" class="btn btn-warning">
+                                <i class="fas fa-redo me-2"></i>Start New Registration
+                            </a>
+                        </div>
+                    </div>
+                    {% elif registration.registration_status == 'needs_revision' %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-edit me-2"></i>Revision Required</h6>
+                        <p class="mb-3">Your registration needs some changes. Please review the admin comments and update your information.</p>
+                        <a href="{{ url_for('onboarding_step', step=1) }}" class="btn btn-warning">
+                            <i class="fas fa-edit me-2"></i>Update Registration
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Progress Steps -->
+                    <div class="mt-4">
+                        <h6>Registration Steps</h6>
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-user me-2 {% if registration.current_step >= 1 %}text-success{% else %}text-muted{% endif %}"></i>
+                                    Personal Information
+                                </span>
+                                {% if registration.current_step >= 1 %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-building me-2 {% if registration.current_step >= 2 %}text-success{% else %}text-muted{% endif %}"></i>
+                                    Business Information
+                                </span>
+                                {% if registration.current_step >= 2 %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-cog me-2 {% if registration.current_step >= 3 %}text-success{% else %}text-muted{% endif %}"></i>
+                                    Role-specific Details
+                                </span>
+                                {% if registration.current_step >= 3 %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-file-upload me-2 {% if registration.current_step >= 4 %}text-success{% else %}text-muted{% endif %}"></i>
+                                    Documents & Financial Info
+                                </span>
+                                {% if registration.current_step >= 4 %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

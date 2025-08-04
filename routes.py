@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
 from gi_service import GIService
@@ -2529,3 +2529,548 @@ def admin_payments_dashboard():
     return render_template('admin/payments_dashboard.html',
                          stats=stats,
                          recent_transactions=recent_transactions)
+
+
+# ==========================================
+# UNIVERSAL ONBOARDING ROUTES
+# ==========================================
+
+@app.route('/onboarding')
+@login_required
+def onboarding_start():
+    """Check onboarding status and redirect appropriately"""
+    # Check if user already has a registration
+    registration = ProduceLagosRegistration.query.filter_by(user_id=current_user.id).first()
+    
+    if registration:
+        if registration.registration_status == 'approved':
+            flash('Your registration has been approved. Welcome to the Produce for Lagos program!', 'success')
+            return redirect(url_for('farmer_dashboard' if current_user.is_farmer() else 'buyer_dashboard'))
+        elif registration.registration_status == 'rejected':
+            flash('Your registration was rejected. Please contact support or restart registration.', 'error')
+            return render_template('onboarding/registration_status.html', registration=registration)
+        else:
+            # Continue from current step
+            return redirect(url_for('onboarding_step', step=registration.current_step))
+    
+    # Create new registration
+    registration = ProduceLagosRegistration(
+        user_id=current_user.id,
+        role=current_user.role,
+        current_step=1
+    )
+    db.session.add(registration)
+    db.session.commit()
+    
+    return redirect(url_for('onboarding_step', step=1))
+
+
+@app.route('/onboarding/step/<int:step>', methods=['GET', 'POST'])
+@login_required
+def onboarding_step(step):
+    """Multi-step onboarding process"""
+    # Get or create registration record
+    registration = ProduceLagosRegistration.query.filter_by(user_id=current_user.id).first()
+    if not registration:
+        return redirect(url_for('onboarding_start'))
+    
+    # Ensure user can't skip steps
+    if step > registration.current_step + 1:
+        flash('Please complete the steps in order', 'warning')
+        return redirect(url_for('onboarding_step', step=registration.current_step))
+    
+    if step == 1:
+        return onboarding_step_1(registration)
+    elif step == 2:
+        return onboarding_step_2(registration)
+    elif step == 3:
+        return onboarding_step_3(registration)
+    elif step == 4:
+        return onboarding_step_4(registration)
+    else:
+        flash('Invalid step', 'error')
+        return redirect(url_for('onboarding_start'))
+
+
+def onboarding_step_1(registration):
+    """Step 1: Personal Information"""
+    form = OnboardingStep1Form()
+    
+    if form.validate_on_submit():
+        # Save form data to registration
+        registration.full_name = form.full_name.data
+        registration.date_of_birth = form.date_of_birth.data
+        registration.gender = form.gender.data
+        registration.nationality = form.nationality.data
+        registration.state_of_origin = form.state_of_origin.data
+        registration.lga_of_origin = form.lga_of_origin.data
+        registration.marital_status = form.marital_status.data
+        registration.education_level = form.education_level.data
+        registration.primary_phone = form.primary_phone.data
+        registration.secondary_phone = form.secondary_phone.data
+        registration.email_address = form.email_address.data
+        registration.residential_address = form.residential_address.data
+        registration.city = form.city.data
+        registration.state = form.state.data
+        registration.postal_code = form.postal_code.data
+        registration.lga = form.lga.data
+        registration.ward = form.ward.data
+        
+        # Update progress
+        registration.current_step = max(registration.current_step, 2)
+        registration.calculate_completion_percentage()
+        
+        db.session.commit()
+        flash('Personal information saved successfully', 'success')
+        return redirect(url_for('onboarding_step', step=2))
+    
+    # Pre-populate form if data exists
+    if registration.full_name:
+        form.full_name.data = registration.full_name
+        form.date_of_birth.data = registration.date_of_birth
+        form.gender.data = registration.gender
+        form.nationality.data = registration.nationality
+        form.state_of_origin.data = registration.state_of_origin
+        form.lga_of_origin.data = registration.lga_of_origin
+        form.marital_status.data = registration.marital_status
+        form.education_level.data = registration.education_level
+        form.primary_phone.data = registration.primary_phone
+        form.secondary_phone.data = registration.secondary_phone
+        form.email_address.data = registration.email_address
+        form.residential_address.data = registration.residential_address
+        form.city.data = registration.city
+        form.state.data = registration.state
+        form.postal_code.data = registration.postal_code
+        form.lga.data = registration.lga
+        form.ward.data = registration.ward
+    
+    return render_template('onboarding/step1_personal.html', 
+                         form=form, 
+                         registration=registration,
+                         current_step=1)
+
+
+def onboarding_step_2(registration):
+    """Step 2: Business/Organization Information"""
+    form = OnboardingStep2Form()
+    
+    if form.validate_on_submit():
+        # Save form data to registration
+        registration.organization_name = form.organization_name.data
+        registration.business_registration_number = form.business_registration_number.data
+        registration.tax_identification_number = form.tax_identification_number.data
+        registration.business_address = form.business_address.data
+        registration.business_type = form.business_type.data
+        registration.years_in_operation = form.years_in_operation.data
+        registration.number_of_employees = form.number_of_employees.data
+        registration.annual_turnover = form.annual_turnover.data
+        
+        # Update progress
+        registration.current_step = max(registration.current_step, 3)
+        registration.calculate_completion_percentage()
+        
+        db.session.commit()
+        flash('Business information saved successfully', 'success')
+        return redirect(url_for('onboarding_step', step=3))
+    
+    # Pre-populate form if data exists
+    if registration.organization_name:
+        form.organization_name.data = registration.organization_name
+        form.business_registration_number.data = registration.business_registration_number
+        form.tax_identification_number.data = registration.tax_identification_number
+        form.business_address.data = registration.business_address
+        form.business_type.data = registration.business_type
+        form.years_in_operation.data = registration.years_in_operation
+        form.number_of_employees.data = registration.number_of_employees
+        form.annual_turnover.data = registration.annual_turnover
+    
+    return render_template('onboarding/step2_business.html', 
+                         form=form, 
+                         registration=registration,
+                         current_step=2)
+
+
+def onboarding_step_3(registration):
+    """Step 3: Role-specific Information"""
+    # Get appropriate form based on role
+    if registration.role == 'farmer':
+        form = OnboardingStep3FarmerForm()
+        template = 'onboarding/step3_farmer.html'
+    elif registration.role == 'aggregator':
+        form = OnboardingStep3AggregatorForm()
+        template = 'onboarding/step3_aggregator.html'
+    elif registration.role == 'transport_company':
+        form = OnboardingStep3TransportForm()
+        template = 'onboarding/step3_transport.html'
+    elif registration.role == 'bulk_trader':
+        form = OnboardingStep3BulkTraderForm()
+        template = 'onboarding/step3_bulk_trader.html'
+    elif registration.role == 'retailer':
+        form = OnboardingStep3RetailerForm()
+        template = 'onboarding/step3_retailer.html'
+    elif registration.role == 'input_supplier':
+        form = OnboardingStep3InputSupplierForm()
+        template = 'onboarding/step3_input_supplier.html'
+    else:
+        # For other roles (investor, government_agency, ngo_dev_partner), skip to step 4
+        flash('Role-specific information not required for your role', 'info')
+        registration.current_step = max(registration.current_step, 4)
+        registration.calculate_completion_percentage()
+        db.session.commit()
+        return redirect(url_for('onboarding_step', step=4))
+    
+    if form.validate_on_submit():
+        # Save role-specific data
+        if registration.role == 'farmer':
+            registration.farm_size = form.farm_size.data
+            registration.crops_grown = form.crops_grown.data
+            registration.farming_experience = form.farming_experience.data
+            registration.farming_methods = form.farming_methods.data
+            registration.irrigation_system = form.irrigation_system.data
+            registration.storage_facilities = form.storage_facilities.data
+        elif registration.role == 'aggregator':
+            registration.aggregation_capacity = form.aggregation_capacity.data
+            registration.storage_capacity = form.storage_capacity.data
+            registration.transportation_fleet = form.transportation_fleet.data
+            registration.catchment_areas = form.catchment_areas.data
+        elif registration.role == 'transport_company':
+            registration.vehicle_types = form.vehicle_types.data
+            registration.fleet_size = form.fleet_size.data
+            registration.routes_covered = form.routes_covered.data
+            registration.insurance_details = form.insurance_details.data
+        elif registration.role == 'bulk_trader':
+            registration.trading_volume = form.trading_volume.data
+            registration.target_markets = form.target_markets.data
+            registration.commodity_specialization = form.commodity_specialization.data
+        elif registration.role == 'retailer':
+            registration.store_type = form.store_type.data
+            registration.retail_locations = form.retail_locations.data
+            registration.customer_base = form.customer_base.data
+        elif registration.role == 'input_supplier':
+            registration.input_types = form.input_types.data
+            registration.supplier_network = form.supplier_network.data
+            registration.distribution_channels = form.distribution_channels.data
+        
+        # Update progress
+        registration.current_step = max(registration.current_step, 4)
+        registration.calculate_completion_percentage()
+        
+        db.session.commit()
+        flash('Role-specific information saved successfully', 'success')
+        return redirect(url_for('onboarding_step', step=4))
+    
+    # Pre-populate form if data exists
+    if registration.role == 'farmer' and registration.farm_size:
+        form.farm_size.data = registration.farm_size
+        form.crops_grown.data = registration.crops_grown
+        form.farming_experience.data = registration.farming_experience
+        form.farming_methods.data = registration.farming_methods
+        form.irrigation_system.data = registration.irrigation_system
+        form.storage_facilities.data = registration.storage_facilities
+    # Add similar pre-population for other roles...
+    
+    return render_template(template, 
+                         form=form, 
+                         registration=registration,
+                         current_step=3)
+
+
+def onboarding_step_4(registration):
+    """Step 4: Financial Information & Document Upload"""
+    form = OnboardingStep4Form()
+    
+    if form.validate_on_submit():
+        # Save financial information
+        registration.bank_name = form.bank_name.data
+        registration.account_number = form.account_number.data
+        registration.account_name = form.account_name.data
+        registration.bvn = form.bvn.data
+        
+        # Handle document uploads
+        upload_folder = 'static/uploads/onboarding'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        if form.id_document.data:
+            filename = secure_filename(f"{current_user.id}_id_{form.id_document.data.filename}")
+            filepath = os.path.join(upload_folder, filename)
+            form.id_document.data.save(filepath)
+            registration.id_document_path = filepath
+        
+        if form.business_registration.data:
+            filename = secure_filename(f"{current_user.id}_business_{form.business_registration.data.filename}")
+            filepath = os.path.join(upload_folder, filename)
+            form.business_registration.data.save(filepath)
+            registration.business_registration_path = filepath
+        
+        if form.tax_certificate.data:
+            filename = secure_filename(f"{current_user.id}_tax_{form.tax_certificate.data.filename}")
+            filepath = os.path.join(upload_folder, filename)
+            form.tax_certificate.data.save(filepath)
+            registration.tax_certificate_path = filepath
+        
+        if form.certifications.data:
+            filename = secure_filename(f"{current_user.id}_cert_{form.certifications.data.filename}")
+            filepath = os.path.join(upload_folder, filename)
+            form.certifications.data.save(filepath)
+            registration.certifications_path = filepath
+        
+        if form.additional_documents.data:
+            filename = secure_filename(f"{current_user.id}_additional_{form.additional_documents.data.filename}")
+            filepath = os.path.join(upload_folder, filename)
+            form.additional_documents.data.save(filepath)
+            registration.additional_documents_path = filepath
+        
+        # Mark registration as completed
+        registration.registration_status = 'completed'
+        registration.completed_date = datetime.utcnow()
+        registration.completion_percentage = 100
+        
+        db.session.commit()
+        flash('Registration completed successfully! Your application is now under review.', 'success')
+        return redirect(url_for('onboarding_status'))
+    
+    # Pre-populate form if data exists
+    if registration.bank_name:
+        form.bank_name.data = registration.bank_name
+        form.account_number.data = registration.account_number
+        form.account_name.data = registration.account_name
+        form.bvn.data = registration.bvn
+    
+    return render_template('onboarding/step4_financial.html', 
+                         form=form, 
+                         registration=registration,
+                         current_step=4)
+
+
+@app.route('/onboarding/status')
+@login_required
+def onboarding_status():
+    """View registration status"""
+    registration = ProduceLagosRegistration.query.filter_by(user_id=current_user.id).first()
+    if not registration:
+        return redirect(url_for('onboarding_start'))
+    
+    return render_template('onboarding/registration_status.html', registration=registration)
+
+
+@app.route('/admin/onboarding')
+@login_required
+def admin_onboarding_dashboard():
+    """Admin dashboard for reviewing registrations"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get filter parameters
+    role_filter = request.args.get('role', 'all')
+    status_filter = request.args.get('status', 'all')
+    
+    # Build query
+    query = ProduceLagosRegistration.query
+    
+    if role_filter != 'all':
+        query = query.filter_by(role=role_filter)
+    
+    if status_filter != 'all':
+        query = query.filter_by(registration_status=status_filter)
+    
+    registrations = query.order_by(ProduceLagosRegistration.started_date.desc()).all()
+    
+    # Get statistics
+    stats = {
+        'total_registrations': ProduceLagosRegistration.query.count(),
+        'pending_approval': ProduceLagosRegistration.query.filter_by(registration_status='completed').count(),
+        'approved': ProduceLagosRegistration.query.filter_by(registration_status='approved').count(),
+        'in_progress': ProduceLagosRegistration.query.filter_by(registration_status='in_progress').count(),
+    }
+    
+    return render_template('admin/onboarding_dashboard.html', 
+                         registrations=registrations,
+                         stats=stats,
+                         role_filter=role_filter,
+                         status_filter=status_filter)
+
+
+@app.route('/admin/onboarding/review/<int:registration_id>', methods=['GET', 'POST'])
+@login_required
+def admin_review_registration(registration_id):
+    """Admin review of individual registration"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    registration = ProduceLagosRegistration.query.get_or_404(registration_id)
+    form = OnboardingAdminReviewForm()
+    
+    if form.validate_on_submit():
+        registration.registration_status = form.registration_status.data
+        registration.admin_comments = form.admin_comments.data
+        registration.reviewed_by = current_user.id
+        registration.reviewed_date = datetime.utcnow()
+        
+        if form.registration_status.data == 'approved':
+            registration.approved_date = datetime.utcnow()
+        
+        db.session.commit()
+        flash(f'Registration {form.registration_status.data} successfully', 'success')
+        return redirect(url_for('admin_onboarding_dashboard'))
+    
+    # Pre-populate form
+    form.registration_status.data = registration.registration_status
+    form.admin_comments.data = registration.admin_comments
+    
+    return render_template('admin/review_registration.html', 
+                         registration=registration,
+                         form=form)
+
+
+@app.route('/admin/onboarding/bulk', methods=['GET', 'POST'])
+@login_required
+def admin_bulk_onboarding():
+    """Admin interface for bulk onboarding"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    form = BulkOnboardingForm()
+    
+    if form.validate_on_submit():
+        # Handle CSV upload and processing
+        upload_folder = 'static/uploads/bulk_onboarding'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        filename = secure_filename(f"bulk_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{form.csv_file.data.filename}")
+        filepath = os.path.join(upload_folder, filename)
+        form.csv_file.data.save(filepath)
+        
+        # Create bulk onboarding record
+        bulk_record = BulkOnboarding(
+            batch_name=form.batch_name.data,
+            uploaded_by=current_user.id,
+            file_path=filepath
+        )
+        db.session.add(bulk_record)
+        db.session.commit()
+        
+        # Process CSV file (this would be handled by a background task in production)
+        try:
+            import csv
+            with open(filepath, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                total_records = 0
+                successful_registrations = 0
+                failed_registrations = 0
+                errors = []
+                
+                for row in reader:
+                    total_records += 1
+                    try:
+                        # Create user and registration from CSV data
+                        # This is a simplified version - full implementation would include validation
+                        user = User(
+                            name=row.get('full_name', ''),
+                            email=row.get('email', ''),
+                            role=form.role.data
+                        )
+                        user.set_password('defaultpassword123')  # Should be changed on first login
+                        db.session.add(user)
+                        db.session.flush()
+                        
+                        registration = ProduceLagosRegistration(
+                            user_id=user.id,
+                            role=form.role.data,
+                            full_name=row.get('full_name', ''),
+                            primary_phone=row.get('phone', ''),
+                            email_address=row.get('email', ''),
+                            registration_status='completed'
+                        )
+                        db.session.add(registration)
+                        successful_registrations += 1
+                        
+                    except Exception as e:
+                        failed_registrations += 1
+                        errors.append(f"Row {total_records}: {str(e)}")
+                
+                # Update bulk record
+                bulk_record.total_records = total_records
+                bulk_record.successful_registrations = successful_registrations
+                bulk_record.failed_registrations = failed_registrations
+                bulk_record.status = 'completed'
+                if errors:
+                    bulk_record.error_log = '\n'.join(errors)
+                
+                db.session.commit()
+                
+                flash(f'Bulk upload completed: {successful_registrations} successful, {failed_registrations} failed', 'success')
+                
+        except Exception as e:
+            bulk_record.status = 'failed'
+            bulk_record.error_log = str(e)
+            db.session.commit()
+            flash(f'Bulk upload failed: {str(e)}', 'error')
+        
+        return redirect(url_for('admin_bulk_onboarding'))
+    
+    # Get recent bulk uploads
+    recent_uploads = BulkOnboarding.query.order_by(BulkOnboarding.upload_date.desc()).limit(10).all()
+    
+    return render_template('admin/bulk_onboarding.html', 
+                         form=form,
+                         recent_uploads=recent_uploads)
+
+
+@app.route('/admin/onboarding/export')
+@login_required
+def admin_export_registrations():
+    """Export registrations to CSV"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get filter parameters
+    role_filter = request.args.get('role', 'all')
+    status_filter = request.args.get('status', 'all')
+    
+    # Build query
+    query = ProduceLagosRegistration.query
+    
+    if role_filter != 'all':
+        query = query.filter_by(role=role_filter)
+    
+    if status_filter != 'all':
+        query = query.filter_by(registration_status=status_filter)
+    
+    registrations = query.all()
+    
+    # Create CSV response
+    import io
+    import csv
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write headers
+    writer.writerow([
+        'Name', 'Email', 'Role', 'Phone', 'State', 'LGA', 'Registration Status',
+        'Completion %', 'Started Date', 'Completed Date', 'Approved Date'
+    ])
+    
+    # Write data
+    for reg in registrations:
+        writer.writerow([
+            reg.full_name or '',
+            reg.email_address or '',
+            reg.get_role_display_name(),
+            reg.primary_phone or '',
+            reg.state or '',
+            reg.lga or '',
+            reg.registration_status,
+            reg.completion_percentage,
+            reg.started_date.strftime('%Y-%m-%d') if reg.started_date else '',
+            reg.completed_date.strftime('%Y-%m-%d') if reg.completed_date else '',
+            reg.approved_date.strftime('%Y-%m-%d') if reg.approved_date else ''
+        ])
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=produce_lagos_registrations_{datetime.utcnow().strftime("%Y%m%d")}.csv'
+    
+    return response

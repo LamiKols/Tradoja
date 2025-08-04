@@ -10,7 +10,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'farmer', 'buyer', 'admin'
+    role = db.Column(db.String(30), nullable=False)  # Extended roles for Lagos program
     registration_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     # SMS integration fields
@@ -63,6 +63,209 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<User {self.email}>'
+
+
+class ProduceLagosRegistration(db.Model):
+    """Universal onboarding model for all Produce for Lagos program roles"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    role = db.Column(db.String(30), nullable=False)  # Full role selection
+    
+    # Progress tracking
+    registration_status = db.Column(db.String(20), default='in_progress')  # 'in_progress', 'completed', 'pending_approval', 'approved', 'rejected'
+    current_step = db.Column(db.Integer, default=1)
+    total_steps = db.Column(db.Integer, default=4)
+    completion_percentage = db.Column(db.Integer, default=0)
+    started_date = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_date = db.Column(db.DateTime)
+    approved_date = db.Column(db.DateTime)
+    
+    # Personal Information (Step 1)
+    full_name = db.Column(db.String(200))
+    date_of_birth = db.Column(db.Date)
+    gender = db.Column(db.String(10))
+    nationality = db.Column(db.String(50), default='Nigerian')
+    state_of_origin = db.Column(db.String(50))
+    lga_of_origin = db.Column(db.String(100))
+    marital_status = db.Column(db.String(20))
+    education_level = db.Column(db.String(50))
+    primary_phone = db.Column(db.String(20))
+    secondary_phone = db.Column(db.String(20))
+    email_address = db.Column(db.String(120))
+    
+    # Address Information
+    residential_address = db.Column(db.Text)
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    postal_code = db.Column(db.String(10))
+    lga = db.Column(db.String(100))
+    ward = db.Column(db.String(100))
+    
+    # Business/Organization Information (Step 2)
+    organization_name = db.Column(db.String(200))
+    business_registration_number = db.Column(db.String(100))
+    tax_identification_number = db.Column(db.String(50))
+    business_address = db.Column(db.Text)
+    business_type = db.Column(db.String(100))
+    years_in_operation = db.Column(db.Integer)
+    number_of_employees = db.Column(db.Integer)
+    annual_turnover = db.Column(db.String(50))
+    
+    # Role-specific fields (Step 3)
+    # Farmer-specific
+    farm_size = db.Column(db.String(50))
+    crops_grown = db.Column(db.Text)  # JSON string
+    farming_experience = db.Column(db.Integer)
+    farming_methods = db.Column(db.Text)
+    irrigation_system = db.Column(db.String(100))
+    storage_facilities = db.Column(db.Text)
+    
+    # Aggregator-specific
+    aggregation_capacity = db.Column(db.String(100))
+    storage_capacity = db.Column(db.String(100))
+    transportation_fleet = db.Column(db.Text)
+    catchment_areas = db.Column(db.Text)
+    
+    # Transport Company-specific
+    vehicle_types = db.Column(db.Text)
+    fleet_size = db.Column(db.Integer)
+    routes_covered = db.Column(db.Text)
+    insurance_details = db.Column(db.Text)
+    
+    # Bulk Trader-specific
+    trading_volume = db.Column(db.String(100))
+    target_markets = db.Column(db.Text)
+    commodity_specialization = db.Column(db.Text)
+    
+    # Retailer-specific
+    store_type = db.Column(db.String(100))
+    retail_locations = db.Column(db.Text)
+    customer_base = db.Column(db.String(100))
+    
+    # Input Supplier-specific
+    input_types = db.Column(db.Text)
+    supplier_network = db.Column(db.Text)
+    distribution_channels = db.Column(db.Text)
+    
+    # Financial Information (Step 4)
+    bank_name = db.Column(db.String(100))
+    account_number = db.Column(db.String(20))
+    account_name = db.Column(db.String(200))
+    bvn = db.Column(db.String(15))
+    
+    # Document uploads
+    id_document_path = db.Column(db.String(500))
+    business_registration_path = db.Column(db.String(500))
+    tax_certificate_path = db.Column(db.String(500))
+    certifications_path = db.Column(db.String(500))
+    additional_documents_path = db.Column(db.String(500))
+    
+    # Admin fields
+    admin_comments = db.Column(db.Text)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reviewed_date = db.Column(db.DateTime)
+    
+    # Relationship
+    user = db.relationship('User', foreign_keys=[user_id], backref='produce_lagos_registration')
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+    
+    def calculate_completion_percentage(self):
+        """Calculate registration completion percentage"""
+        total_fields = 0
+        completed_fields = 0
+        
+        # Step 1: Personal Information (weight: 25%)
+        step1_fields = [self.full_name, self.date_of_birth, self.gender, self.primary_phone, 
+                       self.residential_address, self.city, self.state, self.lga]
+        total_fields += len(step1_fields)
+        completed_fields += sum(1 for field in step1_fields if field)
+        
+        # Step 2: Business Information (weight: 25%)
+        if self.role not in ['farmer']:  # Business fields not required for individual farmers
+            step2_fields = [self.organization_name, self.business_address, self.business_type]
+            total_fields += len(step2_fields)
+            completed_fields += sum(1 for field in step2_fields if field)
+        
+        # Step 3: Role-specific (weight: 30%)
+        if self.role == 'farmer':
+            role_fields = [self.farm_size, self.crops_grown, self.farming_experience]
+        elif self.role == 'aggregator':
+            role_fields = [self.aggregation_capacity, self.storage_capacity, self.catchment_areas]
+        elif self.role == 'transport_company':
+            role_fields = [self.vehicle_types, self.fleet_size, self.routes_covered]
+        elif self.role == 'bulk_trader':
+            role_fields = [self.trading_volume, self.target_markets, self.commodity_specialization]
+        elif self.role == 'retailer':
+            role_fields = [self.store_type, self.retail_locations, self.customer_base]
+        elif self.role == 'input_supplier':
+            role_fields = [self.input_types, self.supplier_network, self.distribution_channels]
+        else:
+            role_fields = []
+        
+        total_fields += len(role_fields)
+        completed_fields += sum(1 for field in role_fields if field)
+        
+        # Step 4: Financial & Documents (weight: 20%)
+        step4_fields = [self.bank_name, self.account_number, self.id_document_path]
+        total_fields += len(step4_fields)
+        completed_fields += sum(1 for field in step4_fields if field)
+        
+        if total_fields == 0:
+            return 0
+        
+        percentage = int((completed_fields / total_fields) * 100)
+        self.completion_percentage = percentage
+        return percentage
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for registration status"""
+        status_classes = {
+            'in_progress': 'bg-warning',
+            'completed': 'bg-info',
+            'pending_approval': 'bg-primary',
+            'approved': 'bg-success',
+            'rejected': 'bg-danger'
+        }
+        return status_classes.get(self.registration_status, 'bg-secondary')
+    
+    def get_role_display_name(self):
+        """Return human-readable role name"""
+        role_names = {
+            'farmer': 'Farmer',
+            'aggregator': 'Aggregator',
+            'transport_company': 'Transport Company',
+            'bulk_trader': 'Bulk Trader',
+            'retailer': 'Retailer',
+            'input_supplier': 'Input Supplier',
+            'investor': 'Investor',
+            'government_agency': 'Government Agency',
+            'ngo_dev_partner': 'NGO/Development Partner'
+        }
+        return role_names.get(self.role, self.role.title())
+    
+    def __repr__(self):
+        return f'<ProduceLagosRegistration {self.user.email} - {self.role}>'
+
+
+class BulkOnboarding(db.Model):
+    """Model for tracking bulk onboarding operations"""
+    id = db.Column(db.Integer, primary_key=True)
+    batch_name = db.Column(db.String(200), nullable=False)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+    file_path = db.Column(db.String(500))
+    total_records = db.Column(db.Integer, default=0)
+    processed_records = db.Column(db.Integer, default=0)
+    successful_registrations = db.Column(db.Integer, default=0)
+    failed_registrations = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default='processing')  # 'processing', 'completed', 'failed'
+    error_log = db.Column(db.Text)
+    
+    # Relationship
+    uploader = db.relationship('User', backref='bulk_onboarding_batches')
+    
+    def __repr__(self):
+        return f'<BulkOnboarding {self.batch_name}>'
 
 class Produce(db.Model):
     """Produce model for farmer listings"""

@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="fw-bold">
+                <i class="fas fa-users me-2"></i>Produce for Lagos Registrations
+            </h1>
+            <p class="text-muted">Manage and review all program registrations</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.total_registrations }}</h4>
+                            <p class="card-text">Total Registrations</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.pending_approval }}</h4>
+                            <p class="card-text">Pending Approval</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.approved }}</h4>
+                            <p class="card-text">Approved</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.in_progress }}</h4>
+                            <p class="card-text">In Progress</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-edit fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <form method="GET" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Filter by Role</label>
+                                    <select name="role" class="form-select" onchange="this.form.submit()">
+                                        <option value="all" {% if role_filter == 'all' %}selected{% endif %}>All Roles</option>
+                                        <option value="farmer" {% if role_filter == 'farmer' %}selected{% endif %}>Farmer</option>
+                                        <option value="aggregator" {% if role_filter == 'aggregator' %}selected{% endif %}>Aggregator</option>
+                                        <option value="transport_company" {% if role_filter == 'transport_company' %}selected{% endif %}>Transport Company</option>
+                                        <option value="bulk_trader" {% if role_filter == 'bulk_trader' %}selected{% endif %}>Bulk Trader</option>
+                                        <option value="retailer" {% if role_filter == 'retailer' %}selected{% endif %}>Retailer</option>
+                                        <option value="input_supplier" {% if role_filter == 'input_supplier' %}selected{% endif %}>Input Supplier</option>
+                                        <option value="investor" {% if role_filter == 'investor' %}selected{% endif %}>Investor</option>
+                                        <option value="government_agency" {% if role_filter == 'government_agency' %}selected{% endif %}>Government Agency</option>
+                                        <option value="ngo_dev_partner" {% if role_filter == 'ngo_dev_partner' %}selected{% endif %}>NGO/Dev Partner</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Filter by Status</label>
+                                    <select name="status" class="form-select" onchange="this.form.submit()">
+                                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                                        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                        <option value="pending_approval" {% if status_filter == 'pending_approval' %}selected{% endif %}>Pending Approval</option>
+                                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <a href="{{ url_for('admin_onboarding_dashboard') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Clear Filters
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <a href="{{ url_for('admin_bulk_onboarding') }}" class="btn btn-primary">
+                                    <i class="fas fa-upload me-2"></i>Bulk Upload
+                                </a>
+                                <a href="{{ url_for('admin_export_registrations', role=role_filter, status=status_filter) }}" class="btn btn-success">
+                                    <i class="fas fa-download me-2"></i>Export CSV
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registrations Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Registration Records</h5>
+                </div>
+                <div class="card-body">
+                    {% if registrations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Contact</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Started</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for registration in registrations %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ registration.full_name or registration.user.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ registration.email_address or registration.user.email }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ registration.get_role_display_name() }}</span>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if registration.primary_phone %}
+                                            <i class="fas fa-phone me-1"></i>{{ registration.primary_phone }}<br>
+                                            {% endif %}
+                                            {% if registration.email_address %}
+                                            <i class="fas fa-envelope me-1"></i>{{ registration.email_address }}
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ registration.city or 'N/A' }}, {{ registration.state or 'N/A' }}
+                                            {% if registration.lga %}
+                                            <br>{{ registration.lga }}
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ registration.get_status_badge_class() }}">
+                                            {{ registration.registration_status.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 80px; height: 20px;">
+                                            <div class="progress-bar" role="progressbar" style="width: {{ registration.completion_percentage }}%">
+                                                <small>{{ registration.completion_percentage }}%</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ registration.started_date.strftime('%m/%d/%Y') if registration.started_date else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin_review_registration', registration_id=registration.id) }}" 
+                                               class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if registration.registration_status in ['completed', 'pending_approval'] %}
+                                            <a href="{{ url_for('admin_review_registration', registration_id=registration.id) }}" 
+                                               class="btn btn-outline-success" title="Review">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Registrations Found</h4>
+                        <p class="text-muted">
+                            {% if role_filter != 'all' or status_filter != 'all' %}
+                            No registrations match your current filters. Try adjusting the filters above.
+                            {% else %}
+                            No registrations have been submitted yet.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

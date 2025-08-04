@@ -123,6 +123,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('csa_dashboard') }}">
                                         <i class="fas fa-leaf me-1"></i>Climate Tools
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('onboarding_status') }}">
+                                        <i class="fas fa-clipboard-check me-1"></i>Produce for Lagos
+                                    </a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('my_export_listings') }}">
                                         <i class="fas fa-globe-africa me-1"></i>My Export Listings
                                     </a></li>
@@ -135,6 +138,9 @@
                                     </a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('my_logistics_requests') }}">
                                         <i class="fas fa-truck me-1"></i>My Logistics
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('onboarding_status') }}">
+                                        <i class="fas fa-clipboard-check me-1"></i>Produce for Lagos
                                     </a></li>
                                 {% elif current_user.is_admin() %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
@@ -157,6 +163,9 @@
                                     </a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('admin_payments_dashboard') }}">
                                         <i class="fas fa-credit-card me-1"></i>Payment Management
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_onboarding_dashboard') }}">
+                                        <i class="fas fa-user-plus me-1"></i>Onboarding Management
                                     </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>

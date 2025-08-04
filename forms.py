@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField, SubmitField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField, SubmitField, IntegerField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError, Optional
 from wtforms.widgets import TextArea
 from models import User
@@ -17,8 +17,16 @@ class RegistrationForm(FlaskForm):
         Email(message="Please enter a valid email address")
     ])
     role = SelectField('Role', choices=[
-        ('farmer', 'Farmer'), 
-        ('buyer', 'Buyer')
+        ('farmer', 'Farmer'),
+        ('aggregator', 'Aggregator'),
+        ('transport_company', 'Transport Company'),
+        ('bulk_trader', 'Bulk Trader'),
+        ('retailer', 'Retailer'),
+        ('input_supplier', 'Input Supplier'),
+        ('investor', 'Investor'),
+        ('government_agency', 'Government Agency'),
+        ('ngo_dev_partner', 'NGO/Development Partner'),
+        ('buyer', 'Buyer')  # Keep buyer for backwards compatibility
     ], validators=[DataRequired()])
     password = PasswordField('Password', validators=[
         DataRequired(), 
@@ -454,3 +462,239 @@ class LogisticsPaymentForm(FlaskForm):
         ("both", "Pickup & Delivery - ₦3,500")
     ], validators=[DataRequired()])
     submit = SubmitField("Pay for Logistics")
+
+
+# Universal Onboarding Forms for Produce for Lagos Program
+
+class OnboardingStep1Form(FlaskForm):
+    """Step 1: Personal Information"""
+    full_name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=200)])
+    date_of_birth = DateField('Date of Birth', validators=[DataRequired()])
+    gender = SelectField('Gender', choices=[
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other')
+    ], validators=[DataRequired()])
+    nationality = StringField('Nationality', validators=[DataRequired()], default='Nigerian')
+    state_of_origin = SelectField('State of Origin', choices=[], validators=[DataRequired()])
+    lga_of_origin = StringField('LGA of Origin', validators=[DataRequired(), Length(max=100)])
+    marital_status = SelectField('Marital Status', choices=[
+        ('single', 'Single'),
+        ('married', 'Married'),
+        ('divorced', 'Divorced'),
+        ('widowed', 'Widowed')
+    ], validators=[DataRequired()])
+    education_level = SelectField('Education Level', choices=[
+        ('none', 'No formal education'),
+        ('primary', 'Primary education'),
+        ('secondary', 'Secondary education'),
+        ('tertiary', 'Tertiary education'),
+        ('vocational', 'Vocational training')
+    ], validators=[DataRequired()])
+    primary_phone = StringField('Primary Phone Number', validators=[DataRequired(), Length(min=10, max=20)])
+    secondary_phone = StringField('Secondary Phone Number', validators=[Optional(), Length(max=20)])
+    email_address = StringField('Email Address', validators=[DataRequired(), Email()])
+    
+    # Address Information
+    residential_address = TextAreaField('Residential Address', validators=[DataRequired()], 
+                                      render_kw={'rows': 3})
+    city = StringField('City', validators=[DataRequired(), Length(max=100)])
+    state = SelectField('State', choices=[], validators=[DataRequired()])
+    postal_code = StringField('Postal Code', validators=[Optional(), Length(max=10)])
+    lga = StringField('Local Government Area', validators=[DataRequired(), Length(max=100)])
+    ward = StringField('Ward', validators=[Optional(), Length(max=100)])
+    
+    def __init__(self, *args, **kwargs):
+        super(OnboardingStep1Form, self).__init__(*args, **kwargs)
+        # Nigerian states
+        nigerian_states = [
+            ('abia', 'Abia'), ('adamawa', 'Adamawa'), ('akwa_ibom', 'Akwa Ibom'),
+            ('anambra', 'Anambra'), ('bauchi', 'Bauchi'), ('bayelsa', 'Bayelsa'),
+            ('benue', 'Benue'), ('borno', 'Borno'), ('cross_river', 'Cross River'),
+            ('delta', 'Delta'), ('ebonyi', 'Ebonyi'), ('edo', 'Edo'),
+            ('ekiti', 'Ekiti'), ('enugu', 'Enugu'), ('gombe', 'Gombe'),
+            ('imo', 'Imo'), ('jigawa', 'Jigawa'), ('kaduna', 'Kaduna'),
+            ('kano', 'Kano'), ('katsina', 'Katsina'), ('kebbi', 'Kebbi'),
+            ('kogi', 'Kogi'), ('kwara', 'Kwara'), ('lagos', 'Lagos'),
+            ('nasarawa', 'Nasarawa'), ('niger', 'Niger'), ('ogun', 'Ogun'),
+            ('ondo', 'Ondo'), ('osun', 'Osun'), ('oyo', 'Oyo'),
+            ('plateau', 'Plateau'), ('rivers', 'Rivers'), ('sokoto', 'Sokoto'),
+            ('taraba', 'Taraba'), ('yobe', 'Yobe'), ('zamfara', 'Zamfara'),
+            ('fct', 'Federal Capital Territory')
+        ]
+        self.state_of_origin.choices = nigerian_states
+        self.state.choices = nigerian_states
+
+
+class OnboardingStep2Form(FlaskForm):
+    """Step 2: Business/Organization Information"""
+    organization_name = StringField('Organization/Business Name', validators=[Optional(), Length(max=200)])
+    business_registration_number = StringField('Business Registration Number', validators=[Optional(), Length(max=100)])
+    tax_identification_number = StringField('Tax Identification Number (TIN)', validators=[Optional(), Length(max=50)])
+    business_address = TextAreaField('Business Address', validators=[Optional()], render_kw={'rows': 3})
+    business_type = SelectField('Business Type', choices=[
+        ('', 'Select Business Type'),
+        ('sole_proprietorship', 'Sole Proprietorship'),
+        ('partnership', 'Partnership'),
+        ('limited_liability', 'Limited Liability Company'),
+        ('cooperative', 'Cooperative Society'),
+        ('ngo', 'Non-Governmental Organization'),
+        ('government_agency', 'Government Agency'),
+        ('individual', 'Individual/Personal')
+    ], validators=[Optional()])
+    years_in_operation = IntegerField('Years in Operation', validators=[Optional(), NumberRange(min=0, max=100)])
+    number_of_employees = IntegerField('Number of Employees', validators=[Optional(), NumberRange(min=0)])
+    annual_turnover = SelectField('Annual Turnover (NGN)', choices=[
+        ('', 'Select Annual Turnover'),
+        ('under_1m', 'Under ₦1 Million'),
+        ('1m_5m', '₦1 Million - ₦5 Million'),
+        ('5m_10m', '₦5 Million - ₦10 Million'),
+        ('10m_50m', '₦10 Million - ₦50 Million'),
+        ('50m_100m', '₦50 Million - ₦100 Million'),
+        ('above_100m', 'Above ₦100 Million')
+    ], validators=[Optional()])
+
+
+class OnboardingStep3FarmerForm(FlaskForm):
+    """Step 3: Farmer-specific information"""
+    farm_size = StringField('Farm Size (hectares)', validators=[DataRequired(), Length(max=50)])
+    crops_grown = TextAreaField('Crops Grown', validators=[DataRequired()], 
+                               render_kw={'rows': 3, 'placeholder': 'List the main crops you cultivate'})
+    farming_experience = IntegerField('Years of Farming Experience', validators=[DataRequired(), NumberRange(min=0, max=70)])
+    farming_methods = TextAreaField('Farming Methods', validators=[Optional()], 
+                                   render_kw={'rows': 3, 'placeholder': 'Describe your farming techniques'})
+    irrigation_system = SelectField('Irrigation System', choices=[
+        ('', 'Select Irrigation System'),
+        ('rain_fed', 'Rain-fed'),
+        ('drip_irrigation', 'Drip Irrigation'),
+        ('sprinkler', 'Sprinkler System'),
+        ('furrow', 'Furrow Irrigation'),
+        ('flood', 'Flood Irrigation'),
+        ('manual', 'Manual Watering')
+    ], validators=[Optional()])
+    storage_facilities = TextAreaField('Storage Facilities', validators=[Optional()], 
+                                     render_kw={'rows': 3, 'placeholder': 'Describe your storage capabilities'})
+
+
+class OnboardingStep3AggregatorForm(FlaskForm):
+    """Step 3: Aggregator-specific information"""
+    aggregation_capacity = StringField('Aggregation Capacity (tons/month)', validators=[DataRequired(), Length(max=100)])
+    storage_capacity = StringField('Storage Capacity (tons)', validators=[DataRequired(), Length(max=100)])
+    transportation_fleet = TextAreaField('Transportation Fleet', validators=[Optional()], 
+                                        render_kw={'rows': 3, 'placeholder': 'Describe your vehicles and capacity'})
+    catchment_areas = TextAreaField('Catchment Areas', validators=[DataRequired()], 
+                                   render_kw={'rows': 3, 'placeholder': 'List areas where you source produce'})
+
+
+class OnboardingStep3TransportForm(FlaskForm):
+    """Step 3: Transport Company-specific information"""
+    vehicle_types = TextAreaField('Vehicle Types', validators=[DataRequired()], 
+                                 render_kw={'rows': 3, 'placeholder': 'List vehicle types and specifications'})
+    fleet_size = IntegerField('Fleet Size', validators=[DataRequired(), NumberRange(min=1)])
+    routes_covered = TextAreaField('Routes Covered', validators=[DataRequired()], 
+                                  render_kw={'rows': 3, 'placeholder': 'List regular routes and coverage areas'})
+    insurance_details = TextAreaField('Insurance Details', validators=[Optional()], 
+                                     render_kw={'rows': 3, 'placeholder': 'Vehicle and cargo insurance information'})
+
+
+class OnboardingStep3BulkTraderForm(FlaskForm):
+    """Step 3: Bulk Trader-specific information"""
+    trading_volume = StringField('Trading Volume (tons/month)', validators=[DataRequired(), Length(max=100)])
+    target_markets = TextAreaField('Target Markets', validators=[DataRequired()], 
+                                  render_kw={'rows': 3, 'placeholder': 'Domestic and export markets'})
+    commodity_specialization = TextAreaField('Commodity Specialization', validators=[DataRequired()], 
+                                            render_kw={'rows': 3, 'placeholder': 'Primary commodities traded'})
+
+
+class OnboardingStep3RetailerForm(FlaskForm):
+    """Step 3: Retailer-specific information"""
+    store_type = SelectField('Store Type', choices=[
+        ('', 'Select Store Type'),
+        ('supermarket', 'Supermarket'),
+        ('grocery_store', 'Grocery Store'),
+        ('market_stall', 'Market Stall'),
+        ('mobile_vendor', 'Mobile Vendor'),
+        ('online_store', 'Online Store'),
+        ('wholesale_outlet', 'Wholesale Outlet')
+    ], validators=[DataRequired()])
+    retail_locations = TextAreaField('Retail Locations', validators=[DataRequired()], 
+                                    render_kw={'rows': 3, 'placeholder': 'List your store locations'})
+    customer_base = SelectField('Customer Base Size', choices=[
+        ('', 'Select Customer Base'),
+        ('small', 'Small (1-100 customers)'),
+        ('medium', 'Medium (101-500 customers)'),
+        ('large', 'Large (501-2000 customers)'),
+        ('very_large', 'Very Large (2000+ customers)')
+    ], validators=[DataRequired()])
+
+
+class OnboardingStep3InputSupplierForm(FlaskForm):
+    """Step 3: Input Supplier-specific information"""
+    input_types = TextAreaField('Input Types', validators=[DataRequired()], 
+                               render_kw={'rows': 3, 'placeholder': 'Seeds, fertilizers, pesticides, equipment, etc.'})
+    supplier_network = TextAreaField('Supplier Network', validators=[Optional()], 
+                                    render_kw={'rows': 3, 'placeholder': 'Your manufacturer and distributor network'})
+    distribution_channels = TextAreaField('Distribution Channels', validators=[DataRequired()], 
+                                         render_kw={'rows': 3, 'placeholder': 'How you reach customers'})
+
+
+class OnboardingStep4Form(FlaskForm):
+    """Step 4: Financial Information & Document Upload"""
+    # Financial Information
+    bank_name = StringField('Bank Name', validators=[DataRequired(), Length(max=100)])
+    account_number = StringField('Account Number', validators=[DataRequired(), Length(min=10, max=20)])
+    account_name = StringField('Account Name', validators=[DataRequired(), Length(max=200)])
+    bvn = StringField('Bank Verification Number (BVN)', validators=[Optional(), Length(min=11, max=11)])
+    
+    # Document Uploads
+    id_document = FileField('Identity Document', validators=[
+        DataRequired(), 
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    business_registration = FileField('Business Registration Document', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    tax_certificate = FileField('Tax Certificate', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    certifications = FileField('Professional Certifications', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    additional_documents = FileField('Additional Supporting Documents', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+
+
+class OnboardingAdminReviewForm(FlaskForm):
+    """Admin form for reviewing registrations"""
+    registration_status = SelectField('Registration Status', choices=[
+        ('pending_approval', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('needs_revision', 'Needs Revision')
+    ], validators=[DataRequired()])
+    admin_comments = TextAreaField('Admin Comments', validators=[Optional()], 
+                                  render_kw={'rows': 4, 'placeholder': 'Comments for applicant'})
+    submit = SubmitField('Update Registration Status')
+
+
+class BulkOnboardingForm(FlaskForm):
+    """Form for bulk onboarding via CSV upload"""
+    batch_name = StringField('Batch Name', validators=[DataRequired(), Length(min=2, max=200)])
+    role = SelectField('Role for All Records', choices=[
+        ('farmer', 'Farmer'),
+        ('aggregator', 'Aggregator'),
+        ('transport_company', 'Transport Company'),
+        ('bulk_trader', 'Bulk Trader'),
+        ('retailer', 'Retailer'),
+        ('input_supplier', 'Input Supplier')
+    ], validators=[DataRequired()])
+    csv_file = FileField('CSV File', validators=[
+        DataRequired(),
+        FileAllowed(['csv'], 'Only CSV files allowed')
+    ])
+    submit = SubmitField('Upload Bulk Registration')

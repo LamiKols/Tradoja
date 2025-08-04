@@ -5,7 +5,7 @@ This script creates the database tables and optionally seeds with sample data
 
 import os
 from app import app, db
-from models import User, Produce
+from models import User, Produce, ProduceLagosRegistration, BulkOnboarding
 from werkzeug.security import generate_password_hash
 
 def init_database():

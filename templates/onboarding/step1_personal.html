@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Progress Bar -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>Produce for Lagos Registration
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Step {{ current_step }} of {{ registration.total_steps }}</span>
+                                <span class="badge bg-primary">{{ registration.get_role_display_name() }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ (current_step / registration.total_steps) * 100 }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted">Personal Info</small>
+                                <small class="text-muted">Business Info</small>
+                                <small class="text-muted">Role Details</small>
+                                <small class="text-muted">Documents</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 1 Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Step 1: Personal Information
+                    </h5>
+                    <small class="text-muted">Please provide your personal details as required by the Produce for Lagos program</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <!-- Personal Details -->
+                            <div class="col-md-6 mb-3">
+                                {{ form.full_name.label(class="form-label") }}
+                                {{ form.full_name(class="form-control") }}
+                                {% if form.full_name.errors %}
+                                    <div class="text-danger small">{{ form.full_name.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.date_of_birth.label(class="form-label") }}
+                                {{ form.date_of_birth(class="form-control") }}
+                                {% if form.date_of_birth.errors %}
+                                    <div class="text-danger small">{{ form.date_of_birth.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.gender.label(class="form-label") }}
+                                {{ form.gender(class="form-select") }}
+                                {% if form.gender.errors %}
+                                    <div class="text-danger small">{{ form.gender.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.nationality.label(class="form-label") }}
+                                {{ form.nationality(class="form-control") }}
+                                {% if form.nationality.errors %}
+                                    <div class="text-danger small">{{ form.nationality.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.marital_status.label(class="form-label") }}
+                                {{ form.marital_status(class="form-select") }}
+                                {% if form.marital_status.errors %}
+                                    <div class="text-danger small">{{ form.marital_status.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.state_of_origin.label(class="form-label") }}
+                                {{ form.state_of_origin(class="form-select") }}
+                                {% if form.state_of_origin.errors %}
+                                    <div class="text-danger small">{{ form.state_of_origin.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.lga_of_origin.label(class="form-label") }}
+                                {{ form.lga_of_origin(class="form-control") }}
+                                {% if form.lga_of_origin.errors %}
+                                    <div class="text-danger small">{{ form.lga_of_origin.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.education_level.label(class="form-label") }}
+                                {{ form.education_level(class="form-select") }}
+                                {% if form.education_level.errors %}
+                                    <div class="text-danger small">{{ form.education_level.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h6 class="mb-3">Contact Information</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.primary_phone.label(class="form-label") }}
+                                {{ form.primary_phone(class="form-control", placeholder="+234XXXXXXXXXX") }}
+                                {% if form.primary_phone.errors %}
+                                    <div class="text-danger small">{{ form.primary_phone.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.secondary_phone.label(class="form-label") }}
+                                {{ form.secondary_phone(class="form-control", placeholder="+234XXXXXXXXXX (Optional)") }}
+                                {% if form.secondary_phone.errors %}
+                                    <div class="text-danger small">{{ form.secondary_phone.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.email_address.label(class="form-label") }}
+                                {{ form.email_address(class="form-control") }}
+                                {% if form.email_address.errors %}
+                                    <div class="text-danger small">{{ form.email_address.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h6 class="mb-3">Address Information</h6>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.residential_address.label(class="form-label") }}
+                                {{ form.residential_address(class="form-control") }}
+                                {% if form.residential_address.errors %}
+                                    <div class="text-danger small">{{ form.residential_address.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.city.label(class="form-label") }}
+                                {{ form.city(class="form-control") }}
+                                {% if form.city.errors %}
+                                    <div class="text-danger small">{{ form.city.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.state.label(class="form-label") }}
+                                {{ form.state(class="form-select") }}
+                                {% if form.state.errors %}
+                                    <div class="text-danger small">{{ form.state.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.postal_code.label(class="form-label") }}
+                                {{ form.postal_code(class="form-control") }}
+                                {% if form.postal_code.errors %}
+                                    <div class="text-danger small">{{ form.postal_code.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.lga.label(class="form-label") }}
+                                {{ form.lga(class="form-control") }}
+                                {% if form.lga.errors %}
+                                    <div class="text-danger small">{{ form.lga.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.ward.label(class="form-label") }}
+                                {{ form.ward(class="form-control") }}
+                                {% if form.ward.errors %}
+                                    <div class="text-danger small">{{ form.ward.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                Continue to Step 2 <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
