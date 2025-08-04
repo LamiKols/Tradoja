@@ -1,7 +1,7 @@
 from flask import render_template, url_for, flash, redirect, request, abort, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
-from app import app, db, csrf
+from app import app, db
 from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm
 from weather_service import WeatherService
@@ -1556,14 +1556,24 @@ def download_certificate(listing_id):
 
 # SMS Integration Routes
 @app.route('/sms', methods=['POST'])
-@csrf.exempt
 def sms_webhook():
     """Handle incoming SMS from Africa's Talking"""
     if not sms_service:
         app.logger.error("SMS service not available")
         return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
     
+    # Bypass CSRF protection for this webhook endpoint
+    from flask_wtf.csrf import validate_csrf
+    from werkzeug.exceptions import ValidationError
+    
     try:
+        # Try to validate CSRF token, but allow the request to proceed anyway
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except ValidationError:
+            # This is expected for webhook calls - continue processing
+            pass
+        
         # Get SMS data from Africa's Talking
         phone_number = request.form.get('from')
         message = request.form.get('text')

@@ -35,12 +35,7 @@ db.init_app(app)
 login_manager.init_app(app)
 csrf.init_app(app)
 
-# Configure CSRF exemptions for webhook endpoints
-@csrf.exempt
-def is_webhook_request():
-    return request.endpoint == 'sms_webhook'
-
-app.config['WTF_CSRF_CHECK_DEFAULT'] = True
+# Configure CSRF exemptions - we'll handle this in routes
 
 # Configure Flask-Login
 login_manager.login_view = 'login'

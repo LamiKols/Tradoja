@@ -13,6 +13,11 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False)  # 'farmer', 'buyer', 'admin'
     registration_date = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # SMS integration fields
+    phone_number = db.Column(db.String(20))
+    sms_enabled = db.Column(db.Boolean, default=False)
+    sms_registration_date = db.Column(db.DateTime)
+    
     # Relationship with produce
     produce_listings = db.relationship('Produce', backref='farmer', lazy=True, cascade='all, delete-orphan')
     
@@ -53,6 +58,7 @@ class Produce(db.Model):
     description = db.Column(db.Text)
     date_listed = db.Column(db.DateTime, default=datetime.utcnow)
     is_available = db.Column(db.Boolean, default=True)
+    contact_method = db.Column(db.String(50), default='web')  # 'web', 'sms', 'phone'
     
     # Geographical Indications (GI) fields
     gi_label = db.Column(db.String(200))  # e.g., "Ogun Cassava", "Ebonyi Rice"
