@@ -49,11 +49,11 @@
             <div class="card bg-primary text-white h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-shopping-basket fa-2x mb-2"></i>
-                    <h3 class="mb-0">{{ "{:,}".format(market_overview.total_produce_listings or 0) }}</h3>
+                    <h3 class="mb-0">{{ (market_overview.total_produce_listings or 0)|int|string|replace(',', ',') }}</h3>
                     <small>Total Listings</small>
                     <div class="mt-2">
                         <small class="badge bg-light text-dark">
-                            {{ market_overview.recent_listings or 0 }} this month
+                            {{ (market_overview.recent_listings or 0)|int }} this month
                         </small>
                     </div>
                 </div>
@@ -63,11 +63,11 @@
             <div class="card bg-success text-white h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
-                    <h3 class="mb-0">₦{{ "{:,.0f}".format(market_overview.total_market_value or 0) }}</h3>
+                    <h3 class="mb-0">₦{{ (market_overview.total_market_value or 0)|int }}</h3>
                     <small>Market Value</small>
                     <div class="mt-2">
                         <small class="badge bg-light text-dark">
-                            Avg: ₦{{ "{:,.0f}".format(market_overview.average_price or 0) }}
+                            Avg: ₦{{ (market_overview.average_price or 0)|int }}
                         </small>
                     </div>
                 </div>
@@ -77,11 +77,11 @@
             <div class="card bg-info text-white h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-users fa-2x mb-2"></i>
-                    <h3 class="mb-0">{{ "{:,}".format((market_overview.total_farmers or 0) + (market_overview.total_buyers or 0)) }}</h3>
+                    <h3 class="mb-0">{{ ((market_overview.total_farmers or 0) + (market_overview.total_buyers or 0))|int }}</h3>
                     <small>Total Users</small>
                     <div class="mt-2">
                         <small class="badge bg-light text-dark">
-                            {{ market_overview.platform_growth_rate or 0 }}% growth
+                            {{ "%.1f"|format(market_overview.platform_growth_rate or 0) }}% growth
                         </small>
                     </div>
                 </div>
@@ -91,11 +91,11 @@
             <div class="card bg-warning text-white h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-globe-africa fa-2x mb-2"></i>
-                    <h3 class="mb-0">{{ "{:,}".format(market_overview.export_listings or 0) }}</h3>
+                    <h3 class="mb-0">{{ (market_overview.export_listings or 0)|int }}</h3>
                     <small>Export Listings</small>
                     <div class="mt-2">
                         <small class="badge bg-light text-dark">
-                            ₦{{ "{:,.0f}".format(market_overview.export_value or 0) }} value
+                            ₦{{ (market_overview.export_value or 0)|int }} value
                         </small>
                     </div>
                 </div>
@@ -166,8 +166,8 @@
                                             <small>{{ crop.market_share|round(1) }}%</small>
                                         </div>
                                     </td>
-                                    <td>₦{{ "{:,.0f}".format(crop.total_value) }}</td>
-                                    <td>₦{{ "{:,.0f}".format(crop.average_price) }}</td>
+                                    <td>₦{{ (crop.total_value or 0)|int }}</td>
+                                    <td>₦{{ (crop.average_price or 0)|int }}</td>
                                     <td>{{ crop.unique_farmers }}</td>
                                 </tr>
                                 {% endfor %}
@@ -219,8 +219,8 @@
                                     <td class="fw-bold">{{ state.state }}</td>
                                     <td>{{ state.farmer_count }}</td>
                                     <td>{{ state.produce_count }}</td>
-                                    <td>₦{{ "{:,.0f}".format(state.total_value) }}</td>
-                                    <td>₦{{ "{:,.0f}".format(state.avg_value_per_farmer) }}</td>
+                                    <td>₦{{ (state.total_value or 0)|int }}</td>
+                                    <td>₦{{ (state.get('avg_value_per_farmer', 0) or 0)|int }}</td>
                                     <td>
                                         {% set supply_demand = geographic_analytics.supply_demand_analysis|selectattr("state", "equalto", state.state)|first %}
                                         {% if supply_demand %}
@@ -253,7 +253,7 @@
                     <div class="mt-3">
                         <div class="d-flex justify-content-between">
                             <small>SMS Users:</small>
-                            <strong>{{ "{:,}".format(market_overview.sms_enabled_users or 0) }}</strong>
+                            <strong>{{ (market_overview.sms_enabled_users or 0)|int }}</strong>
                         </div>
                         <div class="d-flex justify-content-between">
                             <small>SMS Adoption:</small>
@@ -261,7 +261,7 @@
                         </div>
                         <div class="d-flex justify-content-between">
                             <small>Recent SMS:</small>
-                            <strong>{{ "{:,}".format(market_overview.recent_sms_interactions or 0) }}</strong>
+                            <strong>{{ (market_overview.recent_sms_interactions or 0)|int }}</strong>
                         </div>
                     </div>
                 </div>
@@ -294,13 +294,13 @@
                         </div>
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-info">{{ "{:,}".format(engagement_analytics.communication_activity.recent_messages or 0) }}</h4>
+                                <h4 class="text-info">{{ ((engagement_analytics.communication_activity or {}).get('recent_messages', 0))|int }}</h4>
                                 <small>Messages (30 days)</small>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-warning">{{ "{:,}".format(engagement_analytics.feature_adoption.funding_applications or 0) }}</h4>
+                                <h4 class="text-warning">{{ ((engagement_analytics.feature_adoption or {}).get('funding_applications', 0))|int }}</h4>
                                 <small>Funding Applications</small>
                             </div>
                         </div>
