@@ -66,6 +66,10 @@
                                     <td>{{ field.fertilizer_type.title() if field.fertilizer_type else 'Not specified' }}</td>
                                 </tr>
                                 <tr>
+                                    <td><strong><i class="fas fa-home me-2"></i>Address:</strong></td>
+                                    <td>{{ field.address[:80] + '...' if field.address and field.address|length > 80 else field.address or 'Not specified' }}</td>
+                                </tr>
+                                <tr>
                                     <td><strong><i class="fas fa-map-marker-alt me-2"></i>Coordinates:</strong></td>
                                     <td>{{ field.formatted_coordinates() }}</td>
                                 </tr>
@@ -253,6 +257,12 @@
                     <div id="fieldMap" style="height: 250px; width: 100%;"></div>
                 </div>
                 <div class="card-footer">
+                    {% if field.address %}
+                    <small class="text-muted d-block">
+                        <i class="fas fa-home me-1"></i>
+                        {{ field.address[:60] + '...' if field.address|length > 60 else field.address }}
+                    </small>
+                    {% endif %}
                     <small class="text-muted">
                         <i class="fas fa-map-marker-alt me-1"></i>
                         {{ field.formatted_coordinates() }}

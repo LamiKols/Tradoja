@@ -416,6 +416,17 @@ def add_precision_field():
             except Exception as e:
                 app.logger.error(f"Coordinate parsing error: {e}")
         
+        # Use manual coordinates if provided, otherwise use form hidden fields
+        latitude = None
+        longitude = None
+        
+        if form.manual_latitude.data and form.manual_longitude.data:
+            latitude = float(form.manual_latitude.data)
+            longitude = float(form.manual_longitude.data)
+        elif form.center_latitude.data and form.center_longitude.data:
+            latitude = float(form.center_latitude.data)
+            longitude = float(form.center_longitude.data)
+        
         # Create new field
         field = PrecisionField(
             farmer_id=current_user.id,
@@ -426,8 +437,9 @@ def add_precision_field():
             soil_type=form.soil_type.data,
             irrigation_type=form.irrigation_type.data,
             fertilizer_type=form.fertilizer_type.data,
-            center_latitude=float(form.center_latitude.data) if form.center_latitude.data else None,
-            center_longitude=float(form.center_longitude.data) if form.center_longitude.data else None
+            address=form.address.data.strip() if form.address.data else None,
+            center_latitude=latitude,
+            center_longitude=longitude
         )
         
         if coordinates_data:

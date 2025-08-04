@@ -368,6 +368,14 @@ class PrecisionFieldForm(FlaskForm):
     field_name = StringField('Field Name', validators=[DataRequired(), Length(min=2, max=100)])
     crop_type = SelectField('Crop Type', validators=[DataRequired()])
     
+    # Location input options
+    address = StringField('Field Address', validators=[Optional()], 
+                         render_kw={'placeholder': 'Enter farm address or location name'})
+    manual_latitude = FloatField('Latitude', validators=[Optional(), NumberRange(min=-90, max=90)],
+                                render_kw={'placeholder': '6.5244', 'step': 'any'})
+    manual_longitude = FloatField('Longitude', validators=[Optional(), NumberRange(min=-180, max=180)],
+                                 render_kw={'placeholder': '3.3792', 'step': 'any'})
+    
     # Geographic fields (will be populated by map interface)
     coordinates = HiddenField('Field Coordinates')
     center_latitude = HiddenField('Center Latitude')
