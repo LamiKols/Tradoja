@@ -2473,6 +2473,33 @@ def subscription_callback():
         return redirect(url_for('subscribe'))
 
 
+@app.route('/my-purchases')
+@login_required
+def my_purchases():
+    """View user's purchase history"""
+    if not current_user.is_buyer():
+        flash('Only buyers can view purchase history', 'error')
+        return redirect(url_for('home'))
+    
+    # Get user's successful purchases
+    purchases = Transaction.query.filter_by(
+        user_id=current_user.id,
+        transaction_type='produce_sale'
+    ).order_by(Transaction.created_at.desc()).all()
+    
+    # Calculate summary statistics
+    successful_purchases = [p for p in purchases if p.status == 'successful']
+    total_spent = sum(p.total_amount for p in successful_purchases)
+    platform_fees_paid = sum(p.platform_fee for p in successful_purchases)
+    deliveries_count = sum(1 for p in successful_purchases if p.logistics_fee > 0)
+    
+    return render_template('my_purchases.html',
+                         purchases=purchases,
+                         total_spent=f"{total_spent:.2f}",
+                         platform_fees_paid=f"{platform_fees_paid:.2f}",
+                         deliveries_count=deliveries_count)
+
+
 @app.route('/admin/payments')
 @login_required
 def admin_payments_dashboard():

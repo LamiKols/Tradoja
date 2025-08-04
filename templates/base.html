@@ -130,6 +130,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('buyer_dashboard') }}">
                                         <i class="fas fa-shopping-cart me-1"></i>Dashboard
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('my_purchases') }}">
+                                        <i class="fas fa-shopping-bag me-1"></i>My Purchases
+                                    </a></li>
                                 {% elif current_user.is_admin() %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
                                         <i class="fas fa-cog me-1"></i>Admin Dashboard
