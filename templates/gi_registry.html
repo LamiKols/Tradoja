@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Nigerian Geographical Indications Registry</h1>
+                    <p class="text-muted mb-0">Registered and certified geographical indication products from Nigeria</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('gi_search') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-2"></i>Search GI Products
+                    </a>
+                </div>
+            </div>
+
+            <!-- GI Statistics Overview -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ gi_stats.registered }}</h4>
+                                    <p class="mb-0">Registered GIs</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-certificate fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ gi_stats.pending }}</h4>
+                                    <p class="mb-0">Pending Applications</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ gi_stats.total_gis }}</h4>
+                                    <p class="mb-0">Total GI Products</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-list fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ gi_stats.by_state|length }}</h4>
+                                    <p class="mb-0">States Represented</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-map-marker-alt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registered GI Products -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-certificate me-2"></i>Registered GI Products
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if registered_gis %}
+                        <div class="row">
+                            {% for gi in registered_gis %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="fw-bold mb-0">{{ gi.full_name }}</h6>
+                                            <span class="badge bg-success">Registered</span>
+                                        </div>
+                                        <p class="text-muted small mb-2">
+                                            <i class="fas fa-map-marker-alt me-1"></i>{{ gi.region }}
+                                        </p>
+                                        <p class="small mb-3">{{ gi.description[:120] }}...</p>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Key Characteristics:</small>
+                                            <div class="mt-1">
+                                                {% for char in gi.characteristics[:3] %}
+                                                <span class="badge bg-light text-dark me-1">{{ char }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% if gi.certificate_number %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-certificate me-1"></i>{{ gi.certificate_number }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-certificate fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">No registered GI products yet</h5>
+                            <p class="text-muted">Geographical Indication products will appear here once registered.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pending GI Applications -->
+            {% if pending_gis %}
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Pending GI Applications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for gi in pending_gis %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold mb-0">{{ gi.full_name }}</h6>
+                                        <span class="badge bg-warning">Pending</span>
+                                    </div>
+                                    <p class="text-muted small mb-2">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ gi.region }}
+                                    </p>
+                                    <p class="small mb-3">{{ gi.description[:120] }}...</p>
+                                    <div class="mb-2">
+                                        <small class="text-muted">Key Characteristics:</small>
+                                        <div class="mt-1">
+                                            {% for char in gi.characteristics[:3] %}
+                                            <span class="badge bg-light text-dark me-1">{{ char }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Information Section -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>About Geographical Indications
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Geographical Indications (GI) are signs used on products that have a specific geographical origin and possess qualities or reputation due to that origin. Nigerian GI products represent the unique characteristics of their production regions.</p>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Benefits of GI Certification:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Protected designation and branding</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Premium market positioning</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>International recognition</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Consumer trust and authenticity</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Key Requirements:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-map-marker-alt text-primary me-2"></i>Specific geographical origin</li>
+                                        <li><i class="fas fa-cogs text-primary me-2"></i>Traditional production methods</li>
+                                        <li><i class="fas fa-award text-primary me-2"></i>Quality linked to terroir</li>
+                                        <li><i class="fas fa-users text-primary me-2"></i>Community-based production</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

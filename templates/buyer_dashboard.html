@@ -58,9 +58,20 @@
                         <!-- Produce Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <h5 class="card-title fw-bold mb-0">{{ produce.name }}</h5>
-                            <span class="badge bg-success">
-                                <i class="fas fa-check me-1"></i>Available
-                            </span>
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Available
+                                </span>
+                                {% if produce.gi_certified and produce.gi_label %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-certificate me-1"></i>GI: {{ produce.gi_label }}
+                                </span>
+                                {% elif produce.gi_status == 'pending' and produce.gi_label %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-clock me-1"></i>GI Pending
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <!-- Produce Details -->

@@ -65,12 +65,37 @@ class ProduceForm(FlaskForm):
         Length(max=500, message="Description cannot exceed 500 characters")
     ], widget=TextArea())
     is_available = BooleanField('Available for Sale', default=True)
+    
+    # Geographical Indications (GI) fields
+    gi_label = SelectField('Geographical Indication (GI)', choices=[], coerce=str)
+    gi_custom_label = StringField('Custom GI Label (if Other selected)', 
+                                 render_kw={'placeholder': 'e.g., Osun Palm Oil, Kaduna Ginger'})
 
 class SearchForm(FlaskForm):
     """Form for searching produce"""
     search_term = StringField('Search Produce', validators=[
         Length(max=100, message="Search term cannot exceed 100 characters")
     ])
+    gi_filter = SelectField('Filter by GI', choices=[
+        ('all', 'All Products'),
+        ('gi_only', 'GI Certified Only'),
+        ('non_gi', 'Non-GI Products')
+    ], default='all')
+
+
+class GIAdminForm(FlaskForm):
+    """Form for admin GI certification management"""
+    gi_status = SelectField('GI Status', choices=[
+        ('pending', 'Pending Review'),
+        ('verified', 'Verified/Approved'),
+        ('rejected', 'Rejected')
+    ], validators=[DataRequired()])
+    gi_certificate_number = StringField('GI Certificate Number',
+                                       render_kw={'placeholder': 'e.g., NG-GI-007'})
+    gi_admin_comment = TextAreaField('Admin Comments',
+                                    render_kw={'placeholder': 'Reason for approval/rejection, additional notes'},
+                                    validators=[Length(max=1000)])
+    submit = SubmitField('Update GI Status')
 
 
 class MessageForm(FlaskForm):

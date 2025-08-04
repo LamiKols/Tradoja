@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">GI Management Dashboard</h1>
+                    <p class="text-muted mb-0">Manage Geographical Indication certifications and farmer claims</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('gi_registry') }}" class="btn btn-outline-info">
+                        <i class="fas fa-eye me-2"></i>View Public Registry
+                    </a>
+                </div>
+            </div>
+
+            <!-- GI Statistics Overview -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ pending_claims|length }}</h4>
+                                    <p class="mb-0">Pending Claims</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ verified_products|length }}</h4>
+                                    <p class="mb-0">Verified Products</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ rejected_claims|length }}</h4>
+                                    <p class="mb-0">Rejected Claims</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-times-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ gi_stats.registered }}</h4>
+                                    <p class="mb-0">Total Registered GIs</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-certificate fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending GI Claims -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Pending GI Claims ({{ pending_claims|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_claims %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Produce</th>
+                                        <th>Farmer</th>
+                                        <th>GI Label</th>
+                                        <th>Date Listed</th>
+                                        <th>Price</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for produce in pending_claims %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{{ produce.name }}</div>
+                                            <small class="text-muted">{{ produce.quantity }}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ produce.farmer.name }}</div>
+                                            <small class="text-muted">{{ produce.farmer.email }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning">{{ produce.gi_label }}</span>
+                                        </td>
+                                        <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ produce.formatted_price() }}</td>
+                                        <td>
+                                            <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-edit me-1"></i>Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-clock fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">No pending GI claims</h5>
+                            <p class="text-muted">New GI certification requests from farmers will appear here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Verified GI Products -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Verified GI Products ({{ verified_products|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if verified_products %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Produce</th>
+                                        <th>Farmer</th>
+                                        <th>GI Label</th>
+                                        <th>Certificate #</th>
+                                        <th>Verified Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for produce in verified_products %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{{ produce.name }}</div>
+                                            <small class="text-muted">{{ produce.quantity }}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ produce.farmer.name }}</div>
+                                            <small class="text-muted">{{ produce.farmer.email }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ produce.gi_label }}</span>
+                                        </td>
+                                        <td>
+                                            {% if produce.gi_certificate_number %}
+                                                <code>{{ produce.gi_certificate_number }}</code>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit me-1"></i>Edit
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">No verified GI products yet</h5>
+                            <p class="text-muted">Approved GI certifications will appear here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Rejected Claims -->
+            {% if rejected_claims %}
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-times-circle me-2"></i>Rejected Claims ({{ rejected_claims|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Produce</th>
+                                    <th>Farmer</th>
+                                    <th>GI Label</th>
+                                    <th>Rejection Reason</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produce in rejected_claims %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ produce.name }}</div>
+                                        <small class="text-muted">{{ produce.quantity }}</small>
+                                    </td>
+                                    <td>
+                                        <div>{{ produce.farmer.name }}</div>
+                                        <small class="text-muted">{{ produce.farmer.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ produce.gi_label }}</span>
+                                    </td>
+                                    <td>
+                                        <small>{{ produce.gi_admin_comment or 'No reason provided' }}</small>
+                                    </td>
+                                    <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
+                                           class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

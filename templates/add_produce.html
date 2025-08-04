@@ -116,6 +116,63 @@
                                 Uncheck this if the produce is temporarily unavailable
                             </div>
                         </div>
+
+                        <!-- Geographical Indications (GI) Section -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-certificate me-2"></i>Geographical Indication (GI) Certification
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <small class="text-muted mb-2 d-block">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Select a Nigerian GI if your produce qualifies for geographical indication certification. This adds premium value and international recognition.
+                                    </small>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.gi_label.id }}" class="form-label">
+                                            <i class="fas fa-certificate me-1"></i>{{ form.gi_label.label.text }}
+                                        </label>
+                                        {{ form.gi_label(class="form-select" + (" is-invalid" if form.gi_label.errors else "")) }}
+                                        {% if form.gi_label.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.gi_label.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text">
+                                            Select from registered Nigerian GI products or choose "Other" to request new GI certification
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.gi_custom_label.id }}" class="form-label">
+                                            <i class="fas fa-edit me-1"></i>{{ form.gi_custom_label.label.text }}
+                                        </label>
+                                        {{ form.gi_custom_label(class="form-control" + (" is-invalid" if form.gi_custom_label.errors else "")) }}
+                                        {% if form.gi_custom_label.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.gi_custom_label.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text">
+                                            Only fill this if you selected "Other" above. Provide a descriptive name with your region.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info mb-0">
+                                    <small>
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        <strong>GI Benefits:</strong> Premium pricing, international recognition, protected designation, and consumer trust. 
+                                        GI claims require admin verification to ensure authenticity and compliance with geographical indication standards.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- Form Actions -->
                         <div class="d-flex justify-content-between">

@@ -54,6 +54,13 @@ class Produce(db.Model):
     date_listed = db.Column(db.DateTime, default=datetime.utcnow)
     is_available = db.Column(db.Boolean, default=True)
     
+    # Geographical Indications (GI) fields
+    gi_label = db.Column(db.String(200))  # e.g., "Ogun Cassava", "Ebonyi Rice"
+    gi_certified = db.Column(db.Boolean, default=False)
+    gi_status = db.Column(db.String(20), default='none')  # 'none', 'pending', 'verified', 'rejected'
+    gi_certificate_number = db.Column(db.String(100))
+    gi_admin_comment = db.Column(db.Text)
+    
     # Foreign key to User
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
@@ -63,6 +70,24 @@ class Produce(db.Model):
     def formatted_price(self):
         """Return formatted price string"""
         return f"{self.price_unit} {self.price:,.2f}"
+    
+    def get_gi_status_badge_class(self):
+        """Return Bootstrap badge class for GI status"""
+        status_classes = {
+            'none': 'bg-light text-dark',
+            'pending': 'bg-warning',
+            'verified': 'bg-success',
+            'rejected': 'bg-danger'
+        }
+        return status_classes.get(self.gi_status, 'bg-secondary')
+    
+    def get_gi_display_label(self):
+        """Return display label for GI status"""
+        if self.gi_certified and self.gi_label:
+            return f"GI: {self.gi_label}"
+        elif self.gi_status == 'pending':
+            return f"GI Pending: {self.gi_label or 'Review'}"
+        return None
 
 
 class Message(db.Model):

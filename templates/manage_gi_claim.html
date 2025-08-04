@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Manage GI Claim</h1>
+                    <p class="text-muted mb-0">Review and update geographical indication certification</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin_gi_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Produce Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-seedling me-2"></i>Produce Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">{{ produce.name }}</h6>
+                            <p class="text-muted mb-2">{{ produce.description or 'No description provided' }}</p>
+                            <div class="mb-2">
+                                <small class="text-muted">Quantity:</small> {{ produce.quantity }}
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Price:</small> {{ produce.formatted_price() }}
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Listed:</small> {{ produce.date_listed.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Farmer Details</h6>
+                            <div class="mb-2">
+                                <small class="text-muted">Name:</small> {{ produce.farmer.name }}
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Email:</small> {{ produce.farmer.email }}
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Role:</small> 
+                                <span class="badge bg-success">{{ produce.farmer.role.title() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current GI Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-certificate me-2"></i>Current GI Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">GI Label:</label>
+                                <div>
+                                    {% if produce.gi_label %}
+                                        <span class="badge {{ produce.get_gi_status_badge_class() }}">
+                                            {{ produce.gi_label }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">No GI label</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Current Status:</label>
+                                <div>
+                                    <span class="badge {{ produce.get_gi_status_badge_class() }}">
+                                        {{ produce.gi_status.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if produce.gi_certificate_number %}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Certificate Number:</label>
+                                <div><code>{{ produce.gi_certificate_number }}</code></div>
+                            </div>
+                            {% endif %}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Certified:</label>
+                                <div>
+                                    {% if produce.gi_certified %}
+                                        <span class="badge bg-success">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if produce.gi_admin_comment %}
+                    <div class="mt-3">
+                        <label class="form-label fw-bold">Previous Admin Comments:</label>
+                        <div class="bg-light p-3 rounded">
+                            {{ produce.gi_admin_comment }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- GI Management Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Update GI Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.gi_status.label(class="form-label fw-bold") }}
+                                    {{ form.gi_status(class="form-select") }}
+                                    {% if form.gi_status.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in form.gi_status.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.gi_certificate_number.label(class="form-label fw-bold") }}
+                                    {{ form.gi_certificate_number(class="form-control") }}
+                                    <small class="form-text text-muted">
+                                        Required for verified status. Format: NG-GI-XXX
+                                    </small>
+                                    {% if form.gi_certificate_number.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in form.gi_certificate_number.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.gi_admin_comment.label(class="form-label fw-bold") }}
+                            {{ form.gi_admin_comment(class="form-control", rows="4") }}
+                            <small class="form-text text-muted">
+                                Provide reason for approval/rejection and any additional notes for the farmer.
+                            </small>
+                            {% if form.gi_admin_comment.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.gi_admin_comment.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_gi_dashboard') }}" class="btn btn-secondary">Cancel</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- GI Information Panel -->
+        <div class="col-md-4">
+            {% if gi_info %}
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>GI Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold">{{ gi_info.full_name }}</h6>
+                    <p class="text-muted small mb-3">{{ gi_info.description }}</p>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">Region:</small>
+                        <div>{{ gi_info.region }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">Status:</small>
+                        <div>
+                            {% if gi_info.status == 'registered' %}
+                                <span class="badge bg-success">Registered</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if gi_info.certificate_number %}
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">Certificate:</small>
+                        <div><code>{{ gi_info.certificate_number }}</code></div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">Key Characteristics:</small>
+                        <div class="mt-1">
+                            {% for char in gi_info.characteristics %}
+                            <span class="badge bg-light text-dark me-1 mb-1">{{ char }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    {% if gi_info.quality_standards %}
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">Quality Standards:</small>
+                        <ul class="small mb-0 mt-1">
+                            {% for standard in gi_info.quality_standards %}
+                            <li>{{ standard }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Custom GI Request
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">This is a custom GI label requested by the farmer. Please verify:</p>
+                    <ul class="mt-2 mb-0">
+                        <li>Geographic authenticity</li>
+                        <li>Traditional production methods</li>
+                        <li>Quality standards</li>
+                        <li>Documentation requirements</li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-sm" onclick="setStatus('verified')">
+                            <i class="fas fa-check me-1"></i>Approve GI
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="setStatus('rejected')">
+                            <i class="fas fa-times me-1"></i>Reject GI
+                        </button>
+                        <button type="button" class="btn btn-warning btn-sm" onclick="setStatus('pending')">
+                            <i class="fas fa-clock me-1"></i>Mark Pending
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setStatus(status) {
+    document.getElementById('gi_status').value = status;
+    
+    // Auto-suggest certificate number for approved status
+    if (status === 'verified' && !document.getElementById('gi_certificate_number').value) {
+        // Generate a simple certificate number
+        const nextNum = String(Date.now()).slice(-3);
+        document.getElementById('gi_certificate_number').value = `NG-GI-${nextNum}`;
+    }
+}
+</script>
+{% endblock %}

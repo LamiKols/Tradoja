@@ -3,12 +3,18 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
 from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
+from gi_service import GIService
 import os
 from werkzeug.utils import secure_filename
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
+
+# Initialize services
+weather_service = WeatherService()
+trade_service = TradeDataService()
+gi_service = GIService()
 
 @app.route('/')
 def home():
@@ -154,6 +160,14 @@ def buyer_dashboard():
                            Produce.description.contains(search_term))
         form.search_term.data = search_term
     
+    # Apply GI filter
+    gi_filter = request.args.get('gi_filter', 'all')
+    if gi_filter == 'gi_only':
+        query = query.filter(Produce.gi_certified == True)
+    elif gi_filter == 'non_gi':
+        query = query.filter(Produce.gi_certified == False)
+    form.gi_filter.data = gi_filter
+    
     produce_listings = query.order_by(Produce.date_listed.desc()).all()
     
     return render_template('buyer_dashboard.html', 
@@ -203,7 +217,30 @@ def add_produce():
         return redirect(url_for('home'))
     
     form = ProduceForm()
+    # Populate GI choices
+    form.gi_label.choices = gi_service.get_gi_choices_for_form()
+    
     if form.validate_on_submit():
+        # Handle GI data
+        gi_label = None
+        gi_status = 'none'
+        gi_custom_label = form.gi_custom_label.data
+        
+        if form.gi_label.data and form.gi_label.data != '':
+            if form.gi_label.data == 'other' and gi_custom_label:
+                gi_label = gi_custom_label
+                gi_status = 'pending'  # Custom GI requests need admin review
+            elif form.gi_label.data != 'other':
+                gi_label = form.gi_label.data
+                # Validate GI claim
+                validation = gi_service.validate_gi_claim(form.name.data, gi_label, current_user.location or 'unknown')
+                if validation['valid']:
+                    gi_status = 'pending'  # Valid claims need admin verification
+                else:
+                    flash(f"GI Validation: {validation['message']}", 'warning')
+                    gi_status = 'none'
+                    gi_label = None
+        
         produce = Produce(
             name=form.name.data,
             quantity=form.quantity.data,
@@ -211,13 +248,18 @@ def add_produce():
             price_unit=form.price_unit.data,
             description=form.description.data,
             is_available=form.is_available.data,
-            farmer_id=current_user.id
+            farmer_id=current_user.id,
+            gi_label=gi_label,
+            gi_status=gi_status
         )
         
         try:
             db.session.add(produce)
             db.session.commit()
-            flash(f'Produce "{produce.name}" has been added successfully!', 'success')
+            if produce.gi_status == 'pending':
+                flash(f'Produce "{produce.name}" added! GI certification "{produce.gi_label}" is pending admin review.', 'success')
+            else:
+                flash(f'Produce "{produce.name}" has been added successfully!', 'success')
             return redirect(url_for('farmer_dashboard'))
         except Exception as e:
             db.session.rollback()
@@ -225,6 +267,106 @@ def add_produce():
             flash('Failed to add produce. Please try again.', 'danger')
     
     return render_template('add_produce.html', title='Add Produce', form=form)
+
+
+@app.route('/gi/registry')
+def gi_registry():
+    """Nigerian GI Registry - public view of registered GI products"""
+    registered_gis = gi_service.get_registered_gis()
+    pending_gis = gi_service.get_pending_gis()
+    gi_stats = gi_service.get_gi_statistics()
+    
+    return render_template('gi_registry.html',
+                         title='Nigerian GI Registry',
+                         registered_gis=registered_gis,
+                         pending_gis=pending_gis,
+                         gi_stats=gi_stats)
+
+
+@app.route('/gi/search')
+def gi_search():
+    """Search GI products"""
+    query = request.args.get('q', '')
+    results = []
+    
+    if query:
+        results = gi_service.search_gis(query)
+    else:
+        results = gi_service.get_all_gis()
+    
+    return render_template('gi_search.html',
+                         title='Search GI Products',
+                         results=results,
+                         query=query)
+
+
+@app.route('/admin/gi/dashboard')
+@login_required
+def admin_gi_dashboard():
+    """Admin GI management dashboard"""
+    if not current_user.is_admin():
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get produce with pending GI claims
+    pending_gi_claims = Produce.query.filter_by(gi_status='pending').all()
+    verified_gi_products = Produce.query.filter_by(gi_status='verified').all()
+    rejected_gi_claims = Produce.query.filter_by(gi_status='rejected').all()
+    
+    gi_stats = gi_service.get_gi_statistics()
+    
+    return render_template('admin_gi_dashboard.html',
+                         title='GI Management Dashboard',
+                         pending_claims=pending_gi_claims,
+                         verified_products=verified_gi_products,
+                         rejected_claims=rejected_gi_claims,
+                         gi_stats=gi_stats)
+
+
+@app.route('/admin/gi/manage/<int:produce_id>', methods=['GET', 'POST'])
+@login_required
+def manage_gi_claim(produce_id):
+    """Manage individual GI claim"""
+    if not current_user.is_admin():
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('home'))
+    
+    produce = Produce.query.get_or_404(produce_id)
+    form = GIAdminForm()
+    
+    if form.validate_on_submit():
+        produce.gi_status = form.gi_status.data
+        produce.gi_certificate_number = form.gi_certificate_number.data
+        produce.gi_admin_comment = form.gi_admin_comment.data
+        
+        if form.gi_status.data == 'verified':
+            produce.gi_certified = True
+        else:
+            produce.gi_certified = False
+        
+        try:
+            db.session.commit()
+            flash(f'GI status for "{produce.name}" updated successfully!', 'success')
+            return redirect(url_for('admin_gi_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"GI management error: {e}")
+            flash('Failed to update GI status. Please try again.', 'danger')
+    
+    # Pre-populate form with current values
+    if request.method == 'GET':
+        form.gi_status.data = produce.gi_status
+        form.gi_certificate_number.data = produce.gi_certificate_number
+        form.gi_admin_comment.data = produce.gi_admin_comment
+    
+    # Get GI information for reference
+    gi_info = gi_service.get_gi_by_name(produce.gi_label) if produce.gi_label else None
+    
+    return render_template('manage_gi_claim.html',
+                         title=f'Manage GI Claim - {produce.name}',
+                         produce=produce,
+                         form=form,
+                         gi_info=gi_info)
 
 @app.route('/produce/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
