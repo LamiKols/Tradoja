@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request, abort, jsonify
+from flask import render_template, url_for, flash, redirect, request, abort, jsonify, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
@@ -10,6 +10,8 @@ from gi_service import GIService
 import os
 from werkzeug.utils import secure_filename
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
+from datetime import datetime, timedelta
+from sqlalchemy import func
 
 # Initialize services
 weather_service = WeatherService()
@@ -1850,32 +1852,217 @@ def admin_analytics_dashboard():
     if not current_user.is_admin():
         abort(403)
     
-    if not analytics_service:
-        flash('Analytics service unavailable', 'error')
+    try:
+        # Market Overview Analytics
+        total_produce = Produce.query.count()
+        active_produce = Produce.query.filter_by(is_available=True).count()
+        total_farmers = User.query.filter_by(role='farmer').count()
+        total_buyers = User.query.filter_by(role='buyer').count()
+        
+        # Value metrics
+        total_value = db.session.query(func.sum(Produce.price)).filter_by(is_available=True).scalar() or 0
+        avg_price = db.session.query(func.avg(Produce.price)).filter_by(is_available=True).scalar() or 0
+        
+        # Recent activity (30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_listings = Produce.query.filter(Produce.date_listed >= thirty_days_ago).count()
+        recent_users = User.query.filter(User.registration_date >= thirty_days_ago).count()
+        
+        # SMS metrics
+        sms_users = User.query.filter_by(sms_enabled=True).count()
+        recent_sms = SMSInteraction.query.filter(SMSInteraction.timestamp >= thirty_days_ago).count()
+        
+        # Export metrics
+        export_listings = ExportListing.query.count()
+        approved_exports = ExportListing.query.filter_by(status='approved').count()
+        export_value = db.session.query(func.sum(ExportListing.price)).scalar() or 0
+        
+        market_overview = {
+            'total_produce_listings': total_produce,
+            'active_listings': active_produce,
+            'recent_listings': recent_listings,
+            'total_market_value': total_value,
+            'average_price': avg_price,
+            'total_farmers': total_farmers,
+            'total_buyers': total_buyers,
+            'sms_enabled_users': sms_users,
+            'recent_sms_interactions': recent_sms,
+            'export_listings': export_listings,
+            'approved_exports': approved_exports,
+            'export_value': export_value,
+            'platform_growth_rate': (recent_users / (total_farmers + total_buyers) * 100) if (total_farmers + total_buyers) > 0 else 0
+        }
+        
+        # Crop Analytics
+        crop_query = db.session.query(
+            Produce.name,
+            func.count(Produce.id).label('listings'),
+            func.sum(Produce.price).label('total_value'),
+            func.avg(Produce.price).label('avg_price'),
+            func.count(func.distinct(Produce.farmer_id)).label('unique_farmers')
+        ).group_by(Produce.name).order_by(func.count(Produce.id).desc()).limit(10)
+        
+        crop_data = []
+        total_crop_listings = total_produce
+        for crop in crop_query.all():
+            crop_data.append({
+                'crop_name': crop.name,
+                'total_listings': crop.listings,
+                'total_value': float(crop.total_value or 0),
+                'average_price': float(crop.avg_price or 0),
+                'unique_farmers': crop.unique_farmers,
+                'market_share': (crop.listings / total_crop_listings * 100) if total_crop_listings > 0 else 0
+            })
+        
+        crop_analytics = {
+            'top_performing_crops': crop_data,
+            'crop_distribution': crop_data,
+            'total_crop_types': len(crop_data)
+        }
+        
+        # Geographic Analytics
+        farmers_by_state = db.session.query(
+            User.state,
+            func.count(User.id).label('farmer_count'),
+            func.count(func.distinct(Produce.id)).label('produce_count'),
+            func.sum(Produce.price).label('total_value')
+        ).join(Produce, User.id == Produce.farmer_id, isouter=True)\
+         .filter(User.role == 'farmer')\
+         .group_by(User.state)\
+         .order_by(func.count(User.id).desc()).limit(10).all()
+        
+        state_data = []
+        for state in farmers_by_state:
+            if state.state:
+                state_data.append({
+                    'state': state.state,
+                    'farmer_count': state.farmer_count,
+                    'produce_count': state.produce_count or 0,
+                    'total_value': float(state.total_value or 0),
+                    'market_balance': 'balanced'  # Simplified for now
+                })
+        
+        geographic_analytics = {
+            'farmers_by_state': state_data,
+            'top_producing_states': state_data[:5],
+            'supply_demand_analysis': state_data
+        }
+        
+        # User Engagement Analytics
+        active_farmers = db.session.query(func.count(func.distinct(Produce.farmer_id))).scalar()
+        listing_engagement_rate = (active_farmers / total_farmers * 100) if total_farmers > 0 else 0
+        
+        # Feature adoption
+        funding_applications = FundingApplication.query.count()
+        csa_usage = CSAData.query.count()
+        logistics_usage = LogisticsRequest.query.count()
+        ai_recommendations = MatchRecommendation.query.count()
+        accepted_recommendations = MatchRecommendation.query.filter_by(status='accepted').count()
+        
+        engagement_analytics = {
+            'platform_usage': {
+                'web_users': total_farmers + total_buyers - sms_users,
+                'sms_users': sms_users,
+                'sms_adoption_rate': (sms_users / (total_farmers + total_buyers) * 100) if (total_farmers + total_buyers) > 0 else 0
+            },
+            'feature_adoption': {
+                'listing_engagement_rate': listing_engagement_rate,
+                'funding_applications': funding_applications,
+                'csa_tool_usage': csa_usage,
+                'logistics_requests': logistics_usage
+            },
+            'ai_matchmaking': {
+                'total_recommendations': ai_recommendations,
+                'accepted_recommendations': accepted_recommendations,
+                'acceptance_rate': (accepted_recommendations / ai_recommendations * 100) if ai_recommendations > 0 else 0
+            }
+        }
+        
+        # Bottleneck Analysis (simplified)
+        old_listings = Produce.query.filter(
+            Produce.date_listed < datetime.utcnow() - timedelta(days=30),
+            Produce.is_available == True
+        ).count()
+        
+        bottlenecks = []
+        recommendations = []
+        
+        if old_listings > total_produce * 0.3:
+            bottlenecks.append({
+                'type': 'unsold_produce',
+                'severity': 'high',
+                'description': f'{old_listings} listings over 30 days old',
+                'impact': 'Farmer revenue loss, platform credibility'
+            })
+            recommendations.append({
+                'area': 'unsold_produce',
+                'action': 'Implement price optimization and demand forecasting',
+                'priority': 'high'
+            })
+        
+        if listing_engagement_rate < 50:
+            bottlenecks.append({
+                'type': 'low_farmer_engagement',
+                'severity': 'medium',
+                'description': f'Only {listing_engagement_rate:.1f}% of farmers are actively listing',
+                'impact': 'Reduced marketplace activity'
+            })
+            recommendations.append({
+                'area': 'farmer_engagement',
+                'action': 'Launch farmer incentive programs and training',
+                'priority': 'medium'
+            })
+        
+        bottleneck_analysis = {
+            'bottlenecks': bottlenecks,
+            'recommendations': recommendations,
+            'bottleneck_count': len(bottlenecks),
+            'critical_issues': len([b for b in bottlenecks if b['severity'] == 'high'])
+        }
+        
+        # Create simple trend data (last 30 days)
+        listings_trend = []
+        users_trend = []
+        sms_trend = []
+        
+        for i in range(30, 0, -1):
+            date = datetime.utcnow() - timedelta(days=i)
+            next_date = date + timedelta(days=1)
+            
+            daily_listings = Produce.query.filter(
+                Produce.date_listed >= date,
+                Produce.date_listed < next_date
+            ).count()
+            
+            daily_users = User.query.filter(
+                User.registration_date >= date,
+                User.registration_date < next_date
+            ).count()
+            
+            daily_sms = SMSInteraction.query.filter(
+                SMSInteraction.timestamp >= date,
+                SMSInteraction.timestamp < next_date
+            ).count()
+            
+            listings_trend.append({'date': date.strftime('%Y-%m-%d'), 'value': daily_listings})
+            users_trend.append({'date': date.strftime('%Y-%m-%d'), 'value': daily_users})
+            sms_trend.append({'date': date.strftime('%Y-%m-%d'), 'value': daily_sms})
+        
+        return render_template('admin/analytics_dashboard.html',
+                             title='Advanced Analytics Dashboard',
+                             market_overview=market_overview,
+                             crop_analytics=crop_analytics,
+                             geographic_analytics=geographic_analytics,
+                             engagement_analytics=engagement_analytics,
+                             bottleneck_analysis=bottleneck_analysis,
+                             listings_trend=listings_trend,
+                             users_trend=users_trend,
+                             sms_trend=sms_trend)
+        
+    except Exception as e:
+        app.logger.error(f"Analytics dashboard error: {e}")
+        flash('Error loading analytics dashboard', 'error')
         return redirect(url_for('admin_dashboard'))
-    
-    # Get comprehensive analytics data
-    market_overview = analytics_service.get_market_overview()
-    crop_analytics = analytics_service.get_crop_analytics()
-    geographic_analytics = analytics_service.get_geographic_analytics()
-    engagement_analytics = analytics_service.get_user_engagement_analytics()
-    bottleneck_analysis = analytics_service.get_bottleneck_analysis()
-    
-    # Get time series data for charts
-    listings_trend = analytics_service.get_time_series_data('new_listings', 30)
-    users_trend = analytics_service.get_time_series_data('new_users', 30)
-    sms_trend = analytics_service.get_time_series_data('sms_interactions', 30)
-    
-    return render_template('admin/analytics_dashboard.html',
-                         title='Advanced Analytics Dashboard',
-                         market_overview=market_overview,
-                         crop_analytics=crop_analytics,
-                         geographic_analytics=geographic_analytics,
-                         engagement_analytics=engagement_analytics,
-                         bottleneck_analysis=bottleneck_analysis,
-                         listings_trend=listings_trend,
-                         users_trend=users_trend,
-                         sms_trend=sms_trend)
 
 @app.route('/admin/analytics/export/<report_type>')
 @login_required

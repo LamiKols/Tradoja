@@ -7,7 +7,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy import func, and_, or_, extract, text
-from models import db, User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, SMSInteraction, MatchRecommendation
 import json
 import csv
 import io
@@ -22,6 +21,9 @@ class AnalyticsService:
     def get_market_overview(self, days: int = 30) -> Dict:
         """Get comprehensive market overview"""
         try:
+            # Import models here to avoid circular imports
+            from models import db, User, Produce, ExportListing, SMSInteraction
+            
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
             # Total produce metrics
@@ -75,6 +77,7 @@ class AnalyticsService:
     def get_crop_analytics(self) -> Dict:
         """Get detailed crop-wise analytics"""
         try:
+            from models import db, Produce
             # Crop distribution
             crop_query = db.session.query(
                 Produce.name,
@@ -120,6 +123,7 @@ class AnalyticsService:
     def get_geographic_analytics(self) -> Dict:
         """Get geographic distribution and analytics"""
         try:
+            from models import db, User, Produce
             # State-wise distribution of farmers
             farmers_by_state = db.session.query(
                 User.state,
@@ -181,6 +185,7 @@ class AnalyticsService:
     def get_user_engagement_analytics(self) -> Dict:
         """Get detailed user engagement metrics"""
         try:
+            from models import db, User, Message, SMSInteraction, Produce, FundingApplication, CSAData, ExportListing, LogisticsRequest, MatchRecommendation
             # Platform usage patterns
             web_users = User.query.filter_by(sms_enabled=False).count()
             sms_users = User.query.filter_by(sms_enabled=True).count()
@@ -246,6 +251,7 @@ class AnalyticsService:
     def get_bottleneck_analysis(self) -> Dict:
         """Identify platform bottlenecks and recommend interventions"""
         try:
+            from models import db, User, Produce, Message, LogisticsRequest
             bottlenecks = []
             recommendations = []
             
@@ -359,6 +365,7 @@ class AnalyticsService:
     def get_time_series_data(self, metric: str, days: int = 90) -> List[Dict]:
         """Get time series data for various metrics"""
         try:
+            from models import User, Produce, SMSInteraction, Message
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=days)
             
@@ -476,6 +483,7 @@ class AnalyticsService:
     def _get_price_trends_by_crop(self) -> Dict:
         """Get price trends for top crops over time"""
         try:
+            from models import db, Produce
             # Get top 5 crops by listing count
             top_crops = db.session.query(Produce.name)\
                 .group_by(Produce.name)\
