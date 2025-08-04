@@ -65,8 +65,8 @@
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('logistics_request') }}" class="btn btn-warning w-100">
-                                <i class="fas fa-truck me-2"></i>Request Delivery
+                            <a href="{{ url_for('my_logistics_requests') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-truck me-2"></i>My Logistics
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
@@ -194,8 +194,8 @@
                         {% endfor %}
                     </div>
                     <div class="text-center mt-3">
-                        <a href="{{ url_for('logistics_request') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>New Request
+                        <a href="{{ url_for('my_logistics_requests') }}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>View All Logistics
                         </a>
                     </div>
                 </div>
