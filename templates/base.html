@@ -72,6 +72,11 @@
                             <i class="fas fa-store me-1"></i>Marketplace
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('export_dashboard') }}">
+                            <i class="fas fa-globe-africa me-1"></i>Export Trade
+                        </a>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
@@ -108,6 +113,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('csa_dashboard') }}">
                                         <i class="fas fa-leaf me-1"></i>Climate Tools
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('my_export_listings') }}">
+                                        <i class="fas fa-globe-africa me-1"></i>My Export Listings
+                                    </a></li>
                                 {% elif current_user.is_buyer() %}
                                     <li><a class="dropdown-item" href="{{ url_for('buyer_dashboard') }}">
                                         <i class="fas fa-shopping-cart me-1"></i>Dashboard
@@ -121,6 +129,9 @@
                                     </a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('admin_funding_dashboard') }}">
                                         <i class="fas fa-money-bill-wave me-1"></i>Funding Management
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_export_management') }}">
+                                        <i class="fas fa-globe-africa me-1"></i>Export Management
                                     </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>

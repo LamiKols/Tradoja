@@ -2,9 +2,12 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm
 from weather_service import WeatherService
+from trade_data_service import TradeDataService
+import os
+from werkzeug.utils import secure_filename
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
@@ -860,6 +863,273 @@ def csa_weather():
                          crop_recommendations=crop_recommendations,
                          carbon_footprint=carbon_footprint,
                          weather_service=weather_service)
+
+
+# Cross-Border Trade Routes
+@app.route('/export')
+@login_required
+def export_dashboard():
+    """Export trade dashboard"""
+    trade_service = TradeDataService()
+    
+    # Get trending exports and market opportunities
+    trending_exports = trade_service.get_trending_exports()
+    market_opportunities = trade_service.get_market_opportunities()
+    seasonal_calendar = trade_service.get_seasonal_calendar()
+    
+    # Get user's export listings if farmer
+    user_exports = []
+    if current_user.is_farmer():
+        user_exports = ExportListing.query.filter_by(farmer_id=current_user.id).order_by(ExportListing.created_at.desc()).limit(5).all()
+    
+    # Get recent approved listings for buyers
+    approved_exports = ExportListing.query.filter_by(status='approved').order_by(ExportListing.created_at.desc()).limit(10).all()
+    
+    return render_template('export_dashboard.html',
+                         title='Cross-Border Trade',
+                         trending_exports=trending_exports,
+                         market_opportunities=market_opportunities,
+                         seasonal_calendar=seasonal_calendar,
+                         user_exports=user_exports,
+                         approved_exports=approved_exports)
+
+
+@app.route('/export/create', methods=['GET', 'POST'])
+@login_required
+def create_export_listing():
+    """Create new export listing (farmers only)"""
+    if not current_user.is_farmer():
+        flash('Only farmers can create export listings.', 'danger')
+        return redirect(url_for('export_dashboard'))
+    
+    form = ExportListingForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Handle file upload
+            phytosanitary_filename = None
+            if form.phytosanitary_file.data:
+                file = form.phytosanitary_file.data
+                filename = secure_filename(file.filename)
+                # Add timestamp to avoid conflicts
+                import time
+                timestamp = str(int(time.time()))
+                phytosanitary_filename = f"{timestamp}_{filename}"
+                filepath = os.path.join('static/uploads/certificates', phytosanitary_filename)
+                file.save(filepath)
+            
+            # Collect compliance standards
+            compliance_standards = []
+            if form.eu_gi.data:
+                compliance_standards.append('EU Geographical Indication (GI)')
+            if form.usda_organic.data:
+                compliance_standards.append('USDA Organic Certified')
+            if form.fair_trade.data:
+                compliance_standards.append('Fair Trade Certified')
+            if form.global_gap.data:
+                compliance_standards.append('GlobalGAP Certified')
+            if form.iso_22000.data:
+                compliance_standards.append('ISO 22000 Food Safety')
+            if form.haccp.data:
+                compliance_standards.append('HACCP Certified')
+            
+            # Create export listing
+            export_listing = ExportListing(
+                farmer_id=current_user.id,
+                produce_name=form.produce_name.data,
+                quantity=form.quantity.data,
+                price=form.price.data,
+                origin_state=form.origin_state.data,
+                target_market=form.target_market.data,
+                has_phytosanitary=form.has_phytosanitary.data,
+                phytosanitary_file=phytosanitary_filename,
+                description=form.description.data,
+                harvest_date=form.harvest_date.data,
+                shipment_window_start=form.shipment_window_start.data,
+                shipment_window_end=form.shipment_window_end.data
+            )
+            
+            export_listing.set_compliance_standards(compliance_standards)
+            
+            db.session.add(export_listing)
+            db.session.commit()
+            
+            flash('Export listing created successfully! It will be reviewed by administrators.', 'success')
+            return redirect(url_for('my_export_listings'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Export listing creation error: {e}")
+            flash('Failed to create export listing. Please try again.', 'danger')
+    
+    return render_template('create_export_listing.html',
+                         title='Create Export Listing',
+                         form=form)
+
+
+@app.route('/export/listings')
+@login_required
+def export_listings():
+    """Browse all approved export listings"""
+    filter_form = ExportFilterForm()
+    trade_service = TradeDataService()
+    
+    # Start with approved listings
+    query = ExportListing.query.filter_by(status='approved')
+    
+    # Apply filters
+    if request.args.get('produce_name'):
+        search_term = request.args.get('produce_name')
+        query = query.filter(ExportListing.produce_name.contains(search_term))
+        filter_form.produce_name.data = search_term
+    
+    if request.args.get('target_market'):
+        market = request.args.get('target_market')
+        query = query.filter_by(target_market=market)
+        filter_form.target_market.data = market
+    
+    if request.args.get('origin_state'):
+        state = request.args.get('origin_state')
+        query = query.filter_by(origin_state=state)
+        filter_form.origin_state.data = state
+    
+    if request.args.get('has_phytosanitary'):
+        cert_status = request.args.get('has_phytosanitary')
+        if cert_status == 'yes':
+            query = query.filter_by(has_phytosanitary=True)
+        elif cert_status == 'no':
+            query = query.filter_by(has_phytosanitary=False)
+        filter_form.has_phytosanitary.data = cert_status
+    
+    listings = query.order_by(ExportListing.created_at.desc()).all()
+    
+    # Get export requirements for common markets
+    export_requirements = {}
+    for market in ['EU', 'US', 'CHINA']:
+        export_requirements[market] = trade_service.get_export_requirements(market)
+    
+    return render_template('export_listings.html',
+                         title='Browse Export Listings',
+                         listings=listings,
+                         filter_form=filter_form,
+                         export_requirements=export_requirements)
+
+
+@app.route('/export/my-listings')
+@login_required
+def my_export_listings():
+    """View user's export listings (farmers only)"""
+    if not current_user.is_farmer():
+        flash('Access denied. Farmers only.', 'danger')
+        return redirect(url_for('export_dashboard'))
+    
+    listings = ExportListing.query.filter_by(farmer_id=current_user.id).order_by(ExportListing.created_at.desc()).all()
+    
+    return render_template('my_export_listings.html',
+                         title='My Export Listings',
+                         listings=listings)
+
+
+@app.route('/export/<int:listing_id>')
+@login_required
+def export_listing_detail(listing_id):
+    """View detailed export listing"""
+    listing = ExportListing.query.get_or_404(listing_id)
+    trade_service = TradeDataService()
+    
+    # Get export requirements for the target market
+    export_requirements = trade_service.get_export_requirements(listing.target_market)
+    
+    # Get price trends for this product
+    price_trends = trade_service.get_price_trends(listing.produce_name)
+    
+    return render_template('export_listing_detail.html',
+                         title=f'Export Listing - {listing.produce_name}',
+                         listing=listing,
+                         export_requirements=export_requirements,
+                         price_trends=price_trends)
+
+
+@app.route('/admin/export-management')
+@login_required
+def admin_export_management():
+    """Admin dashboard for export listing management"""
+    if not current_user.is_admin():
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    
+    # Query export listings
+    query = ExportListing.query
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    listings = query.order_by(ExportListing.created_at.desc()).all()
+    
+    # Calculate statistics
+    stats = {
+        'total': ExportListing.query.count(),
+        'pending': ExportListing.query.filter_by(status='pending').count(),
+        'approved': ExportListing.query.filter_by(status='approved').count(),
+        'rejected': ExportListing.query.filter_by(status='rejected').count(),
+        'shipped': ExportListing.query.filter_by(status='shipped').count()
+    }
+    
+    return render_template('admin_export_management.html',
+                         title='Export Management',
+                         listings=listings,
+                         stats=stats,
+                         current_filter=status_filter)
+
+
+@app.route('/admin/export/<int:listing_id>/update_status', methods=['POST'])
+@login_required
+def update_export_status(listing_id):
+    """Update export listing status (admin only)"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    listing = ExportListing.query.get_or_404(listing_id)
+    form = ExportStatusForm()
+    
+    if form.validate_on_submit():
+        try:
+            listing.status = form.status.data
+            listing.admin_comment = form.admin_comment.data
+            db.session.commit()
+            flash(f'Export listing status updated to {form.status.data}.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Update export status error: {e}")
+            flash('Failed to update status. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_export_management'))
+
+
+@app.route('/download-certificate/<int:listing_id>')
+@login_required
+def download_certificate(listing_id):
+    """Download phytosanitary certificate"""
+    listing = ExportListing.query.get_or_404(listing_id)
+    
+    # Check permission - only listing owner, buyers, or admins can download
+    if not (current_user.id == listing.farmer_id or current_user.is_buyer() or current_user.is_admin()):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('export_listings'))
+    
+    if not listing.phytosanitary_file:
+        flash('No certificate file available.', 'warning')
+        return redirect(url_for('export_listing_detail', listing_id=listing_id))
+    
+    file_path = os.path.join('static/uploads/certificates', listing.phytosanitary_file)
+    if os.path.exists(file_path):
+        from flask import send_file
+        return send_file(file_path, as_attachment=True)
+    else:
+        flash('Certificate file not found.', 'danger')
+        return redirect(url_for('export_listing_detail', listing_id=listing_id))
 
 
 # Error handlers

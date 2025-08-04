@@ -231,3 +231,82 @@ class CSAData(db.Model):
     
     def __repr__(self):
         return f'<CSAData {self.id} - {self.farmer.name} - {self.city}>'
+
+
+class ExportListing(db.Model):
+    """Export listing model for cross-border trade"""
+    id = db.Column(db.Integer, primary_key=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Basic produce information
+    produce_name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.String(50), nullable=False)  # e.g., "50 tons", "100 bags"
+    price = db.Column(db.Float, nullable=False)  # Price per unit
+    price_unit = db.Column(db.String(20), nullable=False, default='USD')  # Currency/unit
+    origin_state = db.Column(db.String(50), nullable=False)
+    
+    # Export details
+    target_market = db.Column(db.String(100), nullable=False)  # EU, ECOWAS, US, UK, etc.
+    has_phytosanitary = db.Column(db.Boolean, default=False)
+    phytosanitary_file = db.Column(db.String(255))  # File path for certificate
+    
+    # Compliance standards (stored as JSON)
+    compliance_standards = db.Column(db.Text)  # JSON string of selected standards
+    
+    # Additional details
+    description = db.Column(db.Text)
+    harvest_date = db.Column(db.Date)
+    shipment_window_start = db.Column(db.Date)
+    shipment_window_end = db.Column(db.Date)
+    
+    # Status and admin fields
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected', 'shipped'
+    admin_comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    farmer = db.relationship('User', backref=db.backref('export_listings', lazy=True))
+    
+    def get_compliance_standards(self):
+        """Parse compliance standards from JSON"""
+        if self.compliance_standards:
+            import json
+            return json.loads(self.compliance_standards)
+        return []
+    
+    def set_compliance_standards(self, standards):
+        """Store compliance standards as JSON"""
+        import json
+        self.compliance_standards = json.dumps(standards)
+    
+    def formatted_price(self):
+        """Return formatted price string"""
+        return f"{self.price_unit} {self.price:,.2f}"
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'approved': 'bg-success',
+            'rejected': 'bg-danger',
+            'shipped': 'bg-info'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def formatted_harvest_date(self):
+        """Return formatted harvest date"""
+        if self.harvest_date:
+            return self.harvest_date.strftime('%B %d, %Y')
+        return 'Not specified'
+    
+    def formatted_shipment_window(self):
+        """Return formatted shipment window"""
+        if self.shipment_window_start and self.shipment_window_end:
+            return f"{self.shipment_window_start.strftime('%b %d')} - {self.shipment_window_end.strftime('%b %d, %Y')}"
+        elif self.shipment_window_start:
+            return f"From {self.shipment_window_start.strftime('%B %d, %Y')}"
+        return 'Not specified'
+    
+    def __repr__(self):
+        return f'<ExportListing {self.produce_name} to {self.target_market} by {self.farmer.name}>'

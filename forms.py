@@ -201,3 +201,138 @@ class CSASoilForm(FlaskForm):
                                 render_kw={'placeholder': 'Expected harvest per hectare'})
     
     submit = SubmitField('Analyze & Get Recommendations')
+
+
+class ExportListingForm(FlaskForm):
+    """Form for creating export listings"""
+    produce_name = StringField('Produce Name', 
+                              validators=[DataRequired()],
+                              render_kw={'placeholder': 'e.g., Cassava, Yam, Cocoa'})
+    
+    quantity = StringField('Quantity', 
+                          validators=[DataRequired()],
+                          render_kw={'placeholder': 'e.g., 50 tons, 100 bags, 500 kg'})
+    
+    price = FloatField('Price per Unit (USD)', 
+                      validators=[DataRequired(), NumberRange(min=0.01)],
+                      render_kw={'placeholder': 'Enter price in USD'})
+    
+    origin_state = SelectField('Origin State', choices=[
+        ('', 'Select origin state'),
+        ('abia', 'Abia'), ('adamawa', 'Adamawa'), ('akwa-ibom', 'Akwa Ibom'),
+        ('anambra', 'Anambra'), ('bauchi', 'Bauchi'), ('bayelsa', 'Bayelsa'),
+        ('benue', 'Benue'), ('borno', 'Borno'), ('cross-river', 'Cross River'),
+        ('delta', 'Delta'), ('ebonyi', 'Ebonyi'), ('edo', 'Edo'),
+        ('ekiti', 'Ekiti'), ('enugu', 'Enugu'), ('gombe', 'Gombe'),
+        ('imo', 'Imo'), ('jigawa', 'Jigawa'), ('kaduna', 'Kaduna'),
+        ('kano', 'Kano'), ('katsina', 'Katsina'), ('kebbi', 'Kebbi'),
+        ('kogi', 'Kogi'), ('kwara', 'Kwara'), ('lagos', 'Lagos'),
+        ('nasarawa', 'Nasarawa'), ('niger', 'Niger'), ('ogun', 'Ogun'),
+        ('ondo', 'Ondo'), ('osun', 'Osun'), ('oyo', 'Oyo'),
+        ('plateau', 'Plateau'), ('rivers', 'Rivers'), ('sokoto', 'Sokoto'),
+        ('taraba', 'Taraba'), ('yobe', 'Yobe'), ('zamfara', 'Zamfara'),
+        ('fct', 'Federal Capital Territory')
+    ], validators=[DataRequired()])
+    
+    target_market = SelectField('Target Export Market', choices=[
+        ('', 'Select target market'),
+        ('EU', 'European Union'),
+        ('ECOWAS', 'ECOWAS Region'),
+        ('US', 'United States'),
+        ('UK', 'United Kingdom'),
+        ('CHINA', 'China'),
+        ('INDIA', 'India'),
+        ('MIDDLE_EAST', 'Middle East'),
+        ('CANADA', 'Canada'),
+        ('ASIA_PACIFIC', 'Asia Pacific'),
+        ('OTHER', 'Other Markets')
+    ], validators=[DataRequired()])
+    
+    has_phytosanitary = BooleanField('Phytosanitary Certificate Available')
+    phytosanitary_file = FileField('Upload Phytosanitary Certificate', 
+                                  validators=[FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 
+                                            'Only PDF, JPG, JPEG, and PNG files allowed')])
+    
+    # Compliance standards (multiple checkboxes)
+    eu_gi = BooleanField('EU Geographical Indication (GI)')
+    usda_organic = BooleanField('USDA Organic Certified')
+    fair_trade = BooleanField('Fair Trade Certified')
+    global_gap = BooleanField('GlobalGAP Certified')
+    iso_22000 = BooleanField('ISO 22000 Food Safety')
+    haccp = BooleanField('HACCP Certified')
+    
+    description = TextAreaField('Product Description', 
+                               validators=[Length(max=1000)],
+                               render_kw={'rows': 4, 'placeholder': 'Describe quality, processing, packaging, etc.'})
+    
+    harvest_date = DateField('Harvest Date', validators=[DataRequired()])
+    shipment_window_start = DateField('Shipment Window Start', validators=[DataRequired()])
+    shipment_window_end = DateField('Shipment Window End', validators=[DataRequired()])
+    
+    def validate_shipment_window_end(self, field):
+        if self.shipment_window_start.data and field.data:
+            if field.data <= self.shipment_window_start.data:
+                raise ValidationError('End date must be after start date.')
+    
+    submit = SubmitField('List for Export')
+
+
+class ExportFilterForm(FlaskForm):
+    """Form for filtering export listings"""
+    produce_name = StringField('Produce Name')
+    target_market = SelectField('Target Market', choices=[
+        ('', 'All Markets'),
+        ('EU', 'European Union'),
+        ('ECOWAS', 'ECOWAS Region'),
+        ('US', 'United States'),
+        ('UK', 'United Kingdom'),
+        ('CHINA', 'China'),
+        ('INDIA', 'India'),
+        ('MIDDLE_EAST', 'Middle East'),
+        ('CANADA', 'Canada'),
+        ('ASIA_PACIFIC', 'Asia Pacific'),
+        ('OTHER', 'Other Markets')
+    ])
+    origin_state = SelectField('Origin State', choices=[
+        ('', 'All States'),
+        ('abia', 'Abia'), ('adamawa', 'Adamawa'), ('akwa-ibom', 'Akwa Ibom'),
+        ('anambra', 'Anambra'), ('bauchi', 'Bauchi'), ('bayelsa', 'Bayelsa'),
+        ('benue', 'Benue'), ('borno', 'Borno'), ('cross-river', 'Cross River'),
+        ('delta', 'Delta'), ('ebonyi', 'Ebonyi'), ('edo', 'Edo'),
+        ('ekiti', 'Ekiti'), ('enugu', 'Enugu'), ('gombe', 'Gombe'),
+        ('imo', 'Imo'), ('jigawa', 'Jigawa'), ('kaduna', 'Kaduna'),
+        ('kano', 'Kano'), ('katsina', 'Katsina'), ('kebbi', 'Kebbi'),
+        ('kogi', 'Kogi'), ('kwara', 'Kwara'), ('lagos', 'Lagos'),
+        ('nasarawa', 'Nasarawa'), ('niger', 'Niger'), ('ogun', 'Ogun'),
+        ('ondo', 'Ondo'), ('osun', 'Osun'), ('oyo', 'Oyo'),
+        ('plateau', 'Plateau'), ('rivers', 'Rivers'), ('sokoto', 'Sokoto'),
+        ('taraba', 'Taraba'), ('yobe', 'Yobe'), ('zamfara', 'Zamfara'),
+        ('fct', 'Federal Capital Territory')
+    ])
+    has_phytosanitary = SelectField('Certification Status', choices=[
+        ('', 'All Listings'),
+        ('yes', 'With Phytosanitary Certificate'),
+        ('no', 'Without Certificate')
+    ])
+    status = SelectField('Approval Status', choices=[
+        ('', 'All Status'),
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('shipped', 'Shipped')
+    ])
+    submit = SubmitField('Filter Results')
+
+
+class ExportStatusForm(FlaskForm):
+    """Form for admin to update export listing status"""
+    status = SelectField('Status', choices=[
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved for Export'),
+        ('rejected', 'Rejected'),
+        ('shipped', 'Shipped')
+    ], validators=[DataRequired()])
+    admin_comment = TextAreaField('Admin Comment', 
+                                 validators=[Length(max=1000)],
+                                 render_kw={'rows': 4, 'placeholder': 'Comment for the farmer...'})
+    submit = SubmitField('Update Status')

@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-globe-africa me-2 text-success"></i>Cross-Border Trade
+                    </h1>
+                    <p class="text-muted mb-0">Access global markets for Nigerian agricultural exports</p>
+                </div>
+                {% if current_user.is_farmer() %}
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('create_export_listing') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Create Export Listing
+                    </a>
+                    <a href="{{ url_for('my_export_listings') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>My Listings
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Navigation -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                    <h6>Market Trends</h6>
+                    <a href="#trending-exports" class="btn btn-sm btn-outline-success">View Trends</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-store fa-2x text-primary mb-2"></i>
+                    <h6>Browse Exports</h6>
+                    <a href="{{ url_for('export_listings') }}" class="btn btn-sm btn-outline-primary">View Listings</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-calendar fa-2x text-warning mb-2"></i>
+                    <h6>Seasonal Calendar</h6>
+                    <a href="#seasonal-calendar" class="btn btn-sm btn-outline-warning">View Calendar</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-lightbulb fa-2x text-info mb-2"></i>
+                    <h6>Opportunities</h6>
+                    <a href="#market-opportunities" class="btn btn-sm btn-outline-info">View Opportunities</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trending Exports Section -->
+    <div class="row mb-5" id="trending-exports">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-fire me-2 text-danger"></i>Trending Nigerian Agricultural Exports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for export in trending_exports %}
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <span class="fs-2 me-2">{{ export.icon }}</span>
+                                            <div>
+                                                <h6 class="mb-0">{{ export.product }}</h6>
+                                                <small class="text-muted">{{ export.export_volume }}</small>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-{% if export.change_percent > 0 %}success{% else %}danger{% endif %}">
+                                            {% if export.change_percent > 0 %}+{% endif %}{{ export.change_percent }}%
+                                        </span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong class="text-success">${{ "%.2f"|format(export.current_price) }}</strong>
+                                        <small class="text-muted">{{ export.price_unit }}</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Top Markets:</strong>
+                                        <div class="mt-1">
+                                            {% for market in export.top_markets[:3] %}
+                                                <span class="badge bg-light text-dark me-1">{{ market }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ export.seasonal_note }}</small>
+                                        <span class="badge bg-info">{{ export.demand_trend }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Opportunities Section -->
+    <div class="row mb-5" id="market-opportunities">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bullseye me-2 text-warning"></i>Current Market Opportunities
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for opportunity in market_opportunities %}
+                        <div class="col-lg-6 mb-4">
+                            <div class="card h-100 border-warning">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="text-warning">{{ opportunity.market }}</h6>
+                                        <span class="badge bg-success">{{ opportunity.potential_value }}</span>
+                                    </div>
+                                    <h6 class="mb-2">{{ opportunity.opportunity }}</h6>
+                                    <p class="text-muted mb-3">{{ opportunity.description }}</p>
+                                    <div class="mb-3">
+                                        <small class="fw-bold">Requirements:</small>
+                                        <ul class="small mt-1">
+                                            {% for req in opportunity.requirements %}
+                                            <li>{{ req }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ opportunity.timeline }}</small>
+                                        {% if current_user.is_farmer() %}
+                                        <a href="{{ url_for('create_export_listing') }}" class="btn btn-sm btn-warning">
+                                            Get Started
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seasonal Calendar Section -->
+    <div class="row mb-5" id="seasonal-calendar">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2 text-info"></i>Nigerian Export Seasonal Calendar
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for month, products in seasonal_calendar.items() %}
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="card h-100 {% if loop.index <= 3 %}border-success{% elif loop.index <= 6 %}border-warning{% elif loop.index <= 9 %}border-info{% else %}border-danger{% endif %}">
+                                <div class="card-body text-center">
+                                    <h6 class="{% if loop.index <= 3 %}text-success{% elif loop.index <= 6 %}text-warning{% elif loop.index <= 9 %}text-info{% else %}text-danger{% endif %}">
+                                        {{ month }}
+                                    </h6>
+                                    {% for product in products %}
+                                    <span class="badge bg-light text-dark me-1 mb-1">{{ product }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User's Recent Export Listings (Farmers Only) -->
+    {% if current_user.is_farmer() and user_exports %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-tag me-2"></i>My Recent Export Listings
+                    </h5>
+                    <a href="{{ url_for('my_export_listings') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Produce</th>
+                                    <th>Target Market</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for listing in user_exports %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ listing.produce_name }}</div>
+                                        <small class="text-muted">{{ listing.origin_state|title }}</small>
+                                    </td>
+                                    <td>{{ listing.target_market }}</td>
+                                    <td>{{ listing.quantity }}</td>
+                                    <td class="fw-bold text-success">{{ listing.formatted_price() }}</td>
+                                    <td>
+                                        <span class="badge {{ listing.get_status_badge_class() }}">
+                                            {{ listing.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ listing.created_at.strftime('%b %d, %Y') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Approved Listings (For Buyers) -->
+    {% if approved_exports %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2 text-success"></i>Recently Approved Export Listings
+                    </h5>
+                    <a href="{{ url_for('export_listings') }}" class="btn btn-sm btn-success">Browse All</a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for listing in approved_exports[:6] %}
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="card h-100 border-success">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0">{{ listing.produce_name }}</h6>
+                                        <span class="badge bg-success">{{ listing.target_market }}</span>
+                                    </div>
+                                    <p class="text-muted small mb-2">by {{ listing.farmer.name }} • {{ listing.origin_state|title }}</p>
+                                    <div class="mb-2">
+                                        <strong>{{ listing.quantity }}</strong> at <strong class="text-success">{{ listing.formatted_price() }}</strong>
+                                    </div>
+                                    {% if listing.has_phytosanitary %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-certificate me-1"></i>Certified
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ listing.formatted_shipment_window() }}</small>
+                                        <a href="{{ url_for('export_listing_detail', listing_id=listing.id) }}" class="btn btn-sm btn-outline-success">
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

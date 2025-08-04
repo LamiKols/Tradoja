@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Main Listing Details -->
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h2 class="mb-2">{{ listing.produce_name }}</h2>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ listing.origin_state|title }}, Nigeria
+                                <span class="mx-2">•</span>
+                                <i class="fas fa-user me-1"></i>{{ listing.farmer.name }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {{ listing.get_status_badge_class() }} fs-6 mb-2">{{ listing.status|title }}</span>
+                            <div class="h4 text-success mb-0">{{ listing.formatted_price() }}</div>
+                            <small class="text-muted">per unit</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Key Details -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-weight me-2 text-primary"></i>
+                                <div>
+                                    <strong>Quantity:</strong> {{ listing.quantity }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-globe me-2 text-success"></i>
+                                <div>
+                                    <strong>Target Market:</strong> {{ listing.target_market }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-calendar me-2 text-info"></i>
+                                <div>
+                                    <strong>Harvest:</strong> {{ listing.formatted_harvest_date() }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            {% if listing.description %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Product Description
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ listing.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Compliance Standards -->
+            {% if listing.get_compliance_standards() %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-award me-2 text-warning"></i>Compliance Standards
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for standard in listing.get_compliance_standards() %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-success me-2">
+                                <i class="fas fa-check me-1"></i>{{ standard }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Shipment Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-ship me-2 text-info"></i>Shipment Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Shipment Window:</strong>
+                                <div class="text-muted">{{ listing.formatted_shipment_window() }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Phytosanitary Certificate:</strong>
+                                <div>
+                                    {% if listing.has_phytosanitary %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-certificate me-1"></i>Available
+                                        </span>
+                                        {% if listing.phytosanitary_file %}
+                                        <a href="{{ url_for('download_certificate', listing_id=listing.id) }}" 
+                                           class="btn btn-sm btn-outline-success ms-2">
+                                            <i class="fas fa-download me-1"></i>Download
+                                        </a>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-warning">Not Available</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Comments (for farmers viewing their own listings) -->
+            {% if listing.admin_comment and (current_user.id == listing.farmer_id or current_user.is_admin()) %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comment-alt me-2 text-primary"></i>Admin Comments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ listing.admin_comment }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Contact Farmer (for non-farmers) -->
+            {% if current_user.id != listing.farmer_id and not current_user.is_farmer() %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>Contact Farmer
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="mb-3">Interested in this export listing? Contact the farmer directly.</p>
+                    <a href="{{ url_for('send_message') }}?recipient_id={{ listing.farmer_id }}&subject=Interest in {{ listing.produce_name }} Export" 
+                       class="btn btn-success btn-lg">
+                        <i class="fas fa-envelope me-2"></i>Send Message
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Listing Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-12 mb-3">
+                            <div class="border rounded p-2">
+                                <i class="fas fa-clock text-muted"></i>
+                                <div class="small text-muted">Listed</div>
+                                <div class="fw-bold">{{ listing.created_at.strftime('%b %d, %Y') }}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="border rounded p-2">
+                                <i class="fas fa-eye text-muted"></i>
+                                <div class="small text-muted">Last Updated</div>
+                                <div class="fw-bold">{{ listing.updated_at.strftime('%b %d, %Y') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Requirements -->
+            {% if export_requirements %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2 text-info"></i>{{ listing.target_market }} Requirements
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if export_requirements.certifications %}
+                    <div class="mb-3">
+                        <strong class="small">Required Certifications:</strong>
+                        <ul class="small mt-1">
+                            {% for cert in export_requirements.certifications[:4] %}
+                            <li>{{ cert }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    {% if export_requirements.typical_duties %}
+                    <div class="mb-2">
+                        <strong class="small">Typical Duties:</strong> 
+                        <span class="text-warning small">{{ export_requirements.typical_duties }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if export_requirements.processing_time %}
+                    <div class="mb-2">
+                        <strong class="small">Processing Time:</strong> 
+                        <span class="text-info small">{{ export_requirements.processing_time }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Price Trends -->
+            {% if price_trends %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line me-2 text-success"></i>Recent Price Trends
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        {% for trend in price_trends[-6:] %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ trend.month }}</span>
+                            <div>
+                                <span class="fw-bold">${{ "%.2f"|format(trend.price) }}</span>
+                                <span class="badge bg-{% if trend.change > 0 %}success{% else %}danger{% endif %} ms-1">
+                                    {% if trend.change > 0 %}+{% endif %}{{ trend.change }}%
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Related Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-link me-2"></i>Related Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('export_listings') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Listings
+                        </a>
+                        <a href="{{ url_for('export_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-chart-line me-2"></i>Market Overview
+                        </a>
+                        {% if current_user.is_farmer() %}
+                        <a href="{{ url_for('create_export_listing') }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-plus me-2"></i>Create New Listing
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-user-tag me-2 text-success"></i>My Export Listings
+                    </h1>
+                    <p class="text-muted mb-0">Manage your international export listings</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('export_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-chart-line me-2"></i>Market Overview
+                    </a>
+                    <a href="{{ url_for('create_export_listing') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Create New Listing
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    {% if listings %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ listings|length }}</h3>
+                    <small>Total Listings</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ listings|selectattr("status", "equalto", "pending")|list|length }}</h3>
+                    <small>Pending Review</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ listings|selectattr("status", "equalto", "approved")|list|length }}</h3>
+                    <small>Approved</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-ship fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ listings|selectattr("status", "equalto", "shipped")|list|length }}</h3>
+                    <small>Shipped</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Export Listings Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>Export Listings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if listings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Produce</th>
+                                    <th>Target Market</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Certification</th>
+                                    <th>Shipment Window</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for listing in listings %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ listing.produce_name }}</div>
+                                        <small class="text-muted">{{ listing.origin_state|title }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ listing.target_market }}</span>
+                                    </td>
+                                    <td>{{ listing.quantity }}</td>
+                                    <td class="fw-bold text-success">{{ listing.formatted_price() }}</td>
+                                    <td>
+                                        <span class="badge {{ listing.get_status_badge_class() }}">
+                                            {{ listing.status|title }}
+                                        </span>
+                                        {% if listing.admin_comment %}
+                                        <div class="text-muted small mt-1">
+                                            <i class="fas fa-comment me-1"></i>{{ listing.admin_comment[:50] }}{% if listing.admin_comment|length > 50 %}...{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if listing.has_phytosanitary %}
+                                        <i class="fas fa-certificate text-success" title="Phytosanitary Certificate Available"></i>
+                                        {% else %}
+                                        <i class="fas fa-times text-muted" title="No Certificate"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ listing.formatted_shipment_window() }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ listing.created_at.strftime('%b %d, %Y') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('export_listing_detail', listing_id=listing.id) }}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if listing.phytosanitary_file %}
+                                            <a href="{{ url_for('download_certificate', listing_id=listing.id) }}" 
+                                               class="btn btn-outline-success" title="Download Certificate">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-globe fa-3x text-muted mb-3"></i>
+                        <h4>No export listings yet</h4>
+                        <p class="text-muted mb-4">Start expanding your business to international markets by creating your first export listing.</p>
+                        <a href="{{ url_for('create_export_listing') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-plus me-2"></i>Create Export Listing
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Export Guide -->
+    {% if not listings %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Getting Started with Export
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-success">1. Prepare Your Produce</h6>
+                            <ul class="small">
+                                <li>Ensure quality meets international standards</li>
+                                <li>Obtain necessary certifications</li>
+                                <li>Plan harvest and processing timeline</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-warning">2. Documentation</h6>
+                            <ul class="small">
+                                <li>Get phytosanitary certificates</li>
+                                <li>Prepare quality and origin documents</li>
+                                <li>Check target market requirements</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-info">3. Create Listing</h6>
+                            <ul class="small">
+                                <li>Set competitive international prices</li>
+                                <li>Upload all required documentation</li>
+                                <li>Specify shipping and availability windows</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

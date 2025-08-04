@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h2 class="mb-2">
+                        <i class="fas fa-globe-americas me-2 text-success"></i>Create Export Listing
+                    </h2>
+                    <p class="text-muted mb-0">List your produce for international export markets</p>
+                </div>
+            </div>
+
+            <!-- Export Listing Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Export Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Basic Produce Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">
+                                    <i class="fas fa-seedling me-2"></i>Produce Information
+                                </h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.produce_name.label(class="form-label") }}
+                                {{ form.produce_name(class="form-control" + (" is-invalid" if form.produce_name.errors else "")) }}
+                                {% if form.produce_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.produce_name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.quantity.label(class="form-label") }}
+                                {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else "")) }}
+                                {% if form.quantity.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.quantity.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.price.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else "")) }}
+                                </div>
+                                {% if form.price.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.price.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.origin_state.label(class="form-label") }}
+                                {{ form.origin_state(class="form-select" + (" is-invalid" if form.origin_state.errors else "")) }}
+                                {% if form.origin_state.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.origin_state.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Export Market Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-success mb-3">
+                                    <i class="fas fa-globe me-2"></i>Export Market
+                                </h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.target_market.label(class="form-label") }}
+                                {{ form.target_market(class="form-select" + (" is-invalid" if form.target_market.errors else "")) }}
+                                {% if form.target_market.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.target_market.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Certification and Compliance -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-warning mb-3">
+                                    <i class="fas fa-certificate me-2"></i>Certification & Compliance
+                                </h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.has_phytosanitary(class="form-check-input") }}
+                                    {{ form.has_phytosanitary.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.phytosanitary_file.label(class="form-label") }}
+                                {{ form.phytosanitary_file(class="form-control" + (" is-invalid" if form.phytosanitary_file.errors else "")) }}
+                                {% if form.phytosanitary_file.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.phytosanitary_file.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Upload PDF, JPG, JPEG, or PNG files only</div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label fw-bold">International Standards Compliance:</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            {{ form.eu_gi(class="form-check-input") }}
+                                            {{ form.eu_gi.label(class="form-check-label") }}
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            {{ form.usda_organic(class="form-check-input") }}
+                                            {{ form.usda_organic.label(class="form-check-label") }}
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            {{ form.fair_trade(class="form-check-input") }}
+                                            {{ form.fair_trade.label(class="form-check-label") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            {{ form.global_gap(class="form-check-input") }}
+                                            {{ form.global_gap.label(class="form-check-label") }}
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            {{ form.iso_22000(class="form-check-input") }}
+                                            {{ form.iso_22000.label(class="form-check-label") }}
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            {{ form.haccp(class="form-check-input") }}
+                                            {{ form.haccp.label(class="form-check-label") }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Additional Details -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-info mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Additional Details
+                                </h6>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.description.label(class="form-label") }}
+                                {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                                {% if form.description.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Describe quality, processing methods, packaging, etc.</div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.harvest_date.label(class="form-label") }}
+                                {{ form.harvest_date(class="form-control" + (" is-invalid" if form.harvest_date.errors else "")) }}
+                                {% if form.harvest_date.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.harvest_date.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.shipment_window_start.label(class="form-label") }}
+                                {{ form.shipment_window_start(class="form-control" + (" is-invalid" if form.shipment_window_start.errors else "")) }}
+                                {% if form.shipment_window_start.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.shipment_window_start.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                {{ form.shipment_window_end.label(class="form-label") }}
+                                {{ form.shipment_window_end(class="form-control" + (" is-invalid" if form.shipment_window_end.errors else "")) }}
+                                {% if form.shipment_window_end.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.shipment_window_end.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('export_dashboard') }}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left me-2"></i>Cancel
+                                    </a>
+                                    {{ form.submit(class="btn btn-success btn-lg") }}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Export Guidelines -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2 text-warning"></i>Export Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">Documentation Tips:</h6>
+                            <ul class="small">
+                                <li>Ensure phytosanitary certificates are valid and recent</li>
+                                <li>Include quality certifications when available</li>
+                                <li>Provide detailed product descriptions</li>
+                                <li>Specify packaging and storage conditions</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-info">Pricing Guidelines:</h6>
+                            <ul class="small">
+                                <li>Research current international market prices</li>
+                                <li>Consider logistics and export costs</li>
+                                <li>Factor in seasonal price variations</li>
+                                <li>Account for quality premiums</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

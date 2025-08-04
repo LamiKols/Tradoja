@@ -11,6 +11,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **Logistics System**: Added delivery/pickup request system with status tracking and admin management
 - **User Experience**: Enhanced role-based redirects for seamless navigation after login/registration
 - **Climate-Smart Agriculture (CSA) Tool**: Added comprehensive weather integration with OpenWeatherMap API, soil analysis forms, crop recommendations engine, and carbon footprint calculator for sustainable farming practices
+- **Cross-Border Trade Module**: Implemented comprehensive export listings system with phytosanitary certification uploads, international standards compliance tracking, trade data integration, and admin approval workflow for global market access
 
 ## User Preferences
 
@@ -32,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **LogisticsRequest Model**: Delivery/pickup coordination system
 - **FundingApplication Model**: Offtake Guarantee Fund application management
 - **CSAData Model**: Climate-Smart Agriculture data storage for weather, soil, and carbon footprint analysis
+- **ExportListing Model**: Cross-border trade listings with certification tracking, compliance standards, and international market targeting
 - **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations
 
 ### Authentication & Security
@@ -71,6 +73,7 @@ Preferred communication style: Simple, everyday language.
 
 ### API Integrations
 - **OpenWeatherMap API**: Real-time weather data for climate-smart agriculture
+- **Trade Data Service**: Mock trade data service providing Nigerian agricultural export market trends and pricing information
 - **Environment Variables**: Secure API key management through Replit Secrets
 
 ### Infrastructure
