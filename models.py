@@ -18,8 +18,16 @@ class User(UserMixin, db.Model):
     sms_enabled = db.Column(db.Boolean, default=False)
     sms_registration_date = db.Column(db.DateTime)
     
+    # Subscription fields
+    is_premium = db.Column(db.Boolean, default=False)
+    subscription_start_date = db.Column(db.DateTime)
+    subscription_end_date = db.Column(db.DateTime)
+    subscription_plan_code = db.Column(db.String(50))
+    paystack_customer_code = db.Column(db.String(100))
+    
     # Relationship with produce
-    produce_listings = db.relationship('Produce', backref='farmer', lazy=True, cascade='all, delete-orphan')
+    produce_listings = db.relationship('Produce', foreign_keys='Produce.farmer_id', backref='farmer', lazy=True, cascade='all, delete-orphan')
+    purchased_produce = db.relationship('Produce', foreign_keys='Produce.buyer_id', backref='buyer', lazy=True)
     
     # Relationship with messages
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
@@ -44,6 +52,14 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is an admin"""
         return self.role == 'admin'
+        
+    def has_premium_access(self):
+        """Check if user has active premium subscription"""
+        if not self.is_premium:
+            return False
+        if self.subscription_end_date and self.subscription_end_date < datetime.utcnow():
+            return False
+        return True
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -69,6 +85,11 @@ class Produce(db.Model):
     
     # Foreign key to User
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Sale status
+    is_sold = db.Column(db.Boolean, default=False)
+    sale_date = db.Column(db.DateTime)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
     def __repr__(self):
         return f'<Produce {self.name}>'
@@ -519,3 +540,102 @@ class MatchRecommendation(db.Model):
     def formatted_timestamp(self):
         """Return formatted timestamp"""
         return self.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+
+
+class Transaction(db.Model):
+    """Transaction model for all payments in the platform"""
+    id = db.Column(db.Integer, primary_key=True)
+    reference = db.Column(db.String(100), unique=True, nullable=False)
+    
+    # Transaction details
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'produce_sale', 'logistics', 'subscription'
+    
+    # Amount breakdown
+    base_amount = db.Column(db.Float, nullable=False)
+    platform_fee = db.Column(db.Float, default=0.0)
+    logistics_fee = db.Column(db.Float, default=0.0)
+    total_amount = db.Column(db.Float, nullable=False)
+    
+    # Payment status
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'successful', 'failed', 'cancelled'
+    paystack_reference = db.Column(db.String(100))
+    payment_date = db.Column(db.DateTime)
+    
+    # Related entities
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
+    
+    # Metadata
+    transaction_metadata = db.Column(db.Text)  # JSON metadata for additional info
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='transactions')
+    produce = db.relationship('Produce', backref='transaction')
+    logistics_request = db.relationship('LogisticsRequest', backref='transaction')
+    
+    def __repr__(self):
+        return f'<Transaction {self.reference}>'
+
+
+class Subscription(db.Model):
+    """Subscription model for premium features"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Subscription details
+    plan_name = db.Column(db.String(50), nullable=False)  # 'Premium Monthly'
+    plan_code = db.Column(db.String(50), nullable=False)  # Paystack plan code
+    amount = db.Column(db.Float, nullable=False)  # Monthly fee
+    
+    # Status and dates
+    status = db.Column(db.String(20), default='active')  # 'active', 'cancelled', 'expired'
+    start_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=False)
+    next_billing_date = db.Column(db.DateTime)
+    
+    # Paystack details
+    subscription_code = db.Column(db.String(100))
+    customer_code = db.Column(db.String(100))
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='subscriptions')
+    
+    def is_active(self):
+        """Check if subscription is currently active"""
+        if self.status != 'active':
+            return False
+        if self.end_date and self.end_date < datetime.utcnow():
+            return False
+        return True
+    
+    def __repr__(self):
+        return f'<Subscription {self.user_id}: {self.plan_name}>'
+
+
+class PaymentLog(db.Model):
+    """Detailed payment logs for audit and reconciliation"""
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=False)
+    
+    # Log details
+    event_type = db.Column(db.String(50), nullable=False)  # 'initiated', 'verified', 'failed', 'webhook'
+    paystack_response = db.Column(db.Text)  # Full Paystack response
+    
+    # Status
+    success = db.Column(db.Boolean, default=False)
+    error_message = db.Column(db.Text)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    transaction = db.relationship('Transaction', backref='payment_logs')
+    
+    def __repr__(self):
+        return f'<PaymentLog {self.transaction_id}: {self.event_type}>'

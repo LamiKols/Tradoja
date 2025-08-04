@@ -421,3 +421,36 @@ class FieldAnalyticsForm(FlaskForm):
         self.soil_type.choices = service.get_soil_choices()
         self.irrigation_type.choices = service.get_irrigation_choices()
         self.fertilizer_type.choices = service.get_fertilizer_choices()
+
+
+
+class PurchaseForm(FlaskForm):
+    """Form for purchasing produce with payment processing"""
+    produce_id = HiddenField("Produce ID", validators=[DataRequired()])
+    quantity_to_buy = FloatField("Quantity to Purchase", validators=[
+        DataRequired(),
+        NumberRange(min=0.01, message="Quantity must be greater than 0")
+    ])
+    delivery_required = BooleanField("Delivery Required", default=False)
+    delivery_address = TextAreaField("Delivery Address", validators=[Optional()])
+    buyer_notes = TextAreaField("Additional Notes", validators=[Optional()])
+    submit = SubmitField("Proceed to Payment")
+
+
+class SubscriptionForm(FlaskForm):
+    """Form for premium subscription signup"""
+    plan = SelectField("Subscription Plan", choices=[
+        ("premium_monthly", "Premium Monthly - ₦10,000/month")
+    ], validators=[DataRequired()])
+    submit = SubmitField("Subscribe Now")
+
+
+class LogisticsPaymentForm(FlaskForm):
+    """Form for logistics service payment"""
+    logistics_request_id = HiddenField("Logistics Request ID", validators=[DataRequired()])
+    service_type = SelectField("Service Type", choices=[
+        ("pickup", "Pickup Service - ₦2,000"),
+        ("delivery", "Delivery Service - ₦2,000"),
+        ("both", "Pickup & Delivery - ₦3,500")
+    ], validators=[DataRequired()])
+    submit = SubmitField("Pay for Logistics")

@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
 from gi_service import GIService
@@ -45,6 +45,13 @@ try:
 except Exception as e:
     app.logger.error(f"SMS service initialization failed: {e}")
     sms_service = None
+
+# Initialize payment service
+try:
+    from payment_service import payment_service
+except Exception as e:
+    app.logger.error(f"Payment service initialization failed: {e}")
+    payment_service = None
 
 @app.route('/')
 def home():
@@ -2172,3 +2179,330 @@ def not_found_error(error):
 def internal_error(error):
     db.session.rollback()
     return render_template('500.html'), 500
+
+
+# ===============================
+# MONETIZATION & PAYMENT ROUTES
+# ===============================
+
+@app.route('/buy/<int:produce_id>')
+@login_required
+def buy_produce(produce_id):
+    """Show produce purchase form with payment calculation"""
+    if not current_user.is_buyer():
+        flash('Only buyers can purchase produce', 'error')
+        return redirect(url_for('marketplace'))
+    
+    produce = Produce.query.get_or_404(produce_id)
+    if not produce.is_available:
+        flash('This produce is no longer available', 'error')
+        return redirect(url_for('marketplace'))
+    
+    form = PurchaseForm()
+    form.produce_id.data = produce_id
+    
+    # Calculate fees for display
+    if payment_service:
+        sample_amount = produce.price
+        fee_breakdown = payment_service.calculate_total_with_fee(sample_amount, logistics_fee=2000)
+    else:
+        fee_breakdown = {
+            'base_amount': produce.price,
+            'platform_fee': produce.price * 0.015,
+            'logistics_fee': 2000,
+            'total_amount': produce.price + (produce.price * 0.015) + 2000
+        }
+    
+    return render_template('payments/purchase_form.html',
+                         produce=produce,
+                         form=form,
+                         fee_breakdown=fee_breakdown)
+
+
+@app.route('/process_purchase', methods=['POST'])
+@login_required
+def process_purchase():
+    """Process produce purchase with payment"""
+    if not current_user.is_buyer():
+        flash('Only buyers can purchase produce', 'error')
+        return redirect(url_for('marketplace'))
+    
+    form = PurchaseForm()
+    if not form.validate_on_submit():
+        flash('Invalid form data', 'error')
+        return redirect(url_for('marketplace'))
+    
+    produce = Produce.query.get_or_404(form.produce_id.data)
+    if not produce.is_available:
+        flash('This produce is no longer available', 'error')
+        return redirect(url_for('marketplace'))
+    
+    # Calculate total amount
+    base_amount = produce.price * form.quantity_to_buy.data
+    logistics_fee = 2000 if form.delivery_required.data else 0
+    
+    if payment_service:
+        fee_breakdown = payment_service.calculate_total_with_fee(base_amount, logistics_fee)
+        
+        # Create transaction record
+        reference = payment_service.generate_reference("purchase")
+        transaction = Transaction(
+            reference=reference,
+            user_id=current_user.id,
+            transaction_type='produce_sale',
+            base_amount=fee_breakdown['base_amount'],
+            platform_fee=fee_breakdown['platform_fee'],
+            logistics_fee=fee_breakdown['logistics_fee'],
+            total_amount=fee_breakdown['total_amount'],
+            produce_id=produce.id,
+            transaction_metadata=f'{{"quantity": {form.quantity_to_buy.data}, "delivery_required": {form.delivery_required.data}}}'
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        
+        try:
+            # Initialize payment with Paystack
+            callback_url = url_for('payment_callback', _external=True)
+            payment_response = payment_service.initialize_transaction(
+                email=current_user.email,
+                amount=fee_breakdown['total_amount'],
+                reference=reference,
+                callback_url=callback_url,
+                metadata={
+                    'transaction_id': transaction.id,
+                    'produce_name': produce.name,
+                    'farmer_name': produce.farmer.name,
+                    'quantity': form.quantity_to_buy.data
+                }
+            )
+            
+            if payment_response['status']:
+                return redirect(payment_response['data']['authorization_url'])
+            else:
+                flash('Payment initialization failed', 'error')
+                return redirect(url_for('buy_produce', produce_id=produce.id))
+                
+        except Exception as e:
+            app.logger.error(f"Payment initialization error: {e}")
+            flash('Payment service unavailable. Please try again later.', 'error')
+            return redirect(url_for('buy_produce', produce_id=produce.id))
+    else:
+        flash('Payment service unavailable', 'error')
+        return redirect(url_for('marketplace'))
+
+
+@app.route('/payment/callback')
+def payment_callback():
+    """Handle payment callback from Paystack"""
+    reference = request.args.get('reference')
+    if not reference:
+        flash('Invalid payment reference', 'error')
+        return redirect(url_for('marketplace'))
+    
+    transaction = Transaction.query.filter_by(reference=reference).first()
+    if not transaction:
+        flash('Transaction not found', 'error')
+        return redirect(url_for('marketplace'))
+    
+    if payment_service:
+        try:
+            # Verify payment with Paystack
+            verification = payment_service.verify_transaction(reference)
+            
+            if verification['status'] and verification['data']['status'] == 'success':
+                # Payment successful
+                transaction.status = 'successful'
+                transaction.payment_date = datetime.utcnow()
+                transaction.paystack_reference = verification['data']['reference']
+                
+                # Mark produce as sold
+                produce = transaction.produce
+                produce.is_sold = True
+                produce.sale_date = datetime.utcnow()
+                produce.buyer_id = current_user.id
+                produce.is_available = False
+                
+                db.session.commit()
+                
+                flash('Payment successful! Purchase completed.', 'success')
+                return redirect(url_for('buyer_dashboard'))
+            else:
+                transaction.status = 'failed'
+                db.session.commit()
+                flash('Payment verification failed', 'error')
+                return redirect(url_for('marketplace'))
+                
+        except Exception as e:
+            app.logger.error(f"Payment verification error: {e}")
+            flash('Payment verification failed', 'error')
+            return redirect(url_for('marketplace'))
+    else:
+        flash('Payment service unavailable', 'error')
+        return redirect(url_for('marketplace'))
+
+
+@app.route('/subscribe')
+@login_required
+def subscribe():
+    """Premium subscription signup page"""
+    if current_user.has_premium_access():
+        flash('You already have an active premium subscription', 'info')
+        return redirect(url_for('farmer_dashboard' if current_user.is_farmer() else 'buyer_dashboard'))
+    
+    form = SubscriptionForm()
+    return render_template('payments/subscription_form.html', form=form)
+
+
+@app.route('/process_subscription', methods=['POST'])
+@login_required
+def process_subscription():
+    """Process premium subscription payment"""
+    if current_user.has_premium_access():
+        flash('You already have an active premium subscription', 'info')
+        return redirect(url_for('farmer_dashboard' if current_user.is_farmer() else 'buyer_dashboard'))
+    
+    form = SubscriptionForm()
+    if not form.validate_on_submit():
+        flash('Invalid form data', 'error')
+        return redirect(url_for('subscribe'))
+    
+    if payment_service:
+        try:
+            # Create subscription transaction
+            reference = payment_service.generate_reference("subscription")
+            amount = 10000  # ₦10,000 monthly
+            
+            transaction = Transaction(
+                reference=reference,
+                user_id=current_user.id,
+                transaction_type='subscription',
+                base_amount=amount,
+                platform_fee=0,  # No platform fee on subscriptions
+                logistics_fee=0,
+                total_amount=amount
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            
+            # Initialize payment
+            callback_url = url_for('subscription_callback', _external=True)
+            payment_response = payment_service.initialize_transaction(
+                email=current_user.email,
+                amount=amount,
+                reference=reference,
+                callback_url=callback_url,
+                metadata={
+                    'transaction_id': transaction.id,
+                    'subscription_type': 'premium_monthly',
+                    'user_name': current_user.name
+                }
+            )
+            
+            if payment_response['status']:
+                return redirect(payment_response['data']['authorization_url'])
+            else:
+                flash('Subscription initialization failed', 'error')
+                return redirect(url_for('subscribe'))
+                
+        except Exception as e:
+            app.logger.error(f"Subscription initialization error: {e}")
+            flash('Subscription service unavailable. Please try again later.', 'error')
+            return redirect(url_for('subscribe'))
+    else:
+        flash('Payment service unavailable', 'error')
+        return redirect(url_for('subscribe'))
+
+
+@app.route('/subscription/callback')
+def subscription_callback():
+    """Handle subscription payment callback"""
+    reference = request.args.get('reference')
+    if not reference:
+        flash('Invalid payment reference', 'error')
+        return redirect(url_for('subscribe'))
+    
+    transaction = Transaction.query.filter_by(reference=reference).first()
+    if not transaction:
+        flash('Transaction not found', 'error')
+        return redirect(url_for('subscribe'))
+    
+    if payment_service:
+        try:
+            verification = payment_service.verify_transaction(reference)
+            
+            if verification['status'] and verification['data']['status'] == 'success':
+                # Payment successful - activate premium subscription
+                transaction.status = 'successful'
+                transaction.payment_date = datetime.utcnow()
+                
+                # Update user subscription
+                user = transaction.user
+                user.is_premium = True
+                user.subscription_start_date = datetime.utcnow()
+                user.subscription_end_date = datetime.utcnow() + timedelta(days=30)
+                user.subscription_plan_code = 'premium_monthly'
+                
+                # Create subscription record
+                subscription = Subscription(
+                    user_id=user.id,
+                    plan_name='Premium Monthly',
+                    plan_code='premium_monthly',
+                    amount=10000,
+                    status='active',
+                    start_date=datetime.utcnow(),
+                    end_date=datetime.utcnow() + timedelta(days=30),
+                    next_billing_date=datetime.utcnow() + timedelta(days=30)
+                )
+                db.session.add(subscription)
+                db.session.commit()
+                
+                flash('Premium subscription activated! Welcome to AgroLink Premium.', 'success')
+                return redirect(url_for('farmer_dashboard' if user.is_farmer() else 'buyer_dashboard'))
+            else:
+                transaction.status = 'failed'
+                db.session.commit()
+                flash('Subscription payment failed', 'error')
+                return redirect(url_for('subscribe'))
+                
+        except Exception as e:
+            app.logger.error(f"Subscription verification error: {e}")
+            flash('Subscription verification failed', 'error')
+            return redirect(url_for('subscribe'))
+    else:
+        flash('Payment service unavailable', 'error')
+        return redirect(url_for('subscribe'))
+
+
+@app.route('/admin/payments')
+@login_required
+def admin_payments_dashboard():
+    """Admin dashboard for payment monitoring"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get payment statistics
+    total_transactions = Transaction.query.count()
+    successful_transactions = Transaction.query.filter_by(status='successful').count()
+    total_revenue = db.session.query(func.sum(Transaction.platform_fee)).filter_by(status='successful').scalar() or 0
+    
+    # Recent transactions
+    recent_transactions = Transaction.query.order_by(Transaction.created_at.desc()).limit(20).all()
+    
+    # Subscription statistics
+    active_subscriptions = Subscription.query.filter_by(status='active').count()
+    subscription_revenue = db.session.query(func.sum(Transaction.total_amount)).filter(
+        Transaction.transaction_type == 'subscription',
+        Transaction.status == 'successful'
+    ).scalar() or 0
+    
+    stats = {
+        'total_transactions': total_transactions,
+        'successful_transactions': successful_transactions,
+        'total_revenue': total_revenue,
+        'active_subscriptions': active_subscriptions,
+        'subscription_revenue': subscription_revenue
+    }
+    
+    return render_template('admin/payments_dashboard.html',
+                         stats=stats,
+                         recent_transactions=recent_transactions)

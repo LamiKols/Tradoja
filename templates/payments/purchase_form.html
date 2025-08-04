@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase {{ produce.name }} - AgroLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-shopping-cart me-2"></i>Purchase {{ produce.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Produce Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Product Information</h5>
+                            <p><strong>Product:</strong> {{ produce.name }}</p>
+                            <p><strong>Farmer:</strong> {{ produce.farmer.name }}</p>
+                            <p><strong>Available Quantity:</strong> {{ produce.quantity }}</p>
+                            <p><strong>Price per Unit:</strong> ₦{{ "%.2f"|format(produce.price) }}</p>
+                            <p><strong>Description:</strong> {{ produce.description or 'No description available' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Cost Breakdown</h5>
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Base Amount:</span>
+                                        <span id="base-amount">₦{{ "%.2f"|format(fee_breakdown.base_amount) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Platform Fee (1.5%):</span>
+                                        <span id="platform-fee">₦{{ "%.2f"|format(fee_breakdown.platform_fee) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between" id="logistics-row">
+                                        <span>Logistics Fee:</span>
+                                        <span id="logistics-fee">₦2,000</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Amount:</span>
+                                        <span id="total-amount">₦{{ "%.2f"|format(fee_breakdown.total_amount) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purchase Form -->
+                    <form method="POST" action="{{ url_for('process_purchase') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.quantity_to_buy.label(class="form-label") }}
+                                    {{ form.quantity_to_buy(class="form-control", id="quantity-input", step="0.01", min="0.01") }}
+                                    {% if form.quantity_to_buy.errors %}
+                                        {% for error in form.quantity_to_buy.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check mt-4">
+                                        {{ form.delivery_required(class="form-check-input", id="delivery-checkbox") }}
+                                        {{ form.delivery_required.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="delivery-address-group" style="display: none;">
+                            {{ form.delivery_address.label(class="form-label") }}
+                            {{ form.delivery_address(class="form-control", rows="3", placeholder="Enter your delivery address") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.buyer_notes.label(class="form-label") }}
+                            {{ form.buyer_notes(class="form-control", rows="3", placeholder="Any special instructions or notes for the farmer") }}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                            <a href="{{ url_for('marketplace') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.getElementById('quantity-input');
+    const deliveryCheckbox = document.getElementById('delivery-checkbox');
+    const deliveryAddressGroup = document.getElementById('delivery-address-group');
+    const logisticsRow = document.getElementById('logistics-row');
+    const basePrice = {{ produce.price }};
+
+    function updateCosts() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const baseAmount = basePrice * quantity;
+        const platformFee = baseAmount * 0.015;
+        const logisticsFee = deliveryCheckbox.checked ? 2000 : 0;
+        const totalAmount = baseAmount + platformFee + logisticsFee;
+
+        document.getElementById('base-amount').textContent = '₦' + baseAmount.toFixed(2);
+        document.getElementById('platform-fee').textContent = '₦' + platformFee.toFixed(2);
+        document.getElementById('logistics-fee').textContent = '₦' + logisticsFee.toFixed(2);
+        document.getElementById('total-amount').textContent = '₦' + totalAmount.toFixed(2);
+
+        if (deliveryCheckbox.checked) {
+            logisticsRow.style.display = 'flex';
+        } else {
+            logisticsRow.style.display = 'flex';
+            logisticsRow.style.opacity = '0.5';
+        }
+    }
+
+    quantityInput.addEventListener('input', updateCosts);
+    
+    deliveryCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            deliveryAddressGroup.style.display = 'block';
+        } else {
+            deliveryAddressGroup.style.display = 'none';
+        }
+        updateCosts();
+    });
+
+    // Initialize
+    updateCosts();
+});
+</script>
+{% endblock %}

@@ -58,9 +58,19 @@
                         <!-- Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <h5 class="card-title fw-bold mb-0">{{ produce.name }}</h5>
-                            <span class="badge bg-success">
-                                <i class="fas fa-check me-1"></i>Available
-                            </span>
+                            {% if produce.is_sold %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times me-1"></i>Sold
+                                </span>
+                            {% elif produce.is_available %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Available
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-pause me-1"></i>Unavailable
+                                </span>
+                            {% endif %}
                         </div>
                         
                         <!-- Stats -->
@@ -108,6 +118,12 @@
                             </a>
                             {% if current_user.is_authenticated %}
                                 {% if current_user.id != produce.farmer_id %}
+                                    {% if current_user.is_buyer() and produce.is_available and not produce.is_sold %}
+                                        <a href="{{ url_for('buy_produce', produce_id=produce.id) }}" 
+                                           class="btn btn-warning flex-fill">
+                                            <i class="fas fa-shopping-cart me-1"></i>Buy Now
+                                        </a>
+                                    {% endif %}
                                     <div class="btn-group flex-fill" role="group">
                                         <a href="{{ url_for('send_message', receiver_id=produce.farmer_id, produce_id=produce.id) }}" 
                                            class="btn btn-outline-primary">

@@ -1,0 +1,43 @@
+Implement core monetization features in AgroLink:
+
+1. **Transaction Fees on Marketplace Trades**
+   - Integrate a payment gateway (Paystack or Flutterwave) for all produce transactions between buyers and farmers.
+   - Automatically calculate and deduct a 1.5% platform fee on each transaction.
+   - Store all payment and fee records in the database.
+   - Display the transaction fee breakdown on the checkout page, SMS/email confirmations, and in the admin dashboard.
+   - Only mark a produce sale as complete after payment (and fee) is confirmed.
+
+2. **Logistics Service Fees**
+   - Add a logistics booking and payment feature.
+   - When a user books delivery/pickup, add a flat fee (e.g., ₦2,000) to the payment flow.
+   - Process logistics fee together with booking confirmation.
+   - Store all logistics bookings and payments in the database for admin tracking and reporting.
+   - Display fee clearly on booking confirmation, receipts, and notifications.
+
+3. **Premium Subscriptions for Value-Added Features**
+   - Offer a freemium model: all users get basic access, but advanced analytics, priority listings, and other premium features require subscription (e.g., ₦10,000/month).
+   - Use the payment gateway’s subscription/recurring billing API.
+   - Store subscription status in the user model and restrict premium features to subscribed users only.
+   - Show “Upgrade to Premium” prompts throughout the UI for non-premium users.
+   - Display subscription status and receipts in user dashboards and admin panel.
+
+**Technical Stack:**
+- Use Flask for the backend and SQLite for database management.
+- Integrate payment gateway using the official Python SDK or REST API (sandbox credentials for testing).
+- Ensure all payment and fee logic is handled server-side for security.
+- Implement basic admin dashboard views to monitor payments, subscriptions, and total revenue.
+
+**User Experience:**
+- Always show all fees and charges before users pay.
+- Notify users of payment success, failed transactions, and subscription renewal via email/SMS and on-platform notifications.
+
+**Scalability:**
+- Prepare code and database models for easy migration to cloud hosting (e.g., AWS, Heroku) as user volume grows.
+
+**References:**
+- [Paystack Python SDK](https://github.com/PaystackHQ/paystack-python)
+- [Flutterwave API Docs](https://developer.flutterwave.com/docs/)
+- [Flask Integration Guide](https://flask.palletsprojects.com/)
+
+All features must be fully testable in the Replit environment with sandbox payment credentials.
+
