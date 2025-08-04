@@ -82,118 +82,137 @@
                 </div>
                 <div class="card-body">
                     {% if purchases %}
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Purchase Date</th>
-                                        <th>Product</th>
-                                        <th>Farmer</th>
-                                        <th>Quantity</th>
-                                        <th>Amount</th>
-                                        <th>Platform Fee</th>
-                                        <th>Logistics</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for transaction in purchases %}
-                                    <tr>
-                                        <td>
-                                            <small>{{ transaction.payment_date.strftime('%B %d, %Y') if transaction.payment_date else transaction.created_at.strftime('%B %d, %Y') }}</small>
-                                        </td>
-                                        <td>
-                                            <div>
-                                                {% if transaction.produce %}
-                                                    <strong>{{ transaction.produce.name }}</strong><br>
-                                                    <small class="text-muted">{{ transaction.produce.description[:50] }}{% if transaction.produce.description|length > 50 %}...{% endif %}</small>
+                        <div class="row">
+                            {% for transaction in purchases %}
+                            <div class="col-12 mb-3">
+                                <div class="card border-left-{{ 'success' if transaction.status == 'successful' else 'warning' if transaction.status == 'pending' else 'danger' }}">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <!-- Product Info -->
+                                            <div class="col-md-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3">
+                                                        <i class="fas fa-seedling fa-2x text-success"></i>
+                                                    </div>
+                                                    <div>
+                                                        {% if transaction.produce %}
+                                                            <h6 class="mb-1">{{ transaction.produce.name }}</h6>
+                                                            <small class="text-muted">{{ transaction.produce.description[:40] }}{% if transaction.produce.description|length > 40 %}...{% endif %}</small>
+                                                        {% else %}
+                                                            <h6 class="mb-1 text-muted">Product Unavailable</h6>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Farmer Info -->
+                                            <div class="col-md-3">
+                                                {% if transaction.produce and transaction.produce.farmer %}
+                                                    <div>
+                                                        <strong class="text-primary">{{ transaction.produce.farmer.name }}</strong><br>
+                                                        <small class="text-muted">{{ transaction.produce.farmer.email }}</small>
+                                                    </div>
                                                 {% else %}
-                                                    <span class="text-muted">Product details unavailable</span>
+                                                    <span class="text-muted">Farmer info unavailable</span>
                                                 {% endif %}
                                             </div>
-                                        </td>
-                                        <td>
-                                            {% if transaction.produce and transaction.produce.farmer %}
-                                                <div>
-                                                    <strong>{{ transaction.produce.farmer.name }}</strong><br>
-                                                    <small class="text-muted">{{ transaction.produce.farmer.email }}</small>
+                                            
+                                            <!-- Purchase Details -->
+                                            <div class="col-md-3">
+                                                <div class="row g-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block">Amount</small>
+                                                        <strong>₦{{ "%.2f"|format(transaction.base_amount) }}</strong>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block">Total</small>
+                                                        <strong class="text-success">₦{{ "%.2f"|format(transaction.total_amount) }}</strong>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block">Platform Fee</small>
+                                                        <span>₦{{ "%.2f"|format(transaction.platform_fee) }}</span>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block">Logistics</small>
+                                                        {% if transaction.logistics_fee and transaction.logistics_fee > 0 %}
+                                                            <span class="badge bg-info">₦{{ "%.2f"|format(transaction.logistics_fee) }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
-                                            {% else %}
-                                                <span class="text-muted">Farmer info unavailable</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if transaction.transaction_metadata %}
-                                                {% set metadata = transaction.transaction_metadata|safe %}
-                                                {% if '"quantity":' in metadata %}
-                                                    <span class="badge bg-secondary">
-                                                        {{ metadata.split('"quantity": ')[1].split(',')[0] }} units
-                                                    </span>
-                                                {% else %}
-                                                    <span class="text-muted">-</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>₦{{ "%.2f"|format(transaction.base_amount) }}</td>
-                                        <td>₦{{ "%.2f"|format(transaction.platform_fee) }}</td>
-                                        <td>
-                                            {% if transaction.logistics_fee and transaction.logistics_fee > 0 %}
-                                                <span class="badge bg-info">₦{{ "%.2f"|format(transaction.logistics_fee) }}</span>
-                                            {% else %}
-                                                <div class="d-flex flex-column">
-                                                    <span class="text-muted">-</span>
-                                                    {% if transaction.status == 'successful' and transaction.produce and transaction.produce.id %}
-                                                        <small class="text-info mt-1">
-                                                            <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
-                                                               class="text-decoration-none text-info">
-                                                               <i class="fas fa-truck me-1"></i>Request service
+                                            </div>
+                                            
+                                            <!-- Status & Actions -->
+                                            <div class="col-md-2">
+                                                <div class="text-end">
+                                                    <div class="mb-2">
+                                                        {% if transaction.status == 'successful' %}
+                                                            <span class="badge bg-success">Completed</span>
+                                                        {% elif transaction.status == 'pending' %}
+                                                            <span class="badge bg-warning">Pending</span>
+                                                        {% elif transaction.status == 'failed' %}
+                                                            <span class="badge bg-danger">Failed</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ transaction.status.title() }}</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="btn-group-vertical btn-group-sm">
+                                                        {% if transaction.produce and transaction.produce.farmer %}
+                                                            <a href="{{ url_for('send_message', receiver_id=transaction.produce.farmer.id) }}" 
+                                                               class="btn btn-outline-primary btn-sm mb-1" title="Contact Farmer">
+                                                                <i class="fas fa-envelope me-1"></i>Message
                                                             </a>
+                                                        {% endif %}
+                                                        {% if transaction.status == 'successful' and transaction.produce %}
+                                                            <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
+                                                               class="btn btn-outline-info btn-sm mb-1" title="Request Logistics">
+                                                                <i class="fas fa-truck me-1"></i>Logistics
+                                                            </a>
+                                                            <button class="btn btn-outline-success btn-sm" 
+                                                                    onclick="downloadReceipt('{{ transaction.reference }}')" 
+                                                                    title="Download Receipt">
+                                                                <i class="fas fa-download me-1"></i>Receipt
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Purchase Date & Additional Info -->
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    {{ transaction.payment_date.strftime('%B %d, %Y at %I:%M %p') if transaction.payment_date else transaction.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                {% if transaction.transaction_metadata %}
+                                                    {% set metadata = transaction.transaction_metadata|safe %}
+                                                    {% if '"quantity":' in metadata %}
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-weight me-1"></i>
+                                                            Quantity: {{ metadata.split('"quantity": ')[1].split(',')[0] }} units
                                                         </small>
                                                     {% endif %}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td><strong>₦{{ "%.2f"|format(transaction.total_amount) }}</strong></td>
-                                        <td>
-                                            {% if transaction.status == 'successful' %}
-                                                <span class="badge bg-success">Completed</span>
-                                            {% elif transaction.status == 'pending' %}
-                                                <span class="badge bg-warning">Pending</span>
-                                            {% elif transaction.status == 'failed' %}
-                                                <span class="badge bg-danger">Failed</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ transaction.status.title() }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                {% if transaction.produce and transaction.produce.farmer %}
-                                                    <a href="{{ url_for('send_message', receiver_id=transaction.produce.farmer.id) }}" 
-                                                       class="btn btn-outline-primary btn-sm" title="Contact Farmer">
-                                                        <i class="fas fa-envelope"></i>
-                                                    </a>
                                                 {% endif %}
-                                                {% if transaction.status == 'successful' and transaction.produce %}
-                                                    <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
-                                                       class="btn btn-outline-info btn-sm" title="Request Logistics">
-                                                        <i class="fas fa-truck"></i>
-                                                    </a>
-                                                    <button class="btn btn-outline-success btn-sm" 
-                                                            onclick="downloadReceipt('{{ transaction.reference }}')" 
-                                                            title="Download Receipt">
-                                                        <i class="fas fa-download"></i>
-                                                    </button>
+                                                
+                                                {% if transaction.status == 'successful' and transaction.produce and not (transaction.logistics_fee and transaction.logistics_fee > 0) %}
+                                                    <div class="mt-1">
+                                                        <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
+                                                           class="text-decoration-none text-info">
+                                                           <i class="fas fa-truck me-1"></i>Need delivery? Request logistics service
+                                                        </a>
+                                                    </div>
                                                 {% endif %}
                                             </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <div class="text-center py-5">
@@ -251,6 +270,18 @@
 </div>
 
 <style>
+.border-left-success {
+    border-left: 4px solid var(--bs-success) !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid var(--bs-warning) !important;
+}
+
+.border-left-danger {
+    border-left: 4px solid var(--bs-danger) !important;
+}
+
 .timeline {
     position: relative;
     padding-left: 2rem;
@@ -287,6 +318,11 @@
     bottom: -1.5rem;
     width: 2px;
     background: var(--bs-border-color);
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease-in-out;
 }
 </style>
 
