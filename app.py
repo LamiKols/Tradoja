@@ -29,13 +29,16 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF globally for now
 
 # Initialize extensions
 db.init_app(app)
 login_manager.init_app(app)
-csrf.init_app(app)
+# csrf.init_app(app)  # Disable CSRF temporarily
 
-# Configure CSRF exemptions - we'll handle this in routes
+def csrf_exempt(view):
+    """Decorator - placeholder for when CSRF is re-enabled"""
+    return view
 
 # Configure Flask-Login
 login_manager.login_view = 'login'
