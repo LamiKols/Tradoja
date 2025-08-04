@@ -2730,6 +2730,8 @@ def onboarding_step_3(registration):
             registration.farming_methods = form.farming_methods.data
             registration.irrigation_methods = form.irrigation_methods.data
             registration.postharvest_facilities = form.postharvest_facilities.data
+            registration.coop_member = form.coop_member.data
+            registration.extension_service = form.extension_service.data
         elif registration.role == 'aggregator':
             registration.aggregation_capacity = form.aggregation_capacity.data
             registration.storage_capacity = form.storage_capacity.data
@@ -2771,6 +2773,8 @@ def onboarding_step_3(registration):
         form.farming_methods.data = registration.farming_methods
         form.irrigation_methods.data = registration.irrigation_methods
         form.postharvest_facilities.data = registration.postharvest_facilities
+        form.coop_member.data = registration.coop_member
+        form.extension_service.data = registration.extension_service
     # Add similar pre-population for other roles...
     
     return render_template(template, 

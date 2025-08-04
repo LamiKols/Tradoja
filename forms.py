@@ -575,6 +575,16 @@ class OnboardingStep3FarmerForm(FlaskForm):
                                    render_kw={'placeholder': 'e.g., Drip irrigation, Rain-fed, Sprinkler system'})
     postharvest_facilities = TextAreaField('Post-Harvest Facilities Available', validators=[Optional()],
                                          render_kw={'rows': 3, 'placeholder': 'Describe storage, processing, and handling facilities'})
+    coop_member = SelectField('Are you a member of any Farmer\'s Cooperative or Association?', choices=[
+        ('', 'Please select'),
+        ('Yes', 'Yes'),
+        ('No', 'No')
+    ], validators=[DataRequired()])
+    extension_service = SelectField('Do you have access to any form of extension service?', choices=[
+        ('', 'Please select'),
+        ('Yes', 'Yes'),
+        ('No', 'No')
+    ], validators=[DataRequired()])
 
 
 class OnboardingStep3AggregatorForm(FlaskForm):

@@ -124,6 +124,22 @@
                                     <div class="text-danger small">{{ form.postharvest_facilities.errors[0] }}</div>
                                 {% endif %}
                             </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.coop_member.label(class="form-label") }}
+                                {{ form.coop_member(class="form-select") }}
+                                {% if form.coop_member.errors %}
+                                    <div class="text-danger small">{{ form.coop_member.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.extension_service.label(class="form-label") }}
+                                {{ form.extension_service(class="form-select") }}
+                                {% if form.extension_service.errors %}
+                                    <div class="text-danger small">{{ form.extension_service.errors[0] }}</div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <div class="alert alert-info">

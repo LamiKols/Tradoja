@@ -121,6 +121,8 @@ class ProduceLagosRegistration(db.Model):
     farming_methods = db.Column(db.Text)  # Type of farming (Crop, Livestock, Mixed)
     irrigation_methods = db.Column(db.String(200))  # Irrigation methods used
     postharvest_facilities = db.Column(db.Text)  # Post-harvest facilities available
+    coop_member = db.Column(db.String(10))  # Member of farmer's cooperative or association
+    extension_service = db.Column(db.String(10))  # Access to extension service
     
     # Aggregator-specific
     aggregation_capacity = db.Column(db.String(100))
