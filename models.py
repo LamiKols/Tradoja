@@ -51,7 +51,7 @@ class Produce(db.Model):
     price = db.Column(db.Float, nullable=False)  # Price per unit
     price_unit = db.Column(db.String(20), nullable=False, default='NGN')  # Currency/unit
     description = db.Column(db.Text)
-    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+    date_listed = db.Column(db.DateTime, default=datetime.utcnow)
     is_available = db.Column(db.Boolean, default=True)
     
     # Geographical Indications (GI) fields

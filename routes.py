@@ -136,7 +136,7 @@ def farmer_dashboard():
         return redirect(url_for('home'))
     
     # Get farmer's produce listings
-    produce_listings = Produce.query.filter_by(farmer_id=current_user.id).order_by(Produce.date_posted.desc()).all()
+    produce_listings = Produce.query.filter_by(farmer_id=current_user.id).order_by(Produce.date_listed.desc()).all()
     
     # Get recent funding applications
     recent_funding = FundingApplication.query.filter_by(applicant_id=current_user.id)\
@@ -180,7 +180,7 @@ def buyer_dashboard():
         query = query.filter(Produce.gi_certified == False)
     form.gi_filter.data = gi_filter
     
-    produce_listings = query.order_by(Produce.date_posted.desc()).all()
+    produce_listings = query.order_by(Produce.date_listed.desc()).all()
     
     return render_template('buyer_dashboard.html', 
                          title='Marketplace', 
@@ -197,7 +197,7 @@ def admin_dashboard():
     
     # Get all users and produce for oversight
     users = User.query.order_by(User.registration_date.desc()).all()
-    produce_listings = Produce.query.order_by(Produce.date_posted.desc()).all()
+    produce_listings = Produce.query.order_by(Produce.date_listed.desc()).all()
     
     # Calculate statistics
     stats = {
@@ -722,7 +722,7 @@ def marketplace():
                            Produce.description.contains(search_term))
         form.search_term.data = search_term
     
-    produce_listings = query.order_by(Produce.date_posted.desc()).all()
+    produce_listings = query.order_by(Produce.date_listed.desc()).all()
     
     return render_template('produce_list.html', 
                          title='Marketplace', 

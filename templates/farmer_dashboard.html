@@ -63,7 +63,7 @@
             <div class="card bg-info text-white">
                 <div class="card-body text-center">
                     <i class="fas fa-calendar fa-2x mb-2"></i>
-                    <h3 class="mb-0">{{ produce_listings|selectattr("date_posted")|list|length }}</h3>
+                    <h3 class="mb-0">{{ produce_listings|selectattr("date_listed")|list|length }}</h3>
                     <small>This Month</small>
                 </div>
             </div>
@@ -116,7 +116,7 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <small>{{ produce.date_posted.strftime('%B %d, %Y') }}</small>
+                                            <small>{{ produce.date_listed.strftime('%B %d, %Y') }}</small>
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">

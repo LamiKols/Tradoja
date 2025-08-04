@@ -224,7 +224,7 @@ class SMSService:
             # Get recent prices for this crop (last 30 days)
             recent_produce = Produce.query.filter(
                 Produce.name.ilike(f'%{crop_name}%'),
-                Produce.date_posted >= datetime.utcnow().replace(day=1)  # This month
+                Produce.date_listed >= datetime.utcnow().replace(day=1)  # This month
             ).all()
             
             if not recent_produce:

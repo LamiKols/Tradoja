@@ -115,7 +115,7 @@
                                         <td>
                                             <span class="badge bg-warning">{{ produce.gi_label }}</span>
                                         </td>
-                                        <td>{{ produce.date_posted.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
                                         <td>{{ produce.formatted_price() }}</td>
                                         <td>
                                             <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
@@ -180,7 +180,7 @@
                                                 <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ produce.date_posted.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
                                         <td>
                                             <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
                                                class="btn btn-sm btn-outline-primary">
@@ -240,7 +240,7 @@
                                     <td>
                                         <small>{{ produce.gi_admin_comment or 'No reason provided' }}</small>
                                     </td>
-                                    <td>{{ produce.date_posted.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ produce.date_listed.strftime('%Y-%m-%d') }}</td>
                                     <td>
                                         <a href="{{ url_for('manage_gi_claim', produce_id=produce.id) }}" 
                                            class="btn btn-sm btn-outline-secondary">
