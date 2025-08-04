@@ -16,6 +16,11 @@ class SMSService:
         """Initialize Africa's Talking SMS service"""
         self.username = username
         self.api_key = api_key
+        
+        # Check if credentials are properly configured
+        if not username or not api_key or len(api_key) < 20:
+            current_app.logger.warning("Africa's Talking credentials may be invalid")
+            
         africastalking.initialize(username, api_key)
         self.sms = africastalking.SMS
         
@@ -119,10 +124,9 @@ class SMSService:
                 name=name,
                 phone_number=phone_number,
                 email=f"{phone_number.replace('+', '')}@sms.agrolink.com",  # Temporary email
-                location=location,
                 role='farmer',
                 sms_enabled=True,
-                main_crop=main_crop
+                sms_registration_date=datetime.utcnow()
             )
             
             # Set a temporary password (they'll use SMS only)
@@ -132,8 +136,8 @@ class SMSService:
             db.session.add(user)
             db.session.commit()
             
-            welcome_message = (f"Welcome {name}! 🎉\n"
-                             f"You're registered in {location} for {main_crop}.\n"
+            welcome_message = (f"Welcome {name}!\n"
+                             f"You're registered as a farmer.\n"
                              f"Commands: LIST, PRICE, HELP\n"
                              f"Example: LIST TOMATOES 5T 150000")
             
