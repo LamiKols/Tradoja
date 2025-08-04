@@ -49,11 +49,11 @@
     {% endif %}
 
     <!-- Produce Grid -->
-    <div class="row g-5">
+    <div class="row" style="gap: 30px; justify-content: center;">
         {% if produce_listings %}
             {% for produce in produce_listings %}
-            <div class="col-md-6 col-lg-4 mb-5">
-                <div class="card h-100 shadow-lg produce-card" style="border: 4px solid #68d391; background-color: #1a202c !important; border-radius: 15px; margin: 10px; padding: 5px;">
+            <div class="col-md-6 col-lg-4" style="margin-bottom: 40px; display: flex; justify-content: center;">
+                <div class="card h-100 shadow-lg produce-card" style="border: 5px solid #ffc107 !important; background: linear-gradient(145deg, #2d3748, #1a202c) !important; border-radius: 20px !important; box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important; margin: 15px !important; transform: scale(1.02);">
                     <div class="card-body">
                         <!-- Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
