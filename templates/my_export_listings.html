@@ -66,86 +66,128 @@
     </div>
     {% endif %}
 
-    <!-- Export Listings Table -->
+    <!-- Export Listings Cards -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-table me-2"></i>Export Listings
+                        <i class="fas fa-list me-2"></i>Export Listings
                     </h5>
                 </div>
                 <div class="card-body">
                     {% if listings %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Produce</th>
-                                    <th>Target Market</th>
-                                    <th>Quantity</th>
-                                    <th>Price</th>
-                                    <th>Status</th>
-                                    <th>Certification</th>
-                                    <th>Shipment Window</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for listing in listings %}
-                                <tr>
-                                    <td>
-                                        <div class="fw-bold">{{ listing.produce_name }}</div>
-                                        <small class="text-muted">{{ listing.origin_state|title }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ listing.target_market }}</span>
-                                    </td>
-                                    <td>{{ listing.quantity }}</td>
-                                    <td class="fw-bold text-success">{{ listing.formatted_price() }}</td>
-                                    <td>
-                                        <span class="badge {{ listing.get_status_badge_class() }}">
-                                            {{ listing.status|title }}
-                                        </span>
-                                        {% if listing.admin_comment %}
-                                        <div class="text-muted small mt-1">
-                                            <i class="fas fa-comment me-1"></i>{{ listing.admin_comment[:50] }}{% if listing.admin_comment|length > 50 %}...{% endif %}
+                        <div class="row">
+                            {% for listing in listings %}
+                            <div class="col-12 mb-3">
+                                <div class="card h-100 shadow-sm" style="border-left: 4px solid {% if listing.status == 'approved' %}#28a745{% elif listing.status == 'pending' %}#ffc107{% elif listing.status == 'shipped' %}#17a2b8{% else %}#dc3545{% endif %}; background-color: #2d3748 !important;">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <!-- Product Info -->
+                                            <div class="col-md-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3">
+                                                        <i class="fas fa-seedling fa-2x text-success"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-1" style="color: white !important;">{{ listing.produce_name }}</h6>
+                                                        <small style="color: #cbd5e0 !important;">
+                                                            <i class="fas fa-map-marker-alt me-1"></i>{{ listing.origin_state|title }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Market & Quantity -->
+                                            <div class="col-md-3">
+                                                <div>
+                                                    <span class="badge bg-primary mb-1">{{ listing.target_market }}</span>
+                                                    <div>
+                                                        <small style="color: #a0aec0 !important;" class="d-block">Quantity</small>
+                                                        <strong style="color: white !important;">{{ listing.quantity }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Price & Details -->
+                                            <div class="col-md-3">
+                                                <div class="row g-2">
+                                                    <div class="col-12">
+                                                        <small style="color: #a0aec0 !important;" class="d-block">Price</small>
+                                                        <strong style="color: #48bb78 !important;">{{ listing.formatted_price() }}</strong>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <small style="color: #a0aec0 !important;" class="d-block">Certification</small>
+                                                        {% if listing.has_phytosanitary %}
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-certificate me-1"></i>Certified
+                                                            </span>
+                                                        {% else %}
+                                                            <span style="color: #a0aec0 !important;">No Certificate</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Status & Actions -->
+                                            <div class="col-md-2">
+                                                <div class="text-end">
+                                                    <div class="mb-2">
+                                                        <span class="badge {{ listing.get_status_badge_class() }}">
+                                                            {{ listing.status|title }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="btn-group-vertical btn-group-sm">
+                                                        <a href="{{ url_for('export_listing_detail', listing_id=listing.id) }}" 
+                                                           class="btn btn-outline-info btn-sm mb-1">
+                                                            <i class="fas fa-eye me-1"></i>View
+                                                        </a>
+                                                        {% if listing.status == 'pending' %}
+                                                            <a href="{{ url_for('edit_export_listing', listing_id=listing.id) }}" 
+                                                               class="btn btn-outline-primary btn-sm mb-1">
+                                                                <i class="fas fa-edit me-1"></i>Edit
+                                                            </a>
+                                                        {% endif %}
+                                                        <button class="btn btn-outline-danger btn-sm" 
+                                                                onclick="confirmDelete({{ listing.id }})">
+                                                            <i class="fas fa-trash me-1"></i>Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if listing.has_phytosanitary %}
-                                        <i class="fas fa-certificate text-success" title="Phytosanitary Certificate Available"></i>
-                                        {% else %}
-                                        <i class="fas fa-times text-muted" title="No Certificate"></i>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <small>{{ listing.formatted_shipment_window() }}</small>
-                                    </td>
-                                    <td>
-                                        <small>{{ listing.created_at.strftime('%b %d, %Y') }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('export_listing_detail', listing_id=listing.id) }}" 
-                                               class="btn btn-outline-primary" title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% if listing.phytosanitary_file %}
-                                            <a href="{{ url_for('download_certificate', listing_id=listing.id) }}" 
-                                               class="btn btn-outline-success" title="Download Certificate">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                            {% endif %}
+                                        
+                                        <!-- Additional Details Row -->
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <small style="color: #a0aec0 !important;">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    Created {{ listing.created_at.strftime('%B %d, %Y') }}
+                                                </small>
+                                                {% if listing.formatted_shipment_window() %}
+                                                    <br>
+                                                    <small style="color: #a0aec0 !important;">
+                                                        <i class="fas fa-ship me-1"></i>
+                                                        {{ listing.formatted_shipment_window() }}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                {% if listing.admin_comment %}
+                                                    <div class="alert alert-info py-2 mb-0">
+                                                        <small>
+                                                            <i class="fas fa-comment me-1"></i>
+                                                            <strong>Admin Comment:</strong> {{ listing.admin_comment }}
+                                                        </small>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-globe fa-3x text-muted mb-3"></i>
