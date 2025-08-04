@@ -55,13 +55,13 @@
                         </div>
 
                         <!-- Location Input Section -->
-                        <div class="card mb-4 bg-light">
-                            <div class="card-header">
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary text-white">
                                 <h6 class="mb-0">
                                     <i class="fas fa-map-marker-alt me-2"></i>Field Location
                                 </h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body bg-light">
                                 <!-- Address Input -->
                                 <div class="row mb-3">
                                     <div class="col-md-8">
@@ -74,7 +74,7 @@
                                                 <i class="fas fa-search me-1"></i>Find Location
                                             </button>
                                         </div>
-                                        <div class="form-text">Enter your farm address or nearby landmark</div>
+                                        <div class="form-text text-dark">Enter your farm address or nearby landmark</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Quick Location</label>
@@ -83,7 +83,7 @@
                                                 <i class="fas fa-location-arrow me-1"></i>Use My Location
                                             </button>
                                         </div>
-                                        <div class="form-text">Use device GPS</div>
+                                        <div class="form-text text-dark">Use device GPS</div>
                                     </div>
                                 </div>
 
@@ -94,14 +94,14 @@
                                             <i class="fas fa-globe me-1"></i>{{ form.manual_latitude.label.text }}
                                         </label>
                                         {{ form.manual_latitude(class="form-control", placeholder="6.5244", onchange="manualLocationChange()") }}
-                                        <div class="form-text">Decimal degrees format</div>
+                                        <div class="form-text text-dark">Decimal degrees format</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="{{ form.manual_longitude.id }}" class="form-label">
                                             <i class="fas fa-globe me-1"></i>{{ form.manual_longitude.label.text }}
                                         </label>
                                         {{ form.manual_longitude(class="form-control", placeholder="3.3792", onchange="manualLocationChange()") }}
-                                        <div class="form-text">Decimal degrees format</div>
+                                        <div class="form-text text-dark">Decimal degrees format</div>
                                     </div>
                                 </div>
 
@@ -111,6 +111,13 @@
                                         <i class="fas fa-info-circle me-1"></i>
                                         <span id="locationMessage">Ready to locate your field</span>
                                     </div>
+                                </div>
+                                
+                                <!-- Quick Location Examples -->
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Address examples:</strong> "Lagos, Nigeria" • "Kano State" • "Kaduna, Nigeria" • "Ibadan, Oyo State"
+                                    </small>
                                 </div>
                             </div>
                         </div>
