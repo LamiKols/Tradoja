@@ -59,12 +59,18 @@ def home():
     """Homepage route - redirect authenticated users to their dashboard"""
     # Redirect authenticated users to their appropriate dashboard
     if current_user.is_authenticated:
+        app.logger.info(f"User {current_user.email} role: {current_user.role}")
         if current_user.is_farmer():
+            app.logger.info("Redirecting to farmer dashboard")
             return redirect(url_for('farmer_dashboard'))
         elif current_user.is_buyer():
+            app.logger.info("Redirecting to buyer dashboard")
             return redirect(url_for('buyer_dashboard'))
         elif current_user.is_admin():
+            app.logger.info("Redirecting to admin dashboard")
             return redirect(url_for('admin_dashboard'))
+        else:
+            app.logger.warning(f"Unknown user role: {current_user.role}")
     
     # For non-authenticated users, show homepage with featured produce
     # List of featured produce with names and descriptions
