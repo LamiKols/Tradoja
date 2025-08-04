@@ -151,7 +151,7 @@
                             <p class="mb-0"><strong>Current Price:</strong> {{ produce.formatted_price() }}</p>
                         </div>
                         <div class="col-md-6">
-                            <p class="mb-1"><strong>Date Listed:</strong> {{ produce.date_listed.strftime('%B %d, %Y') }}</p>
+                            <p class="mb-1"><strong>Date Listed:</strong> {{ produce.date_posted.strftime('%B %d, %Y') }}</p>
                             <p class="mb-1"><strong>Status:</strong> 
                                 {% if produce.is_available %}
                                     <span class="badge bg-success">Available</span>
