@@ -53,10 +53,7 @@
         {% for produce in featured_produce %}
         <div class="col-md-3 mb-3">
             <div class="card shadow-sm">
-                <img src="{{ image_map.get(produce.name, default_image) }}" 
-                     class="card-img-top" 
-                     alt="{{ produce.name }}"
-                     onerror="this.src='{{ default_image }}'">
+                <img src="{{ image_map.get(produce.name, 'https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80') }}" class="card-img-top" alt="{{ produce.name }}">
                 <div class="card-body">
                     <h5 class="card-title">{{ produce.name }}</h5>
                     <p class="card-text">{{ produce.desc }}</p>
