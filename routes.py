@@ -205,33 +205,13 @@ def farmer_dashboard():
 @app.route('/buyer/dashboard')
 @login_required
 def buyer_dashboard():
-    """Buyer dashboard route - marketplace view"""
+    """Buyer dashboard route - overview and recommendations"""
     if not current_user.is_buyer():
         flash('Access denied. Buyers only.', 'danger')
         return redirect(url_for('home'))
     
-    # Get search form
-    form = SearchForm()
-    
-    # Get all available produce
-    query = Produce.query.filter_by(is_available=True)
-    
-    # Apply search filter if provided
-    if request.args.get('search_term'):
-        search_term = request.args.get('search_term')
-        query = query.filter(Produce.name.contains(search_term) | 
-                           Produce.description.contains(search_term))
-        form.search_term.data = search_term
-    
-    # Apply GI filter
-    gi_filter = request.args.get('gi_filter', 'all')
-    if gi_filter == 'gi_only':
-        query = query.filter(Produce.gi_certified == True)
-    elif gi_filter == 'non_gi':
-        query = query.filter(Produce.gi_certified == False)
-    form.gi_filter.data = gi_filter
-    
-    produce_listings = query.order_by(Produce.date_listed.desc()).all()
+    # Get buyer's recent purchases
+    recent_purchases = Produce.query.filter_by(buyer_id=current_user.id).order_by(Produce.sale_date.desc()).limit(5).all()
     
     # Get AI-powered seller recommendations
     seller_recommendations = []
@@ -248,12 +228,21 @@ def buyer_dashboard():
         status='pending'
     ).order_by(MatchRecommendation.sent_at.desc()).limit(5).all()
     
+    # Get buyer statistics
+    total_purchases = Produce.query.filter_by(buyer_id=current_user.id).count()
+    total_spent = db.session.query(func.sum(Produce.price)).filter_by(buyer_id=current_user.id).scalar() or 0
+    
+    # Get recent logistics requests
+    recent_logistics = LogisticsRequest.query.filter_by(user_id=current_user.id).order_by(LogisticsRequest.created_at.desc()).limit(3).all()
+    
     return render_template('buyer_dashboard.html', 
-                         title='Marketplace', 
-                         produce_listings=produce_listings,
-                         form=form,
+                         title='Buyer Dashboard', 
+                         recent_purchases=recent_purchases,
                          seller_recommendations=seller_recommendations,
-                         pending_matches=pending_matches)
+                         pending_matches=pending_matches,
+                         total_purchases=total_purchases,
+                         total_spent=total_spent,
+                         recent_logistics=recent_logistics)
 
 @app.route('/admin/dashboard')
 @login_required
