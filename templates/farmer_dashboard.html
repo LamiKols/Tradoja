@@ -25,6 +25,11 @@
                     <a href="{{ url_for('export_dashboard') }}" class="btn btn-outline-warning">
                         <i class="fas fa-globe-africa me-2"></i>Export Trade
                     </a>
+                    {% if current_user.email == 'admin@agrolink.com' or current_user.role == 'admin' %}
+                    <a href="{{ url_for('admin_sms_dashboard') }}" class="btn btn-outline-info">
+                        <i class="fas fa-sms me-2"></i>SMS Gateway
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -65,6 +70,41 @@
                     <i class="fas fa-calendar fa-2x mb-2"></i>
                     <h3 class="mb-0">{{ produce_listings|selectattr("date_listed")|list|length }}</h3>
                     <small>This Month</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Integration Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-mobile-alt me-2"></i>SMS Access for Rural Farmers
+                        </h5>
+                        <p class="mb-2">Farmers without internet can now use AgroLink via SMS! Send text messages to register, list produce, and check market prices.</p>
+                        <div class="small">
+                            <strong>Available SMS Commands:</strong><br>
+                            • <code>JOIN [name] [location] [crop]</code> - Register as farmer<br>
+                            • <code>LIST [crop] [quantity] [price]</code> - List produce for sale<br>
+                            • <code>PRICE [crop]</code> - Check current market prices<br>
+                            • <code>HELP</code> - Show available commands
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="fas fa-sms fa-3x text-primary mb-2"></i>
+                        <p class="mb-0"><strong>Africa's Talking SMS Gateway</strong></p>
+                        <small class="text-muted">Connecting rural farmers across Africa</small>
+                        {% if current_user.role == 'admin' %}
+                        <div class="mt-2">
+                            <a href="{{ url_for('admin_sms_dashboard') }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-cog me-1"></i>Manage SMS
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
