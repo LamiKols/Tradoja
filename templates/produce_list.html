@@ -49,15 +49,15 @@
     {% endif %}
 
     <!-- Produce Grid -->
-    <div class="row" style="gap: 30px; justify-content: center;">
+    <div class="row">
         {% if produce_listings %}
             {% for produce in produce_listings %}
-            <div class="col-md-6 col-lg-4" style="margin-bottom: 40px; display: flex; justify-content: center;">
-                <div class="card h-100 shadow-lg produce-card" style="border: 5px solid #ffc107 !important; background: linear-gradient(145deg, #2d3748, #1a202c) !important; border-radius: 20px !important; box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important; margin: 15px !important; transform: scale(1.02);">
-                    <div class="card-body">
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100" style="border: 4px solid #ffc107; min-height: 450px;">
+                    <div class="card-body d-flex flex-column">
                         <!-- Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="card-title fw-bold mb-0" style="color: white !important;">{{ produce.name }}</h5>
+                            <h5 class="card-title fw-bold mb-0 text-truncate" style="max-width: 200px;">{{ produce.name }}</h5>
                             {% if produce.is_sold %}
                                 <span class="badge bg-danger">
                                     <i class="fas fa-times me-1"></i>Sold
@@ -78,32 +78,32 @@
                             <div class="col-6">
                                 <div class="border-end">
                                     <i class="fas fa-weight-hanging text-muted"></i>
-                                    <div class="fw-bold" style="color: white !important;">{{ produce.quantity }}</div>
-                                    <small style="color: #a0aec0 !important;">Quantity</small>
+                                    <div class="fw-bold text-truncate">{{ produce.quantity }}</div>
+                                    <small class="text-muted">Quantity</small>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <i class="fas fa-tag text-muted"></i>
-                                <div class="fw-bold" style="color: #48bb78 !important;">{{ produce.formatted_price() }}</div>
-                                <small style="color: #a0aec0 !important;">Price</small>
+                                <div class="fw-bold text-success text-truncate">{{ produce.formatted_price() }}</div>
+                                <small class="text-muted">Price</small>
                             </div>
                         </div>
                         
                         <!-- Description -->
                         {% if produce.description %}
-                        <p class="card-text" style="color: #a0aec0 !important;">
-                            {{ produce.description[:100] }}{% if produce.description|length > 100 %}...{% endif %}
+                        <p class="card-text text-muted small" style="height: 60px; overflow: hidden;">
+                            {{ produce.description[:80] }}{% if produce.description|length > 80 %}...{% endif %}
                         </p>
                         {% endif %}
                         
                         <!-- Farmer Info -->
-                        <div class="d-flex align-items-center mb-3">
+                        <div class="d-flex align-items-center mb-3 mt-auto">
                             <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                            <div>
-                                <div class="fw-bold" style="color: white !important;">{{ produce.farmer.name }}</div>
-                                <small style="color: #a0aec0 !important;">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold text-truncate">{{ produce.farmer.name }}</div>
+                                <small class="text-muted">
                                     <i class="fas fa-clock me-1"></i>
-                                    Listed {{ produce.date_listed.strftime('%B %d, %Y') }}
+                                    {{ produce.date_listed.strftime('%b %d, %Y') }}
                                 </small>
                             </div>
                         </div>
@@ -111,32 +111,32 @@
                     
                     <!-- Actions -->
                     <div class="card-footer bg-transparent">
-                        <div class="d-flex gap-2">
+                        <div class="d-grid gap-2">
                             <a href="{{ url_for('produce_detail', id=produce.id) }}" 
-                               class="btn btn-success flex-fill">
+                               class="btn btn-success btn-sm">
                                 <i class="fas fa-eye me-1"></i>View Details
                             </a>
                             {% if current_user.is_authenticated %}
                                 {% if current_user.id != produce.farmer_id %}
                                     {% if current_user.is_buyer() and produce.is_available and not produce.is_sold %}
                                         <a href="{{ url_for('buy_produce', produce_id=produce.id) }}" 
-                                           class="btn btn-warning flex-fill">
-                                            <i class="fas fa-shopping-cart me-1"></i>Buy Now
+                                           class="btn btn-warning btn-sm">
+                                            <i class="fas fa-shopping-cart me-1"></i>Buy No
                                         </a>
                                     {% endif %}
-                                    <div class="btn-group flex-fill" role="group">
+                                    <div class="d-flex gap-1">
                                         <a href="{{ url_for('send_message', receiver_id=produce.farmer_id, produce_id=produce.id) }}" 
-                                           class="btn btn-outline-primary">
+                                           class="btn btn-outline-primary btn-sm flex-fill">
                                             <i class="fas fa-comment me-1"></i>Message
                                         </a>
                                         <a href="{{ url_for('logistics_request_form', produce_id=produce.id) }}" 
-                                           class="btn btn-outline-success">
-                                            <i class="fas fa-truck me-1"></i>Request Delivery
+                                           class="btn btn-outline-success btn-sm flex-fill">
+                                            <i class="fas fa-truck me-1"></i>Delivery
                                         </a>
                                     </div>
                                 {% endif %}
                             {% else %}
-                                <a href="{{ url_for('login') }}" class="btn btn-outline-primary flex-fill">
+                                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-sign-in-alt me-1"></i>Login to Contact
                                 </a>
                             {% endif %}
