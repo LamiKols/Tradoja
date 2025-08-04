@@ -16,6 +16,10 @@ class User(UserMixin, db.Model):
     # Relationship with produce
     produce_listings = db.relationship('Produce', backref='farmer', lazy=True, cascade='all, delete-orphan')
     
+    # Relationship with messages
+    sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
+    received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', backref='receiver', lazy='dynamic', cascade='all, delete-orphan')
+    
     def set_password(self, password):
         """Hash and set password"""
         self.password_hash = generate_password_hash(password)
@@ -59,3 +63,32 @@ class Produce(db.Model):
     def formatted_price(self):
         """Return formatted price string"""
         return f"{self.price_unit} {self.price:,.2f}"
+
+
+class Message(db.Model):
+    """Message model for in-platform messaging system"""
+    id = db.Column(db.Integer, primary_key=True)
+    subject = db.Column(db.String(200), nullable=False)
+    message_body = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False)
+    
+    # Foreign keys
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=True)  # Optional reference to produce
+    
+    # Relationship with produce
+    produce = db.relationship('Produce', backref='messages')
+    
+    def __repr__(self):
+        return f'<Message {self.subject}>'
+    
+    def mark_as_read(self):
+        """Mark message as read"""
+        self.is_read = True
+        db.session.commit()
+    
+    def formatted_timestamp(self):
+        """Return formatted timestamp"""
+        return self.timestamp.strftime('%Y-%m-%d %H:%M')

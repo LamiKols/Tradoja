@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-inbox me-2"></i>Inbox</h2>
+                <div>
+                    <span class="badge bg-primary">{{ unread_count }} unread</span>
+                    <a href="{{ url_for('sent_messages') }}" class="btn btn-outline-primary ms-2">
+                        <i class="fas fa-paper-plane me-1"></i>Sent Messages
+                    </a>
+                </div>
+            </div>
+            
+            {% if messages %}
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            {% for message in messages %}
+                            <a href="{{ url_for('view_message', message_id=message.id) }}" 
+                               class="list-group-item list-group-item-action {{ 'list-group-item-light' if not message.is_read else '' }}">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ message.subject }}
+                                            {% if not message.is_read %}
+                                                <span class="badge bg-primary">New</span>
+                                            {% endif %}
+                                        </h6>
+                                        <p class="mb-1 text-muted">From: {{ message.sender.name }}</p>
+                                        {% if message.produce %}
+                                            <small class="text-success">
+                                                <i class="fas fa-leaf me-1"></i>{{ message.produce.name }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">{{ message.formatted_timestamp() }}</small>
+                                </div>
+                                <p class="mb-1 text-truncate">{{ message.message_body[:100] }}...</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No messages yet</h5>
+                    <p class="text-muted">Messages from other users will appear here.</p>
+                    <a href="{{ url_for('marketplace') }}" class="btn btn-primary">
+                        <i class="fas fa-store me-1"></i>Browse Marketplace
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

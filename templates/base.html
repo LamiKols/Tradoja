@@ -76,6 +76,20 @@
                 
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        <!-- Messages Icon -->
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('inbox') }}">
+                                <i class="fas fa-envelope"></i>
+                                {% set unread_count = current_user.received_messages.filter_by(is_read=False).count() %}
+                                {% if unread_count > 0 %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ unread_count }}
+                                        <span class="visually-hidden">unread messages</span>
+                                    </span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-user me-1"></i>{{ current_user.name }}
@@ -97,6 +111,17 @@
                                         <i class="fas fa-cog me-1"></i>Admin Dashboard
                                     </a></li>
                                 {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('inbox') }}">
+                                    <i class="fas fa-inbox me-1"></i>Inbox
+                                    {% set unread_count = current_user.received_messages.filter_by(is_read=False).count() %}
+                                    {% if unread_count > 0 %}
+                                        <span class="badge bg-danger ms-1">{{ unread_count }}</span>
+                                    {% endif %}
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('sent_messages') }}">
+                                    <i class="fas fa-paper-plane me-1"></i>Sent Messages
+                                </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                     <i class="fas fa-sign-out-alt me-1"></i>Logout

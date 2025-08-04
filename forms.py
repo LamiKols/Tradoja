@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError
 from wtforms.widgets import TextArea
 from models import User
@@ -69,3 +69,18 @@ class SearchForm(FlaskForm):
     search_term = StringField('Search Produce', validators=[
         Length(max=100, message="Search term cannot exceed 100 characters")
     ])
+
+
+class MessageForm(FlaskForm):
+    """Form for sending messages"""
+    subject = StringField('Subject', validators=[DataRequired(), Length(min=1, max=200)])
+    message_body = TextAreaField('Message', validators=[DataRequired(), Length(min=1, max=2000)],
+                                render_kw={"rows": 6, "placeholder": "Write your message here..."})
+    receiver_id = HiddenField('Receiver ID', validators=[DataRequired()])
+    produce_id = HiddenField('Produce ID')  # Optional
+
+
+class MessageReplyForm(FlaskForm):
+    """Form for replying to messages"""
+    message_body = TextAreaField('Reply', validators=[DataRequired(), Length(min=1, max=2000)],
+                                render_kw={"rows": 4, "placeholder": "Write your reply here..."})

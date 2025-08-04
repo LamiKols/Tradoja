@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm
+from models import User, Produce, Message
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
@@ -277,6 +277,158 @@ def marketplace():
                          title='Marketplace', 
                          produce_listings=produce_listings,
                          form=form)
+
+# Message routes
+@app.route('/send_message/<int:receiver_id>')
+@app.route('/send_message/<int:receiver_id>/<int:produce_id>')
+@login_required
+def send_message(receiver_id, produce_id=None):
+    """Send message form"""
+    receiver = User.query.get_or_404(receiver_id)
+    produce = None
+    if produce_id:
+        produce = Produce.query.get_or_404(produce_id)
+    
+    form = MessageForm()
+    form.receiver_id.data = receiver_id
+    if produce_id:
+        form.produce_id.data = produce_id
+    
+    return render_template('send_message.html', 
+                         title='Send Message',
+                         form=form, 
+                         receiver=receiver, 
+                         produce=produce)
+
+@app.route('/send_message', methods=['POST'])
+@login_required
+def send_message_post():
+    """Process message sending"""
+    form = MessageForm()
+    if form.validate_on_submit():
+        receiver = User.query.get_or_404(form.receiver_id.data)
+        
+        message = Message(
+            subject=form.subject.data,
+            message_body=form.message_body.data,
+            sender_id=current_user.id,
+            receiver_id=form.receiver_id.data,
+            produce_id=form.produce_id.data if form.produce_id.data else None
+        )
+        
+        try:
+            db.session.add(message)
+            db.session.commit()
+            flash(f'Message sent to {receiver.name} successfully!', 'success')
+            return redirect(url_for('inbox'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Message sending error: {e}")
+            flash('Failed to send message. Please try again.', 'danger')
+    
+    receiver = User.query.get_or_404(form.receiver_id.data)
+    produce = None
+    if form.produce_id.data:
+        produce = Produce.query.get_or_404(form.produce_id.data)
+    
+    return render_template('send_message.html', 
+                         title='Send Message',
+                         form=form, 
+                         receiver=receiver, 
+                         produce=produce)
+
+@app.route('/inbox')
+@login_required
+def inbox():
+    """User inbox with received messages"""
+    messages = Message.query.filter_by(receiver_id=current_user.id)\
+                           .order_by(Message.timestamp.desc()).all()
+    
+    # Count unread messages
+    unread_count = Message.query.filter_by(receiver_id=current_user.id, is_read=False).count()
+    
+    return render_template('inbox.html', 
+                         title='Inbox',
+                         messages=messages,
+                         unread_count=unread_count)
+
+@app.route('/sent_messages')
+@login_required
+def sent_messages():
+    """User sent messages"""
+    messages = Message.query.filter_by(sender_id=current_user.id)\
+                           .order_by(Message.timestamp.desc()).all()
+    
+    return render_template('sent_messages.html', 
+                         title='Sent Messages',
+                         messages=messages)
+
+@app.route('/message/<int:message_id>')
+@login_required
+def view_message(message_id):
+    """View individual message and reply"""
+    message = Message.query.get_or_404(message_id)
+    
+    # Check if user is sender or receiver
+    if message.sender_id != current_user.id and message.receiver_id != current_user.id:
+        abort(403)
+    
+    # Mark as read if current user is receiver
+    if message.receiver_id == current_user.id and not message.is_read:
+        message.mark_as_read()
+    
+    # Get conversation thread (messages between same users about same produce)
+    conversation = Message.query.filter(
+        ((Message.sender_id == message.sender_id) & (Message.receiver_id == message.receiver_id)) |
+        ((Message.sender_id == message.receiver_id) & (Message.receiver_id == message.sender_id))
+    )
+    
+    if message.produce_id:
+        conversation = conversation.filter_by(produce_id=message.produce_id)
+    
+    conversation = conversation.order_by(Message.timestamp.asc()).all()
+    
+    form = MessageReplyForm()
+    
+    return render_template('view_message.html', 
+                         title='Message',
+                         message=message,
+                         conversation=conversation,
+                         form=form)
+
+@app.route('/message/<int:message_id>/reply', methods=['POST'])
+@login_required
+def reply_message(message_id):
+    """Reply to a message"""
+    original_message = Message.query.get_or_404(message_id)
+    
+    # Check if user is sender or receiver of original message
+    if original_message.sender_id != current_user.id and original_message.receiver_id != current_user.id:
+        abort(403)
+    
+    form = MessageReplyForm()
+    if form.validate_on_submit():
+        # Determine receiver (if current user is sender, reply to receiver and vice versa)
+        receiver_id = original_message.sender_id if current_user.id == original_message.receiver_id else original_message.receiver_id
+        
+        reply = Message(
+            subject=f"Re: {original_message.subject}",
+            message_body=form.message_body.data,
+            sender_id=current_user.id,
+            receiver_id=receiver_id,
+            produce_id=original_message.produce_id
+        )
+        
+        try:
+            db.session.add(reply)
+            db.session.commit()
+            flash('Reply sent successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Reply sending error: {e}")
+            flash('Failed to send reply. Please try again.', 'danger')
+    
+    return redirect(url_for('view_message', message_id=message_id))
 
 # Error handlers
 @app.errorhandler(404)

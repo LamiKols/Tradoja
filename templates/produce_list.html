@@ -107,10 +107,12 @@
                                 <i class="fas fa-eye me-1"></i>View Details
                             </a>
                             {% if current_user.is_authenticated %}
-                                <a href="mailto:{{ produce.farmer.email }}?subject=Interest in {{ produce.name }}&body=Hello {{ produce.farmer.name }}, I am interested in your {{ produce.name }} listing on AgroLink Lagos." 
-                                   class="btn btn-outline-primary flex-fill">
-                                    <i class="fas fa-envelope me-1"></i>Contact
-                                </a>
+                                {% if current_user.id != produce.farmer_id %}
+                                    <a href="{{ url_for('send_message', receiver_id=produce.farmer_id, produce_id=produce.id) }}" 
+                                       class="btn btn-outline-primary flex-fill">
+                                        <i class="fas fa-comment me-1"></i>Message Farmer
+                                    </a>
+                                {% endif %}
                             {% else %}
                                 <a href="{{ url_for('login') }}" class="btn btn-outline-primary flex-fill">
                                     <i class="fas fa-sign-in-alt me-1"></i>Login to Contact

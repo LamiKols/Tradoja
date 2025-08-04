@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Back navigation -->
+            <div class="mb-3">
+                <a href="{{ url_for('inbox') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Inbox
+                </a>
+            </div>
+            
+            <!-- Conversation thread -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ message.subject }}</h5>
+                        {% if message.produce %}
+                            <small class="text-success">
+                                <i class="fas fa-leaf me-1"></i>Regarding: {{ message.produce.name }}
+                            </small>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ conversation|length }} messages</small>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Message thread -->
+                    {% for msg in conversation %}
+                        <div class="mb-4 {{ 'border-start border-primary border-3 ps-3' if msg.sender_id == current_user.id else 'border-start border-secondary border-3 ps-3' }}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong>{{ msg.sender.name }}</strong>
+                                    {% if msg.sender_id == current_user.id %}
+                                        <span class="badge bg-primary">You</span>
+                                    {% endif %}
+                                    <small class="text-muted">{{ msg.sender.role.title() }}</small>
+                                </div>
+                                <small class="text-muted">{{ msg.formatted_timestamp() }}</small>
+                            </div>
+                            <div class="message-body">
+                                {{ msg.message_body|replace('\n', '<br>')|safe }}
+                            </div>
+                        </div>
+                        
+                        {% if not loop.last %}
+                            <hr class="my-3">
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Reply form -->
+                    <hr class="my-4">
+                    <h6><i class="fas fa-reply me-2"></i>Reply</h6>
+                    <form method="POST" action="{{ url_for('reply_message', message_id=message.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.message_body.label(class="form-label") }}
+                            {{ form.message_body(class="form-control" + (" is-invalid" if form.message_body.errors else "")) }}
+                            {% if form.message_body.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.message_body.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-reply me-1"></i>Send Reply
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
