@@ -1,8 +1,8 @@
-# AgroLink Lagos
+# AgroLink
 
 ## Overview
 
-AgroLink Lagos is a digital agricultural marketplace platform that connects farmers and buyers to support Lagos' food security initiative. The platform enables farmers to list their produce, buyers to browse and search for fresh products, and administrators to oversee platform operations. Built as a Flask web application, it provides role-based access control with distinct user experiences for farmers, buyers, and admins.
+AgroLink is a digital agricultural marketplace platform that connects farmers and buyers across Africa, starting with Lagos' food security initiative and expanding continent-wide. The platform enables farmers to list their produce, buyers to browse and search for fresh products, and administrators to oversee platform operations. Built as a Flask web application, it provides role-based access control with distinct user experiences for farmers, buyers, and admins.
 
 ## User Preferences
 
