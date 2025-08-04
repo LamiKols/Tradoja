@@ -246,16 +246,19 @@
                                 <i class="fas fa-shopping-cart text-white"></i>
                             </div>
                             <div class="timeline-content">
-                                <h6 class="mb-1">
+                                <h6 class="mb-1 text-dark">
                                     {% if transaction.produce %}{{ transaction.produce.name }}{% else %}Purchase{% endif %}
-                                    <small class="text-muted">(₦{{ "%.2f"|format(transaction.total_amount) }})</small>
+                                    <small class="text-success ms-2">(₦{{ "%.2f"|format(transaction.total_amount) }})</small>
                                 </h6>
-                                <p class="mb-1 text-muted">
+                                <p class="mb-1 text-secondary">
                                     {% if transaction.produce and transaction.produce.farmer %}
                                         from {{ transaction.produce.farmer.name }}
+                                    {% else %}
+                                        Purchase completed
                                     {% endif %}
                                 </p>
                                 <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
                                     {{ transaction.payment_date.strftime('%B %d, %Y at %I:%M %p') if transaction.payment_date else transaction.created_at.strftime('%B %d, %Y at %I:%M %p') }}
                                 </small>
                             </div>
@@ -304,10 +307,12 @@
 }
 
 .timeline-content {
-    background: var(--bs-light);
+    background: var(--bs-body-bg);
     padding: 1rem;
     border-radius: 0.5rem;
     border-left: 3px solid var(--bs-primary);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
 }
 
 .timeline-item:not(:last-child)::before {
