@@ -50,16 +50,16 @@
 <section class="container py-5">
     <h2 class="mb-4 text-center fw-bold">Featured Produce</h2>
     <div class="row justify-content-center">
-        {% for produce_name, produce_data in featured_produce.items() %}
+        {% for produce in featured_produce %}
         <div class="col-md-3 mb-3">
             <div class="card shadow-sm">
-                <img src="{{ produce_data.image or default_image }}" 
+                <img src="{{ image_map.get(produce.name, default_image) }}" 
                      class="card-img-top" 
-                     alt="{{ produce_name }}"
+                     alt="{{ produce.name }}"
                      onerror="this.src='{{ default_image }}'">
                 <div class="card-body">
-                    <h5 class="card-title">{{ produce_name }}</h5>
-                    <p class="card-text">{{ produce_data.description }}</p>
+                    <h5 class="card-title">{{ produce.name }}</h5>
+                    <p class="card-text">{{ produce.desc }}</p>
                 </div>
             </div>
         </div>

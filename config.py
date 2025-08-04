@@ -12,18 +12,3 @@ PRODUCE_IMAGE_MAP = {
 # Default placeholder image for missing produce
 DEFAULT_PRODUCE_IMAGE = "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=400&q=80"
 
-# Featured produce data with descriptions
-FEATURED_PRODUCE = {
-    'Yam Tubers': {
-        'description': 'Fresh from Kogi State'
-    },
-    'Tomatoes': {
-        'description': 'Organically grown, Ogun State'
-    },
-    'Pepper': {
-        'description': 'Direct from Niger State'
-    },
-    'Plantain': {
-        'description': 'Sweet and ripe, Lagos State'
-    }
-}

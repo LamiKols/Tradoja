@@ -4,22 +4,23 @@ from urllib.parse import urlparse
 from app import app, db
 from models import User, Produce
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm
-from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE, FEATURED_PRODUCE
+from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
 def home():
     """Homepage route with featured produce data"""
-    # Build featured produce data with images from mapping
-    featured_produce_data = {}
-    for produce_name, produce_info in FEATURED_PRODUCE.items():
-        featured_produce_data[produce_name] = {
-            'image': PRODUCE_IMAGE_MAP.get(produce_name, DEFAULT_PRODUCE_IMAGE),
-            'description': produce_info['description']
-        }
+    # List of featured produce with names and descriptions
+    featured_produce = [
+        {"name": "Yam Tubers", "desc": "Fresh from Kogi State"},
+        {"name": "Tomatoes", "desc": "Organically grown, Ogun State"},
+        {"name": "Pepper", "desc": "Direct from Niger State"},
+        {"name": "Plantain", "desc": "Sweet and ripe, Lagos State"},
+    ]
     
     return render_template('home.html', 
                          title='Welcome to AgroLink',
-                         featured_produce=featured_produce_data, 
+                         featured_produce=featured_produce,
+                         image_map=PRODUCE_IMAGE_MAP,
                          default_image=DEFAULT_PRODUCE_IMAGE)
 
 @app.route('/register', methods=['GET', 'POST'])
