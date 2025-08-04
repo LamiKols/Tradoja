@@ -18,6 +18,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **AI-Powered Matchmaking Engine**: Implemented intelligent buyer-seller recommendations using rule-based algorithms with crop type, location, quantity, price range, and reliability scoring. Includes web dashboard recommendations, SMS match alerts, accept/decline tracking, and admin analytics for ML training data collection
 - **Advanced Analytics Dashboard**: Comprehensive analytics platform providing market insights, crop performance data, geographic distribution analysis, user engagement metrics, bottleneck identification with intervention recommendations, and CSV/PDF export capabilities for government and partner reporting
 - **Monetization Features**: Complete payment infrastructure with Paystack integration including transaction fees on marketplace trades, logistics service fees, premium user subscriptions, purchase history tracking, and comprehensive payment analytics dashboard
+- **Universal Onboarding Workflow**: Comprehensive Produce for Lagos program registration system supporting 9 role types (farmer, aggregator, transport company, bulk trader, retailer, input supplier, investor, government agency, NGO/dev partner) with multi-step forms, document uploads, progress tracking, admin review workflow, and bulk onboarding capabilities for government compliance
 
 ## User Preferences
 
@@ -43,7 +44,9 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Produce Model**: Extended with comprehensive GI fields (gi_label, gi_certified, gi_status, gi_certificate_number, gi_admin_comment) for geographical indication certification management
 - **Enhanced User Model**: Added SMS integration fields (phone_number, sms_enabled, sms_registration_date) for rural farmer accessibility
 - **SMSInteraction Model**: Complete SMS communication logging and metrics tracking system
-- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations including SMS integration
+- **ProduceLagosRegistration Model**: Comprehensive universal onboarding system with multi-step registration, role-specific fields, document upload paths, progress tracking, and admin review workflow
+- **BulkOnboarding Model**: Bulk registration processing system for admin management of large-scale onboarding operations
+- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations including SMS integration and universal onboarding workflow
 
 ### Authentication & Security
 - **Password Security**: Werkzeug-based password hashing with secure storage

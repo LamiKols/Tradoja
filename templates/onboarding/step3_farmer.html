@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Progress Bar -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>Produce for Lagos Registration
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Step {{ current_step }} of {{ registration.total_steps }}</span>
+                                <span class="badge bg-success">{{ registration.get_role_display_name() }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ (current_step / registration.total_steps) * 100 }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-success">Personal Info</small>
+                                <small class="text-success">Business Info</small>
+                                <small class="text-muted">Role Details</small>
+                                <small class="text-muted">Documents</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3 Farmer Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tractor me-2"></i>Step 3: Farmer-Specific Information
+                    </h5>
+                    <small class="text-muted">Please provide details about your farming operations</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Farm Location (LGA/State)*</label>
+                                <input type="text" name="farm_location" class="form-control" required 
+                                       value="{{ registration.lga or '' }} {{ registration.state or '' }}" readonly>
+                                <div class="form-text">This information is taken from your personal details in Step 1</div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.farm_size.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.farm_size(class="form-control", step="0.01", required=True) }}
+                                    <span class="input-group-text">Hectares or Acres</span>
+                                </div>
+                                {% if form.farm_size.errors %}
+                                    <div class="text-danger small">{{ form.farm_size.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Type of Farming*</label>
+                                <select name="farming_type" class="form-select" required>
+                                    <option value="">Select farming type</option>
+                                    <option value="Crop" {% if registration.farming_methods == 'Crop' %}selected{% endif %}>Crop</option>
+                                    <option value="Livestock" {% if registration.farming_methods == 'Livestock' %}selected{% endif %}>Livestock</option>
+                                    <option value="Mixed" {% if registration.farming_methods == 'Mixed' %}selected{% endif %}>Mixed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.crops_grown.label(class="form-label") }}
+                                {{ form.crops_grown(class="form-control", placeholder="e.g., Rice, Maize, Cassava, Yam", required=True) }}
+                                <div class="form-text">List the main crops you grow, separated by commas</div>
+                                {% if form.crops_grown.errors %}
+                                    <div class="text-danger small">{{ form.crops_grown.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.farming_experience.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.farming_experience(class="form-control") }}
+                                    <span class="input-group-text">Years</span>
+                                </div>
+                                {% if form.farming_experience.errors %}
+                                    <div class="text-danger small">{{ form.farming_experience.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.irrigation_system.label(class="form-label") }}
+                                {{ form.irrigation_system(class="form-select") }}
+                                {% if form.irrigation_system.errors %}
+                                    <div class="text-danger small">{{ form.irrigation_system.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> This information helps us match you with suitable buyers and provide relevant services through the Produce for Lagos program.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('onboarding_step', step=2) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Previous Step
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                Continue to Step 4 <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

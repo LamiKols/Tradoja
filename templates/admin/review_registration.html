@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="fw-bold">Review Registration</h1>
+                    <p class="text-muted">{{ registration.full_name or registration.user.name }} - {{ registration.get_role_display_name() }}</p>
+                </div>
+                <a href="{{ url_for('admin_onboarding_dashboard') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Registration Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Full Name:</strong></td>
+                                    <td>{{ registration.full_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Date of Birth:</strong></td>
+                                    <td>{{ registration.date_of_birth.strftime('%B %d, %Y') if registration.date_of_birth else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Gender:</strong></td>
+                                    <td>{{ registration.gender.title() if registration.gender else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Nationality:</strong></td>
+                                    <td>{{ registration.nationality or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Education Level:</strong></td>
+                                    <td>{{ registration.education_level.replace('_', ' ').title() if registration.education_level else 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Primary Phone:</strong></td>
+                                    <td>{{ registration.primary_phone or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ registration.email_address or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>State:</strong></td>
+                                    <td>{{ registration.state or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>LGA:</strong></td>
+                                    <td>{{ registration.lga or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>City:</strong></td>
+                                    <td>{{ registration.city or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if registration.organization_name %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Business Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Organization:</strong></td>
+                                    <td>{{ registration.organization_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Registration Number:</strong></td>
+                                    <td>{{ registration.business_registration_number or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TIN:</strong></td>
+                                    <td>{{ registration.tax_identification_number or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Business Type:</strong></td>
+                                    <td>{{ registration.business_type or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Years in Operation:</strong></td>
+                                    <td>{{ registration.years_in_operation or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Employees:</strong></td>
+                                    <td>{{ registration.number_of_employees or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if registration.role == 'farmer' and registration.farm_size %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Farming Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Farm Size:</strong></td>
+                                    <td>{{ registration.farm_size }} hectares</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Crops Grown:</strong></td>
+                                    <td>{{ registration.crops_grown or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Experience:</strong></td>
+                                    <td>{{ registration.farming_experience }} years</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Farming Methods:</strong></td>
+                                    <td>{{ registration.farming_methods or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Irrigation:</strong></td>
+                                    <td>{{ registration.irrigation_system or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Documents Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Uploaded Documents</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if registration.id_document_path %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-id-card text-primary me-2"></i>
+                                <div>
+                                    <strong>ID Document</strong><br>
+                                    <a href="{{ registration.id_document_path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if registration.business_registration_path %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-building text-primary me-2"></i>
+                                <div>
+                                    <strong>Business Registration</strong><br>
+                                    <a href="{{ registration.business_registration_path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if registration.tax_certificate_path %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-receipt text-primary me-2"></i>
+                                <div>
+                                    <strong>Tax Certificate</strong><br>
+                                    <a href="{{ registration.tax_certificate_path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Actions -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Review Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="badge {{ registration.get_status_badge_class() }} fs-6">
+                            {{ registration.registration_status.replace('_', ' ').title() }}
+                        </span>
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.registration_status.label(class="form-label") }}
+                            {{ form.registration_status(class="form-select") }}
+                            {% if form.registration_status.errors %}
+                                <div class="text-danger small">{{ form.registration_status.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.admin_comments.label(class="form-label") }}
+                            {{ form.admin_comments(class="form-control", rows="4", placeholder="Enter your comments here...") }}
+                            {% if form.admin_comments.errors %}
+                                <div class="text-danger small">{{ form.admin_comments.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>Update Status
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Registration Timeline -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Registration Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <i class="fas fa-play-circle text-primary"></i>
+                            <div>
+                                <strong>Started</strong><br>
+                                <small>{{ registration.started_date.strftime('%m/%d/%Y %I:%M %p') if registration.started_date else 'N/A' }}</small>
+                            </div>
+                        </div>
+                        {% if registration.completed_date %}
+                        <div class="timeline-item">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <div>
+                                <strong>Completed</strong><br>
+                                <small>{{ registration.completed_date.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if registration.reviewed_date %}
+                        <div class="timeline-item">
+                            <i class="fas fa-eye text-info"></i>
+                            <div>
+                                <strong>Reviewed</strong><br>
+                                <small>{{ registration.reviewed_date.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if registration.approved_date %}
+                        <div class="timeline-item">
+                            <i class="fas fa-thumbs-up text-success"></i>
+                            <div>
+                                <strong>Approved</strong><br>
+                                <small>{{ registration.approved_date.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+}
+.timeline-item {
+    display: flex;
+    align-items-start;
+    margin-bottom: 1rem;
+}
+.timeline-item i {
+    margin-right: 10px;
+    margin-top: 3px;
+}
+</style>
+{% endblock %}

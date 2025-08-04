@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="fw-bold">Bulk Onboarding</h1>
+                    <p class="text-muted">Upload and process multiple registrations at once</p>
+                </div>
+                <a href="{{ url_for('admin_onboarding_dashboard') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.batch_name.label(class="form-label") }}
+                            {{ form.batch_name(class="form-control", placeholder="e.g., Lagos Farmers Batch 1") }}
+                            {% if form.batch_name.errors %}
+                                <div class="text-danger small">{{ form.batch_name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.role.label(class="form-label") }}
+                            {{ form.role(class="form-select") }}
+                            {% if form.role.errors %}
+                                <div class="text-danger small">{{ form.role.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.csv_file.label(class="form-label") }}
+                            {{ form.csv_file(class="form-control") }}
+                            <div class="form-text">Upload a CSV file with participant data. Maximum file size: 10MB</div>
+                            {% if form.csv_file.errors %}
+                                <div class="text-danger small">{{ form.csv_file.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload and Process
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">CSV Format Requirements</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Your CSV file should include the following columns:</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i><strong>full_name</strong> - Participant's full name</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>email</strong> - Email address</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>phone</strong> - Phone number</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>state</strong> - State of residence</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>lga</strong> - Local Government Area</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>city</strong> - City (optional)</li>
+                        <li><i class="fas fa-check text-success me-2"></i><strong>organization_name</strong> - Business/organization name (optional)</li>
+                    </ul>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> All participants will be created with a default password that they must change upon first login.
+                    </div>
+                    
+                    <a href="#" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-download me-2"></i>Download Sample CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Uploads -->
+    {% if recent_uploads %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Bulk Uploads</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Batch Name</th>
+                                    <th>Role</th>
+                                    <th>Upload Date</th>
+                                    <th>Status</th>
+                                    <th>Records</th>
+                                    <th>Success/Failed</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for upload in recent_uploads %}
+                                <tr>
+                                    <td>{{ upload.batch_name }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ upload.role.replace('_', ' ').title() }}</span>
+                                    </td>
+                                    <td>{{ upload.upload_date.strftime('%m/%d/%Y %I:%M %p') }}</td>
+                                    <td>
+                                        {% if upload.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif upload.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Processing</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ upload.total_records or 0 }}</td>
+                                    <td>
+                                        <span class="text-success">{{ upload.successful_registrations or 0 }}</span> / 
+                                        <span class="text-danger">{{ upload.failed_registrations or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if upload.error_log %}
+                                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#errorModal{{ upload.id }}">
+                                            <i class="fas fa-exclamation-triangle"></i> View Errors
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modals -->
+    {% for upload in recent_uploads %}
+    {% if upload.error_log %}
+    <div class="modal fade" id="errorModal{{ upload.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Errors - {{ upload.batch_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre class="bg-light p-3">{{ upload.error_log }}</pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

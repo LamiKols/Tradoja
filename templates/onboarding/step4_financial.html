@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Progress Bar -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>Produce for Lagos Registration
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Step {{ current_step }} of {{ registration.total_steps }}</span>
+                                <span class="badge bg-success">{{ registration.get_role_display_name() }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ (current_step / registration.total_steps) * 100 }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-success">Personal Info</small>
+                                <small class="text-success">Business Info</small>
+                                <small class="text-success">Role Details</small>
+                                <small class="text-muted">Documents</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4 Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-upload me-2"></i>Step 4: Financial Information & Documents
+                    </h5>
+                    <small class="text-muted">Complete your registration with banking details and required documents</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Financial Information -->
+                        <h6 class="mb-3">Banking Information</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.bank_name.label(class="form-label") }}
+                                {{ form.bank_name(class="form-control") }}
+                                {% if form.bank_name.errors %}
+                                    <div class="text-danger small">{{ form.bank_name.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.account_number.label(class="form-label") }}
+                                {{ form.account_number(class="form-control") }}
+                                {% if form.account_number.errors %}
+                                    <div class="text-danger small">{{ form.account_number.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.account_name.label(class="form-label") }}
+                                {{ form.account_name(class="form-control") }}
+                                {% if form.account_name.errors %}
+                                    <div class="text-danger small">{{ form.account_name.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.bvn.label(class="form-label") }}
+                                {{ form.bvn(class="form-control") }}
+                                {% if form.bvn.errors %}
+                                    <div class="text-danger small">{{ form.bvn.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Document Upload -->
+                        <h6 class="mb-3">Required Documents</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.id_document.label(class="form-label") }}
+                                {{ form.id_document(class="form-control") }}
+                                <div class="form-text">Upload a clear copy of your national ID, driver's license, or international passport</div>
+                                {% if form.id_document.errors %}
+                                    <div class="text-danger small">{{ form.id_document.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.business_registration.label(class="form-label") }}
+                                {{ form.business_registration(class="form-control") }}
+                                <div class="form-text">Business registration certificate (if applicable)</div>
+                                {% if form.business_registration.errors %}
+                                    <div class="text-danger small">{{ form.business_registration.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.tax_certificate.label(class="form-label") }}
+                                {{ form.tax_certificate(class="form-control") }}
+                                <div class="form-text">Tax identification certificate (if available)</div>
+                                {% if form.tax_certificate.errors %}
+                                    <div class="text-danger small">{{ form.tax_certificate.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.certifications.label(class="form-label") }}
+                                {{ form.certifications(class="form-control") }}
+                                <div class="form-text">Professional certifications or licenses (if applicable)</div>
+                                {% if form.certifications.errors %}
+                                    <div class="text-danger small">{{ form.certifications.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.additional_documents.label(class="form-label") }}
+                                {{ form.additional_documents(class="form-control") }}
+                                <div class="form-text">Any additional supporting documents</div>
+                                {% if form.additional_documents.errors %}
+                                    <div class="text-danger small">{{ form.additional_documents.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> Please ensure all documents are clear, legible, and in PDF or image format (JPG, PNG). Maximum file size is 5MB per document.
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-shield-alt me-2"></i>
+                            <strong>Data Protection:</strong> All your information and documents are securely encrypted and will only be used for Produce for Lagos program verification and administration.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('onboarding_step', step=3) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Previous Step
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-2"></i>Complete Registration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
