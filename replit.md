@@ -13,6 +13,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **Climate-Smart Agriculture (CSA) Tool**: Added comprehensive weather integration with OpenWeatherMap API, soil analysis forms, crop recommendations engine, and carbon footprint calculator for sustainable farming practices
 - **Cross-Border Trade Module**: Implemented comprehensive export listings system with phytosanitary certification uploads, international standards compliance tracking, trade data integration, and admin approval workflow for global market access
 - **Geographical Indications (GI) Module**: Added complete GI certification system with Nigerian GI registry, farmer GI claims, admin verification workflow, marketplace GI filtering, and premium product designation for authentic regional agricultural products
+- **SMS Gateway Integration**: Complete Africa's Talking SMS service integration with webhook processing, command system (JOIN, LIST, PRICE, HELP), admin dashboard with metrics and testing interface, and rural farmer accessibility via text messages
 
 ## User Preferences
 
@@ -36,7 +37,9 @@ Preferred communication style: Simple, everyday language.
 - **CSAData Model**: Climate-Smart Agriculture data storage for weather, soil, and carbon footprint analysis
 - **ExportListing Model**: Cross-border trade listings with certification tracking, compliance standards, and international market targeting
 - **Enhanced Produce Model**: Extended with comprehensive GI fields (gi_label, gi_certified, gi_status, gi_certificate_number, gi_admin_comment) for geographical indication certification management
-- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations
+- **Enhanced User Model**: Added SMS integration fields (phone_number, sms_enabled, sms_registration_date) for rural farmer accessibility
+- **SMSInteraction Model**: Complete SMS communication logging and metrics tracking system
+- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations including SMS integration
 
 ### Authentication & Security
 - **Password Security**: Werkzeug-based password hashing with secure storage
@@ -77,6 +80,7 @@ Preferred communication style: Simple, everyday language.
 - **OpenWeatherMap API**: Real-time weather data for climate-smart agriculture
 - **Trade Data Service**: Mock trade data service providing Nigerian agricultural export market trends and pricing information
 - **GI Service**: Comprehensive geographical indications service managing Nigerian GI registry, validation, search functionality, and certification requirements for premium agricultural products
+- **Africa's Talking SMS API**: SMS gateway integration for rural farmer accessibility with webhook processing, command system, and admin management tools
 - **Environment Variables**: Secure API key management through Replit Secrets
 
 ### Infrastructure
