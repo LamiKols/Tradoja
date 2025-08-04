@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 # Initialize services
 weather_service = WeatherService()
@@ -2485,7 +2486,7 @@ def my_purchases():
     purchases = Transaction.query.filter_by(
         user_id=current_user.id,
         transaction_type='produce_sale'
-    ).options(db.joinedload(Transaction.produce)).order_by(Transaction.created_at.desc()).all()
+    ).options(joinedload(Transaction.produce)).order_by(Transaction.created_at.desc()).all()
     
     # Calculate summary statistics
     successful_purchases = [p for p in purchases if p.status == 'successful']

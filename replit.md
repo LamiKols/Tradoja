@@ -16,6 +16,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **SMS Gateway Integration**: Complete Africa's Talking SMS service integration with webhook processing, command system (JOIN, LIST, PRICE, HELP), admin dashboard with metrics and testing interface, and rural farmer accessibility via text messages
 - **AI-Powered Matchmaking Engine**: Implemented intelligent buyer-seller recommendations using rule-based algorithms with crop type, location, quantity, price range, and reliability scoring. Includes web dashboard recommendations, SMS match alerts, accept/decline tracking, and admin analytics for ML training data collection
 - **Advanced Analytics Dashboard**: Comprehensive analytics platform providing market insights, crop performance data, geographic distribution analysis, user engagement metrics, bottleneck identification with intervention recommendations, and CSV/PDF export capabilities for government and partner reporting
+- **Monetization Features**: Complete payment infrastructure with Paystack integration including transaction fees on marketplace trades, logistics service fees, premium user subscriptions, purchase history tracking, and comprehensive payment analytics dashboard
 
 ## User Preferences
 
