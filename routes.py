@@ -24,6 +24,14 @@ except Exception as e:
     app.logger.error(f"Matchmaking engine initialization failed: {e}")
     matchmaking_engine = None
 
+# Initialize analytics service
+try:
+    from analytics_service import AnalyticsService
+    analytics_service = AnalyticsService()
+except Exception as e:
+    app.logger.error(f"Analytics service initialization failed: {e}")
+    analytics_service = None
+
 # Initialize SMS service
 try:
     from sms_service import SMSService
@@ -1834,6 +1842,98 @@ def admin_matchmaking_dashboard():
                          acceptance_rate=acceptance_rate,
                          total_recommendations=total_recommendations,
                          accepted_recommendations=accepted_recommendations)
+
+@app.route('/admin/analytics')
+@login_required
+def admin_analytics_dashboard():
+    """Advanced analytics dashboard for admins and partners"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    if not analytics_service:
+        flash('Analytics service unavailable', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Get comprehensive analytics data
+    market_overview = analytics_service.get_market_overview()
+    crop_analytics = analytics_service.get_crop_analytics()
+    geographic_analytics = analytics_service.get_geographic_analytics()
+    engagement_analytics = analytics_service.get_user_engagement_analytics()
+    bottleneck_analysis = analytics_service.get_bottleneck_analysis()
+    
+    # Get time series data for charts
+    listings_trend = analytics_service.get_time_series_data('new_listings', 30)
+    users_trend = analytics_service.get_time_series_data('new_users', 30)
+    sms_trend = analytics_service.get_time_series_data('sms_interactions', 30)
+    
+    return render_template('admin/analytics_dashboard.html',
+                         title='Advanced Analytics Dashboard',
+                         market_overview=market_overview,
+                         crop_analytics=crop_analytics,
+                         geographic_analytics=geographic_analytics,
+                         engagement_analytics=engagement_analytics,
+                         bottleneck_analysis=bottleneck_analysis,
+                         listings_trend=listings_trend,
+                         users_trend=users_trend,
+                         sms_trend=sms_trend)
+
+@app.route('/admin/analytics/export/<report_type>')
+@login_required
+def export_analytics_report(report_type):
+    """Export analytics report as CSV"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    if not analytics_service:
+        flash('Analytics service unavailable', 'error')
+        return redirect(url_for('admin_analytics_dashboard'))
+    
+    # Generate CSV data
+    csv_data = analytics_service.export_analytics_csv(report_type)
+    
+    if not csv_data:
+        flash('Failed to generate report', 'error')
+        return redirect(url_for('admin_analytics_dashboard'))
+    
+    # Create response
+    response = make_response(csv_data)
+    response.headers["Content-Disposition"] = f"attachment; filename=agrolink_{report_type}_{datetime.now().strftime('%Y%m%d')}.csv"
+    response.headers["Content-type"] = "text/csv"
+    
+    return response
+
+@app.route('/admin/analytics/api/<metric>')
+@login_required
+def analytics_api(metric):
+    """API endpoint for analytics data (for charts)"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    if not analytics_service:
+        return jsonify({'error': 'Analytics service unavailable'}), 500
+    
+    days = request.args.get('days', 30, type=int)
+    
+    if metric in ['new_listings', 'new_users', 'sms_interactions', 'messages']:
+        data = analytics_service.get_time_series_data(metric, days)
+        return jsonify(data)
+    elif metric == 'market_overview':
+        data = analytics_service.get_market_overview(days)
+        return jsonify(data)
+    elif metric == 'crop_analytics':
+        data = analytics_service.get_crop_analytics()
+        return jsonify(data)
+    elif metric == 'geographic':
+        data = analytics_service.get_geographic_analytics()
+        return jsonify(data)
+    elif metric == 'engagement':
+        data = analytics_service.get_user_engagement_analytics()
+        return jsonify(data)
+    elif metric == 'bottlenecks':
+        data = analytics_service.get_bottleneck_analysis()
+        return jsonify(data)
+    else:
+        return jsonify({'error': 'Invalid metric'}), 400
 
 
 # Error handlers

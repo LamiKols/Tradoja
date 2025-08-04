@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- Chart.js for data visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="fw-bold">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>Advanced Analytics Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">Comprehensive insights for platform optimization and partner reporting</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-2"></i>Export Reports
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('export_analytics_report', report_type='market_overview') }}">
+                                <i class="fas fa-chart-pie me-2"></i>Market Overview
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_analytics_report', report_type='crop_analytics') }}">
+                                <i class="fas fa-seedling me-2"></i>Crop Analytics
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_analytics_report', report_type='geographic') }}">
+                                <i class="fas fa-map me-2"></i>Geographic Data
+                            </a></li>
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Performance Indicators -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-basket fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ "{:,}".format(market_overview.total_produce_listings or 0) }}</h3>
+                    <small>Total Listings</small>
+                    <div class="mt-2">
+                        <small class="badge bg-light text-dark">
+                            {{ market_overview.recent_listings or 0 }} this month
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                    <h3 class="mb-0">₦{{ "{:,.0f}".format(market_overview.total_market_value or 0) }}</h3>
+                    <small>Market Value</small>
+                    <div class="mt-2">
+                        <small class="badge bg-light text-dark">
+                            Avg: ₦{{ "{:,.0f}".format(market_overview.average_price or 0) }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ "{:,}".format((market_overview.total_farmers or 0) + (market_overview.total_buyers or 0)) }}</h3>
+                    <small>Total Users</small>
+                    <div class="mt-2">
+                        <small class="badge bg-light text-dark">
+                            {{ market_overview.platform_growth_rate or 0 }}% growth
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-globe-africa fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ "{:,}".format(market_overview.export_listings or 0) }}</h3>
+                    <small>Export Listings</small>
+                    <div class="mt-2">
+                        <small class="badge bg-light text-dark">
+                            ₦{{ "{:,.0f}".format(market_overview.export_value or 0) }} value
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Platform Trends Charts -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Daily New Listings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="listingsChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>User Registration Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="usersChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-seedling me-2"></i>Top Performing Crops
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Crop</th>
+                                    <th>Listings</th>
+                                    <th>Market Share</th>
+                                    <th>Total Value</th>
+                                    <th>Avg Price</th>
+                                    <th>Farmers</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for crop in crop_analytics.top_performing_crops[:10] %}
+                                <tr>
+                                    <td class="fw-bold">{{ crop.crop_name }}</td>
+                                    <td>{{ crop.total_listings }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                                <div class="progress-bar bg-primary" style="width: {{ crop.market_share }}%"></div>
+                                            </div>
+                                            <small>{{ crop.market_share|round(1) }}%</small>
+                                        </div>
+                                    </td>
+                                    <td>₦{{ "{:,.0f}".format(crop.total_value) }}</td>
+                                    <td>₦{{ "{:,.0f}".format(crop.average_price) }}</td>
+                                    <td>{{ crop.unique_farmers }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Crop Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="cropDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geographic Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map me-2"></i>State-wise Market Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>State</th>
+                                    <th>Farmers</th>
+                                    <th>Produce Listings</th>
+                                    <th>Total Value</th>
+                                    <th>Avg Value/Farmer</th>
+                                    <th>Market Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for state in geographic_analytics.top_producing_states %}
+                                <tr>
+                                    <td class="fw-bold">{{ state.state }}</td>
+                                    <td>{{ state.farmer_count }}</td>
+                                    <td>{{ state.produce_count }}</td>
+                                    <td>₦{{ "{:,.0f}".format(state.total_value) }}</td>
+                                    <td>₦{{ "{:,.0f}".format(state.avg_value_per_farmer) }}</td>
+                                    <td>
+                                        {% set supply_demand = geographic_analytics.supply_demand_analysis|selectattr("state", "equalto", state.state)|first %}
+                                        {% if supply_demand %}
+                                            {% if supply_demand.market_balance == 'oversupply' %}
+                                                <span class="badge bg-warning">Oversupply</span>
+                                            {% elif supply_demand.market_balance == 'undersupply' %}
+                                                <span class="badge bg-danger">Undersupply</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Balanced</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-mobile-alt me-2"></i>SMS Engagement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="smsEngagementChart" height="200"></canvas>
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between">
+                            <small>SMS Users:</small>
+                            <strong>{{ "{:,}".format(market_overview.sms_enabled_users or 0) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small>SMS Adoption:</small>
+                            <strong>{{ engagement_analytics.platform_usage.sms_adoption_rate|round(1) }}%</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small>Recent SMS:</small>
+                            <strong>{{ "{:,}".format(market_overview.recent_sms_interactions or 0) }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Engagement Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users-cog me-2"></i>User Engagement Metrics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center mb-3">
+                                <h4 class="text-primary">{{ engagement_analytics.feature_adoption.listing_engagement_rate|round(1) }}%</h4>
+                                <small>Listing Engagement Rate</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center mb-3">
+                                <h4 class="text-success">{{ engagement_analytics.ai_matchmaking.acceptance_rate|round(1) }}%</h4>
+                                <small>AI Match Acceptance</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center mb-3">
+                                <h4 class="text-info">{{ "{:,}".format(engagement_analytics.communication_activity.recent_messages or 0) }}</h4>
+                                <small>Messages (30 days)</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center mb-3">
+                                <h4 class="text-warning">{{ "{:,}".format(engagement_analytics.feature_adoption.funding_applications or 0) }}</h4>
+                                <small>Funding Applications</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Platform Bottlenecks
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if bottleneck_analysis.bottlenecks %}
+                        {% for bottleneck in bottleneck_analysis.bottlenecks %}
+                        <div class="alert alert-{{ 'danger' if bottleneck.severity == 'high' else 'warning' }} mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ bottleneck.type.replace('_', ' ').title() }}</strong>
+                                    <p class="mb-1">{{ bottleneck.description }}</p>
+                                    <small class="text-muted">Impact: {{ bottleneck.impact }}</small>
+                                </div>
+                                <span class="badge bg-{{ 'danger' if bottleneck.severity == 'high' else 'warning' }}">
+                                    {{ bottleneck.severity.title() }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <p class="text-muted">No critical bottlenecks detected</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    {% if bottleneck_analysis.recommendations %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Recommended Interventions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for rec in bottleneck_analysis.recommendations %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-{{ 'danger' if rec.priority == 'high' else 'warning' }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h6 class="card-title">{{ rec.area.replace('_', ' ').title() }}</h6>
+                                        <span class="badge bg-{{ 'danger' if rec.priority == 'high' else 'warning' }}">
+                                            {{ rec.priority.title() }} Priority
+                                        </span>
+                                    </div>
+                                    <p class="card-text">{{ rec.action }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Chart configurations
+const chartConfig = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'top',
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true
+        }
+    }
+};
+
+// Listings trend chart
+const listingsCtx = document.getElementById('listingsChart').getContext('2d');
+new Chart(listingsCtx, {
+    type: 'line',
+    data: {
+        labels: {{ listings_trend|map(attribute='date')|list|tojson }},
+        datasets: [{
+            label: 'New Listings',
+            data: {{ listings_trend|map(attribute='value')|list|tojson }},
+            borderColor: 'rgb(13, 110, 253)',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.1
+        }]
+    },
+    options: chartConfig
+});
+
+// Users trend chart
+const usersCtx = document.getElementById('usersChart').getContext('2d');
+new Chart(usersCtx, {
+    type: 'line',
+    data: {
+        labels: {{ users_trend|map(attribute='date')|list|tojson }},
+        datasets: [{
+            label: 'New Users',
+            data: {{ users_trend|map(attribute='value')|list|tojson }},
+            borderColor: 'rgb(25, 135, 84)',
+            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+            tension: 0.1
+        }]
+    },
+    options: chartConfig
+});
+
+// Crop distribution pie chart
+const cropCtx = document.getElementById('cropDistributionChart').getContext('2d');
+const topCrops = {{ crop_analytics.top_performing_crops[:5]|tojson }};
+new Chart(cropCtx, {
+    type: 'doughnut',
+    data: {
+        labels: topCrops.map(crop => crop.crop_name),
+        datasets: [{
+            data: topCrops.map(crop => crop.market_share),
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 205, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(153, 102, 255, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+
+// SMS engagement chart
+const smsCtx = document.getElementById('smsEngagementChart').getContext('2d');
+new Chart(smsCtx, {
+    type: 'line',
+    data: {
+        labels: {{ sms_trend|map(attribute='date')|list|tojson }},
+        datasets: [{
+            label: 'SMS Interactions',
+            data: {{ sms_trend|map(attribute='value')|list|tojson }},
+            borderColor: 'rgb(255, 193, 7)',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            tension: 0.1
+        }]
+    },
+    options: chartConfig
+});
+</script>
+{% endblock %}
