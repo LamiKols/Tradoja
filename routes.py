@@ -4,37 +4,23 @@ from urllib.parse import urlparse
 from app import app, db
 from models import User, Produce
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm
+from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE, FEATURED_PRODUCE
 
 @app.route('/')
 def home():
     """Homepage route with featured produce data"""
-    # Featured produce mapping with royalty-free images
-    featured_produce = {
-        'Yam Tubers': {
-            'image': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
-            'description': 'Fresh from Kogi State'
-        },
-        'Tomatoes': {
-            'image': 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
-            'description': 'Organically grown, Ogun State'
-        },
-        'Pepper': {
-            'image': 'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=400&q=80',
-            'description': 'Direct from Niger State'
-        },
-        'Plantain': {
-            'image': 'https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80',
-            'description': 'Sweet and ripe, Lagos State'
+    # Build featured produce data with images from mapping
+    featured_produce_data = {}
+    for produce_name, produce_info in FEATURED_PRODUCE.items():
+        featured_produce_data[produce_name] = {
+            'image': PRODUCE_IMAGE_MAP.get(produce_name, DEFAULT_PRODUCE_IMAGE),
+            'description': produce_info['description']
         }
-    }
-    
-    # Default placeholder image for missing produce
-    default_image = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=400&q=80'
     
     return render_template('home.html', 
                          title='Welcome to AgroLink',
-                         featured_produce=featured_produce, 
-                         default_image=default_image)
+                         featured_produce=featured_produce_data, 
+                         default_image=DEFAULT_PRODUCE_IMAGE)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
