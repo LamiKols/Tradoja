@@ -233,7 +233,7 @@ def buyer_dashboard():
     total_spent = db.session.query(func.sum(Produce.price)).filter_by(buyer_id=current_user.id).scalar() or 0
     
     # Get recent logistics requests
-    recent_logistics = LogisticsRequest.query.filter_by(user_id=current_user.id).order_by(LogisticsRequest.created_at.desc()).limit(3).all()
+    recent_logistics = LogisticsRequest.query.filter_by(requester_id=current_user.id).order_by(LogisticsRequest.timestamp.desc()).limit(3).all()
     
     return render_template('buyer_dashboard.html', 
                          title='Buyer Dashboard', 
