@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-truck me-2"></i>My Logistics Requests</h2>
+                <a href="{{ url_for('marketplace') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-store me-1"></i>Browse Marketplace
+                </a>
+            </div>
+            
+            {% if requests %}
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Produce</th>
+                                        <th>Service Type</th>
+                                        <th>Date & Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for request in requests %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ request.produce.name }}</strong><br>
+                                            <small class="text-muted">by {{ request.produce.farmer.name }}</small>
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-{{ 'truck' if request.request_type == 'delivery' else 'hand-paper' }} me-1"></i>
+                                            {{ request.request_type.title() }}
+                                        </td>
+                                        <td>
+                                            {{ request.formatted_date_time() }}<br>
+                                            <small class="text-muted">Requested {{ request.timestamp.strftime('%b %d, %Y') }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ request.get_status_badge_class() }}">
+                                                {{ request.status.title() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group-sm">
+                                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" 
+                                                        data-bs-target="#requestModal{{ request.id }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if request.can_be_modified() %}
+                                                    <form method="POST" action="{{ url_for('cancel_logistics_request', request_id=request.id) }}" 
+                                                          class="d-inline" onsubmit="return confirm('Cancel this logistics request?')">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modals for Request Details -->
+                {% for request in requests %}
+                <div class="modal fade" id="requestModal{{ request.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-truck me-2"></i>Logistics Request Details
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Request Information</h6>
+                                        <p><strong>Service Type:</strong> {{ request.request_type.title() }}</p>
+                                        <p><strong>Preferred Date & Time:</strong> {{ request.formatted_date_time() }}</p>
+                                        <p><strong>Status:</strong> 
+                                           <span class="badge {{ request.get_status_badge_class() }}">{{ request.status.title() }}</span>
+                                        </p>
+                                        <p><strong>Requested:</strong> {{ request.timestamp.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Produce Information</h6>
+                                        <p><strong>Product:</strong> {{ request.produce.name }}</p>
+                                        <p><strong>Farmer:</strong> {{ request.produce.farmer.name }}</p>
+                                        <p><strong>Quantity:</strong> {{ request.produce.quantity }}</p>
+                                        <p><strong>Price:</strong> {{ request.produce.formatted_price() }}</p>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Pickup Location</h6>
+                                        <p>{{ request.pickup_location }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Destination Address</h6>
+                                        <p>{{ request.destination_address }}</p>
+                                    </div>
+                                </div>
+                                
+                                {% if request.notes %}
+                                <hr>
+                                <h6>Additional Notes</h6>
+                                <p>{{ request.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No logistics requests yet</h5>
+                    <p class="text-muted">Browse the marketplace to request delivery or pickup services.</p>
+                    <a href="{{ url_for('marketplace') }}" class="btn btn-primary">
+                        <i class="fas fa-store me-1"></i>Browse Marketplace
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

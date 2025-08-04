@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-truck me-2"></i>Logistics Management</h2>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-2">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <h4 class="text-primary">{{ stats.total }}</h4>
+                            <small class="text-muted">Total Requests</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <h4 class="text-warning">{{ stats.pending }}</h4>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <h4 class="text-info">{{ stats.approved }}</h4>
+                            <small class="text-muted">Approved</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <h4 class="text-success">{{ stats.fulfilled }}</h4>
+                            <small class="text-muted">Fulfilled</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <h4 class="text-danger">{{ stats.cancelled }}</h4>
+                            <small class="text-muted">Cancelled</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filter Bar -->
+            <div class="card mb-4">
+                <div class="card-body py-3">
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="fw-bold me-2">Filter:</span>
+                        <a href="{{ url_for('admin_logistics_dashboard') }}" 
+                           class="btn btn-sm {{ 'btn-primary' if current_filter == 'all' else 'btn-outline-primary' }}">
+                            All ({{ stats.total }})
+                        </a>
+                        <a href="{{ url_for('admin_logistics_dashboard', status='pending') }}" 
+                           class="btn btn-sm {{ 'btn-warning' if current_filter == 'pending' else 'btn-outline-warning' }}">
+                            Pending ({{ stats.pending }})
+                        </a>
+                        <a href="{{ url_for('admin_logistics_dashboard', status='approved') }}" 
+                           class="btn btn-sm {{ 'btn-info' if current_filter == 'approved' else 'btn-outline-info' }}">
+                            Approved ({{ stats.approved }})
+                        </a>
+                        <a href="{{ url_for('admin_logistics_dashboard', status='fulfilled') }}" 
+                           class="btn btn-sm {{ 'btn-success' if current_filter == 'fulfilled' else 'btn-outline-success' }}">
+                            Fulfilled ({{ stats.fulfilled }})
+                        </a>
+                        <a href="{{ url_for('admin_logistics_dashboard', status='cancelled') }}" 
+                           class="btn btn-sm {{ 'btn-danger' if current_filter == 'cancelled' else 'btn-outline-danger' }}">
+                            Cancelled ({{ stats.cancelled }})
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Requests Table -->
+            {% if requests %}
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Requester</th>
+                                        <th>Produce</th>
+                                        <th>Service</th>
+                                        <th>Date & Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for request in requests %}
+                                    <tr>
+                                        <td><strong>#{{ request.id }}</strong></td>
+                                        <td>
+                                            <strong>{{ request.requester.name }}</strong><br>
+                                            <small class="text-muted">{{ request.requester.role.title() }}</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ request.produce.name }}</strong><br>
+                                            <small class="text-muted">by {{ request.produce.farmer.name }}</small>
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-{{ 'truck' if request.request_type == 'delivery' else 'hand-paper' }} me-1"></i>
+                                            {{ request.request_type.title() }}
+                                        </td>
+                                        <td>
+                                            {{ request.formatted_date_time() }}<br>
+                                            <small class="text-muted">Requested {{ request.timestamp.strftime('%b %d') }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ request.get_status_badge_class() }}">
+                                                {{ request.status.title() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group-sm">
+                                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" 
+                                                        data-bs-target="#adminRequestModal{{ request.id }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
+                                                        data-bs-target="#statusModal{{ request.id }}">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modals for Request Details and Status Updates -->
+                {% for request in requests %}
+                <!-- View Modal -->
+                <div class="modal fade" id="adminRequestModal{{ request.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-truck me-2"></i>Request #{{ request.id }} Details
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Request Information</h6>
+                                        <p><strong>Requester:</strong> {{ request.requester.name }} ({{ request.requester.role.title() }})</p>
+                                        <p><strong>Service Type:</strong> {{ request.request_type.title() }}</p>
+                                        <p><strong>Preferred Date & Time:</strong> {{ request.formatted_date_time() }}</p>
+                                        <p><strong>Status:</strong> 
+                                           <span class="badge {{ request.get_status_badge_class() }}">{{ request.status.title() }}</span>
+                                        </p>
+                                        <p><strong>Requested:</strong> {{ request.timestamp.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Produce Information</h6>
+                                        <p><strong>Product:</strong> {{ request.produce.name }}</p>
+                                        <p><strong>Farmer:</strong> {{ request.produce.farmer.name }}</p>
+                                        <p><strong>Quantity:</strong> {{ request.produce.quantity }}</p>
+                                        <p><strong>Price:</strong> {{ request.produce.formatted_price() }}</p>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Pickup Location</h6>
+                                        <p>{{ request.pickup_location }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Destination Address</h6>
+                                        <p>{{ request.destination_address }}</p>
+                                    </div>
+                                </div>
+                                
+                                {% if request.notes %}
+                                <hr>
+                                <h6>Additional Notes</h6>
+                                <p>{{ request.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status Update Modal -->
+                <div class="modal fade" id="statusModal{{ request.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Update Request Status</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('update_logistics_status', request_id=request.id) }}">
+                                <div class="modal-body">
+                                    <p><strong>Request #{{ request.id }}</strong> - {{ request.produce.name }}</p>
+                                    <p><strong>Current Status:</strong> 
+                                       <span class="badge {{ request.get_status_badge_class() }}">{{ request.status.title() }}</span>
+                                    </p>
+                                    
+                                    {% set status_form = LogisticsStatusForm() %}
+                                    {{ status_form.hidden_tag() }}
+                                    <div class="mb-3">
+                                        {{ status_form.status.label(class="form-label") }}
+                                        {{ status_form.status(class="form-select", value=request.status) }}
+                                    </div>
+                                    
+                                    {% if request.status == 'approved' %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Demo:</strong> In a production system, this would trigger truck assignment and tracking notifications.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Update Status</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No logistics requests found</h5>
+                    <p class="text-muted">
+                        {% if current_filter != 'all' %}
+                            No requests with status "{{ current_filter }}".
+                        {% else %}
+                            No logistics requests have been submitted yet.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm
+from models import User, Produce, Message, LogisticsRequest
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
@@ -156,13 +156,19 @@ def admin_dashboard():
         'total_farmers': User.query.filter_by(role='farmer').count(),
         'total_buyers': User.query.filter_by(role='buyer').count(),
         'total_produce': Produce.query.count(),
-        'available_produce': Produce.query.filter_by(is_available=True).count()
+        'available_produce': Produce.query.filter_by(is_available=True).count(),
+        'total_logistics': LogisticsRequest.query.count(),
+        'pending_logistics': LogisticsRequest.query.filter_by(status='pending').count()
     }
+    
+    # Get recent logistics requests
+    recent_logistics = LogisticsRequest.query.order_by(LogisticsRequest.timestamp.desc()).limit(5).all()
     
     return render_template('admin_dashboard.html', 
                          title='Admin Dashboard', 
                          users=users, 
                          produce_listings=produce_listings,
+                         recent_logistics=recent_logistics,
                          stats=stats)
 
 @app.route('/produce/add', methods=['GET', 'POST'])
@@ -429,6 +435,145 @@ def reply_message(message_id):
             flash('Failed to send reply. Please try again.', 'danger')
     
     return redirect(url_for('view_message', message_id=message_id))
+
+# Logistics routes
+@app.route('/logistics_request/<int:produce_id>')
+@login_required
+def logistics_request_form(produce_id):
+    """Show logistics request form for specific produce"""
+    produce = Produce.query.get_or_404(produce_id)
+    form = LogisticsRequestForm()
+    form.produce_id.data = produce_id
+    
+    return render_template('logistics_request.html', 
+                         title='Request Logistics',
+                         form=form, 
+                         produce=produce)
+
+@app.route('/logistics_request', methods=['POST'])
+@login_required
+def logistics_request_post():
+    """Process logistics request submission"""
+    form = LogisticsRequestForm()
+    if form.validate_on_submit():
+        produce = Produce.query.get_or_404(form.produce_id.data)
+        
+        logistics_request = LogisticsRequest(
+            produce_id=form.produce_id.data,
+            requester_id=current_user.id,
+            request_type=form.request_type.data,
+            preferred_date=form.preferred_date.data,
+            preferred_time=form.preferred_time.data,
+            pickup_location=form.pickup_location.data,
+            destination_address=form.destination_address.data,
+            notes=form.notes.data
+        )
+        
+        try:
+            db.session.add(logistics_request)
+            db.session.commit()
+            flash(f'Logistics request for {produce.name} submitted successfully!', 'success')
+            return redirect(url_for('my_logistics_requests'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Logistics request error: {e}")
+            flash('Failed to submit logistics request. Please try again.', 'danger')
+    
+    produce = Produce.query.get_or_404(form.produce_id.data)
+    return render_template('logistics_request.html', 
+                         title='Request Logistics',
+                         form=form, 
+                         produce=produce)
+
+@app.route('/my_logistics_requests')
+@login_required
+def my_logistics_requests():
+    """User's logistics requests dashboard"""
+    requests = LogisticsRequest.query.filter_by(requester_id=current_user.id)\
+                                   .order_by(LogisticsRequest.timestamp.desc()).all()
+    
+    return render_template('my_logistics_requests.html', 
+                         title='My Logistics Requests',
+                         requests=requests)
+
+@app.route('/logistics_request/<int:request_id>/cancel', methods=['POST'])
+@login_required
+def cancel_logistics_request(request_id):
+    """Cancel a logistics request"""
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    
+    # Check if user owns the request and can modify it
+    if logistics_request.requester_id != current_user.id:
+        abort(403)
+    
+    if not logistics_request.can_be_modified():
+        flash('This request cannot be cancelled at this time.', 'warning')
+        return redirect(url_for('my_logistics_requests'))
+    
+    try:
+        logistics_request.status = 'cancelled'
+        db.session.commit()
+        flash('Logistics request cancelled successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Cancel logistics request error: {e}")
+        flash('Failed to cancel request. Please try again.', 'danger')
+    
+    return redirect(url_for('my_logistics_requests'))
+
+@app.route('/admin/logistics')
+@login_required
+def admin_logistics_dashboard():
+    """Admin dashboard for managing all logistics requests"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', 'all')
+    
+    # Build query
+    query = LogisticsRequest.query
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    requests = query.order_by(LogisticsRequest.timestamp.desc()).all()
+    
+    # Get statistics
+    stats = {
+        'total': LogisticsRequest.query.count(),
+        'pending': LogisticsRequest.query.filter_by(status='pending').count(),
+        'approved': LogisticsRequest.query.filter_by(status='approved').count(),
+        'fulfilled': LogisticsRequest.query.filter_by(status='fulfilled').count(),
+        'cancelled': LogisticsRequest.query.filter_by(status='cancelled').count()
+    }
+    
+    return render_template('admin_logistics.html', 
+                         title='Logistics Management',
+                         requests=requests,
+                         stats=stats,
+                         current_filter=status_filter)
+
+@app.route('/admin/logistics/<int:request_id>/update_status', methods=['POST'])
+@login_required
+def update_logistics_status(request_id):
+    """Update logistics request status (admin only)"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    form = LogisticsStatusForm()
+    
+    if form.validate_on_submit():
+        try:
+            logistics_request.status = form.status.data
+            db.session.commit()
+            flash(f'Request status updated to {form.status.data}.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Update logistics status error: {e}")
+            flash('Failed to update status. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_logistics_dashboard'))
 
 # Error handlers
 @app.errorhandler(404)

@@ -110,6 +110,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
                                         <i class="fas fa-cog me-1"></i>Admin Dashboard
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_logistics_dashboard') }}">
+                                        <i class="fas fa-truck me-1"></i>Logistics Management
+                                    </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('inbox') }}">
@@ -121,6 +124,9 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('sent_messages') }}">
                                     <i class="fas fa-paper-plane me-1"></i>Sent Messages
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('my_logistics_requests') }}">
+                                    <i class="fas fa-truck me-1"></i>My Logistics Requests
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">

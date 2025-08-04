@@ -92,3 +92,43 @@ class Message(db.Model):
     def formatted_timestamp(self):
         """Return formatted timestamp"""
         return self.timestamp.strftime('%Y-%m-%d %H:%M')
+
+
+class LogisticsRequest(db.Model):
+    """Logistics request model for delivery and pickup scheduling"""
+    id = db.Column(db.Integer, primary_key=True)
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=False)
+    requester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    request_type = db.Column(db.String(20), nullable=False)  # 'pickup' or 'delivery'
+    preferred_date = db.Column(db.Date, nullable=False)
+    preferred_time = db.Column(db.Time, nullable=False)
+    pickup_location = db.Column(db.String(200), nullable=False)
+    destination_address = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'fulfilled', 'cancelled'
+    notes = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    produce = db.relationship('Produce', backref='logistics_requests')
+    requester = db.relationship('User', backref='logistics_requests')
+    
+    def __repr__(self):
+        return f'<LogisticsRequest {self.request_type} for {self.produce.name}>'
+    
+    def formatted_date_time(self):
+        """Return formatted preferred date and time"""
+        return f"{self.preferred_date.strftime('%B %d, %Y')} at {self.preferred_time.strftime('%I:%M %p')}"
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'approved': 'bg-info',
+            'fulfilled': 'bg-success',
+            'cancelled': 'bg-danger'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def can_be_modified(self):
+        """Check if request can still be modified by requester"""
+        return self.status in ['pending', 'approved']

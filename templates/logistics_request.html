@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-truck me-2"></i>Request Logistics Service</h4>
+                    <small class="text-muted">For: {{ produce.name }} by {{ produce.farmer.name }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('logistics_request_post') }}">
+                        {{ form.hidden_tag() }}
+                        {{ form.produce_id() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.request_type.label(class="form-label") }}
+                                {{ form.request_type(class="form-select" + (" is-invalid" if form.request_type.errors else "")) }}
+                                {% if form.request_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.request_type.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.preferred_date.label(class="form-label") }}
+                                {{ form.preferred_date(class="form-control" + (" is-invalid" if form.preferred_date.errors else "")) }}
+                                {% if form.preferred_date.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.preferred_date.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.preferred_time.label(class="form-label") }}
+                                {{ form.preferred_time(class="form-control" + (" is-invalid" if form.preferred_time.errors else "")) }}
+                                {% if form.preferred_time.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.preferred_time.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.pickup_location.label(class="form-label") }}
+                            {{ form.pickup_location(class="form-control" + (" is-invalid" if form.pickup_location.errors else "")) }}
+                            {% if form.pickup_location.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.pickup_location.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Where should the produce be picked up from?</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.destination_address.label(class="form-label") }}
+                            {{ form.destination_address(class="form-control" + (" is-invalid" if form.destination_address.errors else "")) }}
+                            {% if form.destination_address.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.destination_address.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Where should the produce be delivered to?</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else "")) }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.notes.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-truck me-1"></i>Submit Request
+                            </button>
+                            <a href="{{ url_for('marketplace') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Marketplace
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Produce Info Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-leaf me-2"></i>Produce Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Product:</strong> {{ produce.name }}<br>
+                            <strong>Quantity:</strong> {{ produce.quantity }}<br>
+                            <strong>Price:</strong> {{ produce.formatted_price() }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Farmer:</strong> {{ produce.farmer.name }}<br>
+                            <strong>Listed:</strong> {{ produce.date_listed.strftime('%B %d, %Y') }}
+                        </div>
+                    </div>
+                    {% if produce.description %}
+                        <hr>
+                        <p class="mb-0"><strong>Description:</strong> {{ produce.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

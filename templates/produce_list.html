@@ -108,10 +108,16 @@
                             </a>
                             {% if current_user.is_authenticated %}
                                 {% if current_user.id != produce.farmer_id %}
-                                    <a href="{{ url_for('send_message', receiver_id=produce.farmer_id, produce_id=produce.id) }}" 
-                                       class="btn btn-outline-primary flex-fill">
-                                        <i class="fas fa-comment me-1"></i>Message Farmer
-                                    </a>
+                                    <div class="btn-group flex-fill" role="group">
+                                        <a href="{{ url_for('send_message', receiver_id=produce.farmer_id, produce_id=produce.id) }}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-comment me-1"></i>Message
+                                        </a>
+                                        <a href="{{ url_for('logistics_request_form', produce_id=produce.id) }}" 
+                                           class="btn btn-outline-success">
+                                            <i class="fas fa-truck me-1"></i>Request Delivery
+                                        </a>
+                                    </div>
                                 {% endif %}
                             {% else %}
                                 <a href="{{ url_for('login') }}" class="btn btn-outline-primary flex-fill">
