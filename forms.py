@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError
 from wtforms.widgets import TextArea
 from models import User
@@ -145,3 +145,59 @@ class FundingStatusForm(FlaskForm):
     admin_comment = TextAreaField('Admin Comment', 
                                  validators=[Length(max=1000)],
                                  render_kw={"rows": 4, "placeholder": "Optional comment for the applicant..."})
+    submit = SubmitField('Update Status')
+
+
+class CSAWeatherForm(FlaskForm):
+    """Form for Climate-Smart Agriculture weather and location data"""
+    city = StringField('City/Location', 
+                      validators=[DataRequired()], 
+                      default='Lagos',
+                      render_kw={'placeholder': 'Enter city name (e.g., Lagos, Abuja, Kano)'})
+    latitude = FloatField('Latitude (Optional)', 
+                         render_kw={'placeholder': 'GPS latitude coordinate'})
+    longitude = FloatField('Longitude (Optional)', 
+                          render_kw={'placeholder': 'GPS longitude coordinate'})
+    submit = SubmitField('Get Weather Data')
+
+
+class CSASoilForm(FlaskForm):
+    """Form for soil data input and carbon footprint calculation"""
+    soil_type = SelectField('Soil Type', choices=[
+        ('', 'Select soil type'),
+        ('clay', 'Clay soil'),
+        ('sandy', 'Sandy soil'),
+        ('loamy', 'Loamy soil'),
+        ('silty', 'Silty soil'),
+        ('peaty', 'Peaty soil'),
+        ('chalky', 'Chalky soil')
+    ], validators=[DataRequired()])
+    
+    soil_moisture = SelectField('Current Soil Moisture', choices=[
+        ('', 'Select moisture level'),
+        ('dry', 'Dry (needs irrigation)'),
+        ('moderate', 'Moderate (adequate moisture)'),
+        ('wet', 'Wet (excess moisture)')
+    ], validators=[DataRequired()])
+    
+    field_size = FloatField('Field Size (hectares)', 
+                           validators=[DataRequired(), NumberRange(min=0.1, max=10000)],
+                           render_kw={'placeholder': 'Enter farm size in hectares'})
+    
+    fertilizer_type = SelectField('Fertilizer Type', choices=[
+        ('', 'Select fertilizer type'),
+        ('none', 'No fertilizer used'),
+        ('organic', 'Organic fertilizer (compost, manure)'),
+        ('synthetic', 'Synthetic/Chemical fertilizer'),
+        ('mixed', 'Mixed (organic + synthetic)')
+    ], validators=[DataRequired()])
+    
+    fertilizer_amount = FloatField('Fertilizer Amount (kg per hectare)', 
+                                  validators=[NumberRange(min=0, max=1000)],
+                                  render_kw={'placeholder': 'Amount of fertilizer used per hectare'})
+    
+    estimated_yield = FloatField('Expected Yield (tons per hectare)', 
+                                validators=[DataRequired(), NumberRange(min=0.1, max=100)],
+                                render_kw={'placeholder': 'Expected harvest per hectare'})
+    
+    submit = SubmitField('Analyze & Get Recommendations')

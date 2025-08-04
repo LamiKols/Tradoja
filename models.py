@@ -169,3 +169,65 @@ class FundingApplication(db.Model):
     def formatted_timestamp(self):
         """Return formatted timestamp"""
         return self.timestamp.strftime('%B %d, %Y at %I:%M %p')
+
+
+class CSAData(db.Model):
+    """Climate-Smart Agriculture data model for weather and farming analytics"""
+    id = db.Column(db.Integer, primary_key=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Location data
+    city = db.Column(db.String(100), nullable=False, default='Lagos')
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    
+    # Weather data (stored as JSON)
+    weather_data = db.Column(db.Text)  # JSON string of weather info
+    
+    # Soil data from farmer input
+    soil_type = db.Column(db.String(50))  # clay, sandy, loamy, etc.
+    soil_moisture = db.Column(db.String(50))  # dry, moderate, wet
+    field_size = db.Column(db.Float)  # in hectares
+    
+    # Carbon footprint data
+    fertilizer_type = db.Column(db.String(50))  # organic, synthetic, none
+    fertilizer_amount = db.Column(db.Float)  # kg per hectare
+    estimated_yield = db.Column(db.Float)  # tons per hectare
+    carbon_footprint = db.Column(db.Float)  # calculated CO2 equivalent
+    
+    # Recommendations (stored as JSON)
+    crop_recommendations = db.Column(db.Text)  # JSON string of recommendations
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship
+    farmer = db.relationship('User', backref=db.backref('csa_data', lazy=True))
+    
+    def get_weather_data(self):
+        """Parse weather data from JSON"""
+        if self.weather_data:
+            import json
+            return json.loads(self.weather_data)
+        return {}
+    
+    def set_weather_data(self, data):
+        """Store weather data as JSON"""
+        import json
+        self.weather_data = json.dumps(data)
+    
+    def get_crop_recommendations(self):
+        """Parse crop recommendations from JSON"""
+        if self.crop_recommendations:
+            import json
+            return json.loads(self.crop_recommendations)
+        return []
+    
+    def set_crop_recommendations(self, recommendations):
+        """Store crop recommendations as JSON"""
+        import json
+        self.crop_recommendations = json.dumps(recommendations)
+    
+    def __repr__(self):
+        return f'<CSAData {self.id} - {self.farmer.name} - {self.city}>'

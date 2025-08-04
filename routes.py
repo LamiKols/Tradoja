@@ -2,8 +2,9 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message, LogisticsRequest, FundingApplication
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm
+from weather_service import WeatherService
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
@@ -120,10 +121,14 @@ def farmer_dashboard():
     recent_funding = FundingApplication.query.filter_by(applicant_id=current_user.id)\
                                            .order_by(FundingApplication.timestamp.desc()).limit(3).all()
     
+    # Get latest CSA data for weather display
+    latest_csa = CSAData.query.filter_by(farmer_id=current_user.id).order_by(CSAData.updated_at.desc()).first()
+    
     return render_template('farmer_dashboard.html', 
                          title='Farmer Dashboard', 
                          produce_listings=produce_listings,
-                         recent_funding=recent_funding)
+                         recent_funding=recent_funding,
+                         latest_csa=latest_csa)
 
 @app.route('/buyer/dashboard')
 @login_required
@@ -720,6 +725,142 @@ def update_funding_status(app_id):
             flash('Failed to update status. Please try again.', 'danger')
     
     return redirect(url_for('admin_funding_dashboard'))
+
+
+# Climate-Smart Agriculture Routes
+@app.route('/csa')
+@login_required
+def csa_dashboard():
+    """Climate-Smart Agriculture dashboard"""
+    if not current_user.is_farmer():
+        flash('Climate-Smart Agriculture tools are available for farmers only.', 'warning')
+        return redirect(url_for('home'))
+    
+    # Get user's latest CSA data
+    latest_csa = CSAData.query.filter_by(farmer_id=current_user.id).order_by(CSAData.updated_at.desc()).first()
+    
+    return render_template('csa_dashboard.html', 
+                         title='Climate-Smart Agriculture',
+                         latest_csa=latest_csa)
+
+
+@app.route('/csa/weather', methods=['GET', 'POST'])
+@login_required
+def csa_weather():
+    """Weather data and analysis page"""
+    if not current_user.is_farmer():
+        flash('Access denied. Farmers only.', 'danger')
+        return redirect(url_for('home'))
+    
+    weather_form = CSAWeatherForm()
+    soil_form = CSASoilForm()
+    weather_service = WeatherService()
+    
+    weather_data = None
+    crop_recommendations = []
+    carbon_footprint = None
+    csa_record = None
+    
+    if weather_form.validate_on_submit() and weather_form.submit.data:
+        # Fetch weather data
+        if weather_form.latitude.data and weather_form.longitude.data:
+            weather_data = weather_service.get_weather_by_coordinates(
+                weather_form.latitude.data, 
+                weather_form.longitude.data
+            )
+        else:
+            weather_data = weather_service.get_current_weather(weather_form.city.data)
+        
+        if weather_data:
+            # Create or update CSA record
+            csa_record = CSAData.query.filter_by(farmer_id=current_user.id).first()
+            if not csa_record:
+                csa_record = CSAData(farmer_id=current_user.id)
+                db.session.add(csa_record)
+            
+            csa_record.city = weather_form.city.data
+            csa_record.latitude = weather_form.latitude.data
+            csa_record.longitude = weather_form.longitude.data
+            csa_record.set_weather_data(weather_data)
+            
+            db.session.commit()
+            flash(f'Weather data updated for {weather_data["city"]}!', 'success')
+        else:
+            flash('Unable to fetch weather data. Please check your location and try again.', 'danger')
+    
+    elif soil_form.validate_on_submit() and soil_form.submit.data:
+        # Handle soil data and generate recommendations
+        csa_record = CSAData.query.filter_by(farmer_id=current_user.id).first()
+        if not csa_record:
+            csa_record = CSAData(farmer_id=current_user.id, city='Lagos')
+            db.session.add(csa_record)
+        
+        # Update soil and carbon data
+        csa_record.soil_type = soil_form.soil_type.data
+        csa_record.soil_moisture = soil_form.soil_moisture.data
+        csa_record.field_size = soil_form.field_size.data
+        csa_record.fertilizer_type = soil_form.fertilizer_type.data
+        csa_record.fertilizer_amount = soil_form.fertilizer_amount.data or 0
+        csa_record.estimated_yield = soil_form.estimated_yield.data
+        
+        # Get weather data for recommendations
+        weather_data = csa_record.get_weather_data()
+        
+        # Generate crop recommendations
+        crop_recommendations = weather_service.get_crop_recommendations(
+            weather_data, 
+            soil_form.soil_type.data,
+            soil_form.soil_moisture.data
+        )
+        csa_record.set_crop_recommendations(crop_recommendations)
+        
+        # Calculate carbon footprint
+        carbon_footprint = weather_service.calculate_carbon_footprint(
+            soil_form.field_size.data,
+            soil_form.fertilizer_type.data,
+            soil_form.fertilizer_amount.data or 0,
+            soil_form.estimated_yield.data
+        )
+        csa_record.carbon_footprint = carbon_footprint['total_emissions']
+        
+        db.session.commit()
+        flash('Soil analysis completed! Check your crop recommendations and carbon footprint below.', 'success')
+    
+    # Load existing data if available
+    csa_record = CSAData.query.filter_by(farmer_id=current_user.id).first()
+    if csa_record:
+        weather_data = csa_record.get_weather_data()
+        crop_recommendations = csa_record.get_crop_recommendations()
+        
+        if csa_record.carbon_footprint:
+            # Reconstruct carbon footprint data
+            carbon_footprint = weather_service.calculate_carbon_footprint(
+                csa_record.field_size or 1,
+                csa_record.fertilizer_type or 'none',
+                csa_record.fertilizer_amount or 0,
+                csa_record.estimated_yield or 1
+            )
+        
+        # Pre-fill forms with existing data
+        if not weather_form.city.data:
+            weather_form.city.data = csa_record.city
+        if not soil_form.soil_type.data and csa_record.soil_type:
+            soil_form.soil_type.data = csa_record.soil_type
+            soil_form.soil_moisture.data = csa_record.soil_moisture
+            soil_form.field_size.data = csa_record.field_size
+            soil_form.fertilizer_type.data = csa_record.fertilizer_type
+            soil_form.fertilizer_amount.data = csa_record.fertilizer_amount
+            soil_form.estimated_yield.data = csa_record.estimated_yield
+    
+    return render_template('csa_weather.html',
+                         title='Climate-Smart Agriculture - Weather & Analysis',
+                         weather_form=weather_form,
+                         soil_form=soil_form,
+                         weather_data=weather_data,
+                         crop_recommendations=crop_recommendations,
+                         carbon_footprint=carbon_footprint,
+                         weather_service=weather_service)
+
 
 # Error handlers
 @app.errorhandler(404)

@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-cloud-sun text-primary"></i> Weather Analysis & Crop Recommendations</h2>
+                <a href="{{ url_for('csa_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to CSA Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weather Data Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-map-marker-alt"></i> Location & Weather Data</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ weather_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ weather_form.city.label(class="form-label") }}
+                            {{ weather_form.city(class="form-control") }}
+                            {% if weather_form.city.errors %}
+                                <div class="text-danger small">{{ weather_form.city.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ weather_form.latitude.label(class="form-label") }}
+                                    {{ weather_form.latitude(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ weather_form.longitude.label(class="form-label") }}
+                                    {{ weather_form.longitude(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ weather_form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Weather Display -->
+        <div class="col-md-6">
+            {% if weather_data %}
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-thermometer-half"></i> Current Weather - {{ weather_data.city }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="weather-icon mb-2">
+                                {% if weather_data.icon %}
+                                <img src="{{ weather_service.get_weather_icon_url(weather_data.icon) }}" 
+                                     alt="{{ weather_data.description }}" class="img-fluid" style="max-width: 60px;">
+                                {% endif %}
+                            </div>
+                            <h3 class="text-primary">{{ weather_data.temperature }}°C</h3>
+                            <p class="text-muted">{{ weather_data.description|title }}</p>
+                        </div>
+                        <div class="col-6">
+                            <div class="weather-details">
+                                <p><strong>Feels like:</strong> {{ weather_data.feels_like }}°C</p>
+                                <p><strong>Humidity:</strong> {{ weather_data.humidity }}%</p>
+                                <p><strong>Wind:</strong> {{ weather_data.wind_speed }} m/s</p>
+                                <p><strong>Pressure:</strong> {{ weather_data.pressure }} hPa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                    <h5>No Weather Data</h5>
+                    <p class="text-muted">Enter your location to get current weather conditions</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Soil Data and Analysis Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-seedling"></i> Soil Analysis & Carbon Footprint Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ soil_form.hidden_tag() }}
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.soil_type.label(class="form-label") }}
+                                    {{ soil_form.soil_type(class="form-select") }}
+                                    {% if soil_form.soil_type.errors %}
+                                        <div class="text-danger small">{{ soil_form.soil_type.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.soil_moisture.label(class="form-label") }}
+                                    {{ soil_form.soil_moisture(class="form-select") }}
+                                    {% if soil_form.soil_moisture.errors %}
+                                        <div class="text-danger small">{{ soil_form.soil_moisture.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.field_size.label(class="form-label") }}
+                                    {{ soil_form.field_size(class="form-control") }}
+                                    {% if soil_form.field_size.errors %}
+                                        <div class="text-danger small">{{ soil_form.field_size.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.fertilizer_type.label(class="form-label") }}
+                                    {{ soil_form.fertilizer_type(class="form-select") }}
+                                    {% if soil_form.fertilizer_type.errors %}
+                                        <div class="text-danger small">{{ soil_form.fertilizer_type.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.fertilizer_amount.label(class="form-label") }}
+                                    {{ soil_form.fertilizer_amount(class="form-control") }}
+                                    {% if soil_form.fertilizer_amount.errors %}
+                                        <div class="text-danger small">{{ soil_form.fertilizer_amount.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ soil_form.estimated_yield.label(class="form-label") }}
+                                    {{ soil_form.estimated_yield(class="form-control") }}
+                                    {% if soil_form.estimated_yield.errors %}
+                                        <div class="text-danger small">{{ soil_form.estimated_yield.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ soil_form.submit(class="btn btn-info btn-lg") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Crop Recommendations -->
+    {% if crop_recommendations %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-leaf"></i> Recommended Climate-Resilient Crops</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for crop in crop_recommendations %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100 border-light">
+                                <div class="card-body text-center">
+                                    <div class="crop-icon mb-2" style="font-size: 2rem;">
+                                        {{ crop.icon }}
+                                    </div>
+                                    <h6 class="card-title text-success">{{ crop.name }}</h6>
+                                    <p class="card-text small">{{ crop.description }}</p>
+                                    {% if crop.soil_advice %}
+                                    <div class="alert alert-light small" role="alert">
+                                        <i class="fas fa-info-circle"></i> {{ crop.soil_advice }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Carbon Footprint Results -->
+    {% if carbon_footprint %}
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-calculator"></i> Carbon Footprint Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-md-3">
+                            <h4 class="text-danger">{{ carbon_footprint.total_emissions }}</h4>
+                            <p class="text-muted small">Total CO₂ kg/year</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">{{ carbon_footprint.fertilizer_emissions }}</h4>
+                            <p class="text-muted small">Fertilizer Emissions</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-info">{{ carbon_footprint.fuel_emissions }}</h4>
+                            <p class="text-muted small">Fuel/Machinery</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">{{ carbon_footprint.emissions_per_ton }}</h4>
+                            <p class="text-muted small">CO₂ kg per ton yield</p>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mb-3">
+                        {% set fuel_percent = (carbon_footprint.fuel_emissions / carbon_footprint.total_emissions * 100) %}
+                        {% set fert_percent = (carbon_footprint.fertilizer_emissions / carbon_footprint.total_emissions * 100) %}
+                        <div class="progress-bar bg-info" style="width: {{ fuel_percent }}%"></div>
+                        <div class="progress-bar bg-warning" style="width: {{ fert_percent }}%"></div>
+                    </div>
+                    <p class="small text-muted">
+                        <span class="badge bg-info">Fuel/Machinery</span> 
+                        <span class="badge bg-warning">Fertilizer</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h6><i class="fas fa-lightbulb"></i> Reduction Tips</h6>
+                </div>
+                <div class="card-body">
+                    {% for tip in carbon_footprint.recommendations %}
+                    <div class="mb-2">
+                        <small>{{ tip }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Help Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <h6><i class="fas fa-question-circle"></i> How to Use This Tool</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Weather Data</h6>
+                            <ul class="small">
+                                <li>Enter your city name for weather data</li>
+                                <li>Optionally provide GPS coordinates for precise location</li>
+                                <li>Weather affects crop recommendations</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Soil & Carbon Analysis</h6>
+                            <ul class="small">
+                                <li>Select your soil type and current moisture level</li>
+                                <li>Enter field size and fertilizer usage</li>
+                                <li>Get personalized crop recommendations and carbon footprint</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

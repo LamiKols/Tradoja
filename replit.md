@@ -10,6 +10,7 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **Funding Portal**: Implemented comprehensive Offtake Guarantee Fund system with application forms, document uploads, and admin approval workflow
 - **Logistics System**: Added delivery/pickup request system with status tracking and admin management
 - **User Experience**: Enhanced role-based redirects for seamless navigation after login/registration
+- **Climate-Smart Agriculture (CSA) Tool**: Added comprehensive weather integration with OpenWeatherMap API, soil analysis forms, crop recommendations engine, and carbon footprint calculator for sustainable farming practices
 
 ## User Preferences
 
@@ -24,10 +25,14 @@ Preferred communication style: Simple, everyday language.
 - **Flask-WTF**: Form handling with CSRF protection and input validation
 
 ### Database Design
-- **SQLite**: Lightweight database for development and easy deployment
+- **PostgreSQL**: Scalable database for production-ready deployment
 - **User Model**: Stores user information with role-based access (farmer, buyer, admin)
 - **Produce Model**: Manages product listings with farmer relationships via foreign keys
-- **Database relationships**: One-to-many between users and produce listings
+- **Message Model**: In-platform messaging system between farmers and buyers
+- **LogisticsRequest Model**: Delivery/pickup coordination system
+- **FundingApplication Model**: Offtake Guarantee Fund application management
+- **CSAData Model**: Climate-Smart Agriculture data storage for weather, soil, and carbon footprint analysis
+- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations
 
 ### Authentication & Security
 - **Password Security**: Werkzeug-based password hashing with secure storage
@@ -60,6 +65,13 @@ Preferred communication style: Simple, everyday language.
 - **Flask-WTF**: Form handling and validation
 - **Werkzeug**: Password hashing and security utilities
 - **WTForms**: Form validation and rendering
+- **Requests**: HTTP library for API integration
+- **Psycopg2**: PostgreSQL adapter for Python
+- **Trafilatura**: Web scraping capabilities
+
+### API Integrations
+- **OpenWeatherMap API**: Real-time weather data for climate-smart agriculture
+- **Environment Variables**: Secure API key management through Replit Secrets
 
 ### Infrastructure
 - **SQLite Database**: File-based database storage

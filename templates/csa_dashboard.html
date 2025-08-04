@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-leaf text-success"></i> Climate-Smart Agriculture</h2>
+                <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">🌱 Welcome to Climate-Smart Agriculture Tools</h5>
+                    <p class="card-text">
+                        Make informed farming decisions using real-time weather data, soil analysis, and carbon footprint tracking. 
+                        Get personalized crop recommendations based on your local climate conditions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    {% if latest_csa %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-primary">{{ latest_csa.city }}</h3>
+                    <p class="card-text"><small class="text-muted">Current Location</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-info">{{ latest_csa.field_size or 'N/A' }}</h3>
+                    <p class="card-text"><small class="text-muted">Field Size (hectares)</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-warning">{{ latest_csa.soil_type|title or 'Not set' }}</h3>
+                    <p class="card-text"><small class="text-muted">Soil Type</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h3 class="card-title text-success">{{ '%.1f'|format(latest_csa.carbon_footprint or 0) }}</h3>
+                    <p class="card-text"><small class="text-muted">CO₂ kg/year</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Action Cards -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-primary">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-cloud-sun fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Weather & Soil Analysis</h5>
+                    <p class="card-text">
+                        Get real-time weather data for your location, input soil conditions, 
+                        and receive personalized crop recommendations based on climate data.
+                    </p>
+                    <a href="{{ url_for('csa_weather') }}" class="btn btn-primary">
+                        <i class="fas fa-thermometer-half"></i> Start Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-success">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-calculator fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Carbon Footprint Calculator</h5>
+                    <p class="card-text">
+                        Calculate your farm's carbon emissions based on field size, fertilizer use, 
+                        and get recommendations to reduce your environmental impact.
+                    </p>
+                    <a href="{{ url_for('csa_weather') }}" class="btn btn-success">
+                        <i class="fas fa-leaf"></i> Calculate Footprint
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Weather Data -->
+    {% if latest_csa and latest_csa.get_weather_data() %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cloud"></i> Latest Weather Data</h5>
+                </div>
+                <div class="card-body">
+                    {% set weather = latest_csa.get_weather_data() %}
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <h4>{{ weather.temperature }}°C</h4>
+                            <p class="text-muted">Temperature</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4>{{ weather.humidity }}%</h4>
+                            <p class="text-muted">Humidity</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4>{{ weather.wind_speed }} m/s</h4>
+                            <p class="text-muted">Wind Speed</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4>{{ weather.description|title }}</h4>
+                            <p class="text-muted">Conditions</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    Last updated: {{ latest_csa.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Getting Started Guide -->
+    {% if not latest_csa %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-info-circle"></i> Getting Started with Climate-Smart Agriculture</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><strong>Get Weather Data:</strong> Enter your location to fetch current weather conditions</li>
+                        <li><strong>Input Soil Information:</strong> Provide details about your soil type and current moisture levels</li>
+                        <li><strong>Receive Crop Recommendations:</strong> Get personalized suggestions for climate-resilient crops</li>
+                        <li><strong>Calculate Carbon Footprint:</strong> Enter field size and fertilizer data to estimate emissions</li>
+                        <li><strong>Track Progress:</strong> Monitor your farming practices and environmental impact over time</li>
+                    </ol>
+                    <div class="mt-3">
+                        <a href="{{ url_for('csa_weather') }}" class="btn btn-info">
+                            <i class="fas fa-play"></i> Start Your Analysis
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
