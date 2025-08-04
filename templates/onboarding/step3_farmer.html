@@ -75,10 +75,26 @@
                             
                             <div class="col-12 mb-3">
                                 {{ form.crops_grown.label(class="form-label") }}
-                                {{ form.crops_grown(class="form-control", placeholder="e.g., Rice, Maize, Cassava, Yam", required=True) }}
+                                {{ form.crops_grown(class="form-control", required=True) }}
                                 <div class="form-text">List the main crops you grow, separated by commas</div>
                                 {% if form.crops_grown.errors %}
                                     <div class="text-danger small">{{ form.crops_grown.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.season_calendar.label(class="form-label") }}
+                                {{ form.season_calendar(class="form-control", required=True) }}
+                                {% if form.season_calendar.errors %}
+                                    <div class="text-danger small">{{ form.season_calendar.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.avg_output.label(class="form-label") }}
+                                {{ form.avg_output(class="form-control", required=True) }}
+                                {% if form.avg_output.errors %}
+                                    <div class="text-danger small">{{ form.avg_output.errors[0] }}</div>
                                 {% endif %}
                             </div>
                             
@@ -94,10 +110,18 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                {{ form.irrigation_system.label(class="form-label") }}
-                                {{ form.irrigation_system(class="form-select") }}
-                                {% if form.irrigation_system.errors %}
-                                    <div class="text-danger small">{{ form.irrigation_system.errors[0] }}</div>
+                                <label class="form-label">Irrigation Methods Used (if any)</label>
+                                {{ form.irrigation_methods(class="form-control") }}
+                                {% if form.irrigation_methods.errors %}
+                                    <div class="text-danger small">{{ form.irrigation_methods.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.postharvest_facilities.label(class="form-label") }}
+                                {{ form.postharvest_facilities(class="form-control", rows="3") }}
+                                {% if form.postharvest_facilities.errors %}
+                                    <div class="text-danger small">{{ form.postharvest_facilities.errors[0] }}</div>
                                 {% endif %}
                             </div>
                         </div>

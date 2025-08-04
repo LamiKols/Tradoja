@@ -114,11 +114,13 @@ class ProduceLagosRegistration(db.Model):
     # Role-specific fields (Step 3)
     # Farmer-specific
     farm_size = db.Column(db.String(50))
-    crops_grown = db.Column(db.Text)  # JSON string
+    crops_grown = db.Column(db.Text)  # Main crops/produce
+    season_calendar = db.Column(db.String(200))  # Seasonal calendar (harvest cycles per year)
+    avg_output = db.Column(db.String(200))  # Average monthly output (volume)
     farming_experience = db.Column(db.Integer)
-    farming_methods = db.Column(db.Text)
-    irrigation_system = db.Column(db.String(100))
-    storage_facilities = db.Column(db.Text)
+    farming_methods = db.Column(db.Text)  # Type of farming (Crop, Livestock, Mixed)
+    irrigation_methods = db.Column(db.String(200))  # Irrigation methods used
+    postharvest_facilities = db.Column(db.Text)  # Post-harvest facilities available
     
     # Aggregator-specific
     aggregation_capacity = db.Column(db.String(100))

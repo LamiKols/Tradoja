@@ -2724,10 +2724,12 @@ def onboarding_step_3(registration):
         if registration.role == 'farmer':
             registration.farm_size = form.farm_size.data
             registration.crops_grown = form.crops_grown.data
+            registration.season_calendar = form.season_calendar.data
+            registration.avg_output = form.avg_output.data
             registration.farming_experience = form.farming_experience.data
             registration.farming_methods = form.farming_methods.data
-            registration.irrigation_system = form.irrigation_system.data
-            registration.storage_facilities = form.storage_facilities.data
+            registration.irrigation_methods = form.irrigation_methods.data
+            registration.postharvest_facilities = form.postharvest_facilities.data
         elif registration.role == 'aggregator':
             registration.aggregation_capacity = form.aggregation_capacity.data
             registration.storage_capacity = form.storage_capacity.data
@@ -2763,10 +2765,12 @@ def onboarding_step_3(registration):
     if registration.role == 'farmer' and registration.farm_size:
         form.farm_size.data = registration.farm_size
         form.crops_grown.data = registration.crops_grown
+        form.season_calendar.data = registration.season_calendar
+        form.avg_output.data = registration.avg_output
         form.farming_experience.data = registration.farming_experience
         form.farming_methods.data = registration.farming_methods
-        form.irrigation_system.data = registration.irrigation_system
-        form.storage_facilities.data = registration.storage_facilities
+        form.irrigation_methods.data = registration.irrigation_methods
+        form.postharvest_facilities.data = registration.postharvest_facilities
     # Add similar pre-population for other roles...
     
     return render_template(template, 

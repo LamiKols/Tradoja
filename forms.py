@@ -557,23 +557,24 @@ class OnboardingStep2Form(FlaskForm):
 
 class OnboardingStep3FarmerForm(FlaskForm):
     """Step 3: Farmer-specific information"""
-    farm_size = StringField('Farm Size (hectares)', validators=[DataRequired(), Length(max=50)])
-    crops_grown = TextAreaField('Crops Grown', validators=[DataRequired()], 
-                               render_kw={'rows': 3, 'placeholder': 'List the main crops you cultivate'})
+    farm_size = StringField('Farm Size (Hectares or Acres)', validators=[DataRequired(), Length(max=50)])
+    crops_grown = TextAreaField('Main Crops/Produce', validators=[DataRequired()], 
+                               render_kw={'rows': 3, 'placeholder': 'e.g., Rice, Maize, Cassava, Yam'})
+    season_calendar = StringField('Seasonal Calendar (Harvest cycles per year)', validators=[DataRequired()],
+                                render_kw={'placeholder': 'e.g., 2 cycles per year, April-July and October-January'})
+    avg_output = StringField('Average Monthly Output (Volume)', validators=[DataRequired()],
+                           render_kw={'placeholder': 'e.g., 50 bags of rice, 100kg of tomatoes'})
     farming_experience = IntegerField('Years of Farming Experience', validators=[DataRequired(), NumberRange(min=0, max=70)])
-    farming_methods = TextAreaField('Farming Methods', validators=[Optional()], 
-                                   render_kw={'rows': 3, 'placeholder': 'Describe your farming techniques'})
-    irrigation_system = SelectField('Irrigation System', choices=[
-        ('', 'Select Irrigation System'),
-        ('rain_fed', 'Rain-fed'),
-        ('drip_irrigation', 'Drip Irrigation'),
-        ('sprinkler', 'Sprinkler System'),
-        ('furrow', 'Furrow Irrigation'),
-        ('flood', 'Flood Irrigation'),
-        ('manual', 'Manual Watering')
-    ], validators=[Optional()])
-    storage_facilities = TextAreaField('Storage Facilities', validators=[Optional()], 
-                                     render_kw={'rows': 3, 'placeholder': 'Describe your storage capabilities'})
+    farming_methods = SelectField('Type of Farming', choices=[
+        ('', 'Select farming type'),
+        ('Crop', 'Crop'),
+        ('Livestock', 'Livestock'),
+        ('Mixed', 'Mixed')
+    ], validators=[DataRequired()])
+    irrigation_methods = StringField('Irrigation Methods Used (if any)',
+                                   render_kw={'placeholder': 'e.g., Drip irrigation, Rain-fed, Sprinkler system'})
+    postharvest_facilities = TextAreaField('Post-Harvest Facilities Available', validators=[Optional()],
+                                         render_kw={'rows': 3, 'placeholder': 'Describe storage, processing, and handling facilities'})
 
 
 class OnboardingStep3AggregatorForm(FlaskForm):
