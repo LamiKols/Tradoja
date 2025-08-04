@@ -85,6 +85,10 @@ class SMSService:
                 return self._send_help_message(phone_number)
             elif command == 'STOP':
                 return self._handle_opt_out(phone_number)
+            elif command.startswith('ACCEPT'):
+                return self._handle_match_acceptance(phone_number, command_parts)
+            elif command.startswith('DECLINE'):
+                return self._handle_match_decline(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 

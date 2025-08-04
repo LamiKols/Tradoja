@@ -35,6 +35,53 @@
         </div>
     </div>
 
+    <!-- AI-Powered Seller Recommendations -->
+    {% if seller_recommendations %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-robot me-2 text-primary"></i>AI-Recommended Sellers for You
+                    </h5>
+                    <span class="badge bg-info">Powered by AI</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Based on your preferences and activity, these sellers might interest you:</p>
+                    <div class="row">
+                        {% for rec in seller_recommendations %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border-success">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h6 class="card-title">{{ rec.farmer_name }}</h6>
+                                        <span class="badge bg-success">{{ (rec.match_score * 100)|round|int }}% Match</span>
+                                    </div>
+                                    <p class="card-text">
+                                        <strong>Product:</strong> {{ rec.produce_name }}<br>
+                                        <strong>Quantity:</strong> {{ rec.produce_quantity }}<br>
+                                        <strong>Price:</strong> NGN {{ "{:,.0f}".format(rec.produce_price) }}<br>
+                                        <small class="text-muted">{{ rec.recommendation_reason }}</small>
+                                    </p>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <a href="{{ url_for('produce_detail', id=rec.produce_id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye me-1"></i>View Details
+                                        </a>
+                                        <a href="mailto:{{ rec.farmer_email }}" class="btn btn-sm btn-success">
+                                            <i class="fas fa-envelope me-1"></i>Contact
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Results Header -->
     {% if request.args.get('search_term') %}
     <div class="row mb-3">

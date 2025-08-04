@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="fw-bold">
+                        <i class="fas fa-robot me-2 text-primary"></i>AI Matchmaking Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">Monitor AI-powered marketplace matchmaking performance</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_farmers or 0 }}</h3>
+                    <small>Active Farmers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ stats.total_buyers or 0 }}</h3>
+                    <small>Active Buyers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-handshake fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ total_recommendations }}</h3>
+                    <small>Total Matches</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-percent fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ acceptance_rate|round|int }}%</h3>
+                    <small>Acceptance Rate</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Performance Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Matchmaking Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ stats.potential_matches or 0 }}</h4>
+                                <small class="text-muted">Potential Matches</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ (stats.avg_match_score * 100)|round|int if stats.avg_match_score else 0 }}%</h4>
+                                <small class="text-muted">Avg Match Score</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">{{ accepted_recommendations }}</h4>
+                                <small class="text-muted">Accepted Matches</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">{{ stats.available_listings or 0 }}</h4>
+                                <small class="text-muted">Available Listings</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>AI Engine Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Rule-Based Engine Active</strong><br>
+                        <small>Using advanced algorithms for farmer-buyer matching</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>ML Training Data Collection</strong><br>
+                        <small>Storing match outcomes for future machine learning model</small>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span>Crop Type Matching</span>
+                            <i class="fas fa-check text-success"></i>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span>Price Compatibility</span>
+                            <i class="fas fa-check text-success"></i>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span>Interaction History</span>
+                            <i class="fas fa-check text-success"></i>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span>Activity Level Analysis</span>
+                            <i class="fas fa-check text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Match Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Match Recommendations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_matches %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Farmer</th>
+                                    <th>Buyer</th>
+                                    <th>Produce</th>
+                                    <th>Match Score</th>
+                                    <th>Status</th>
+                                    <th>Delivery Method</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in recent_matches %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ match.farmer.name }}</div>
+                                        <small class="text-muted">{{ match.farmer.email }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ match.buyer.name }}</div>
+                                        <small class="text-muted">{{ match.buyer.email }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ match.produce.name }}</div>
+                                        <small class="text-muted">NGN {{ "{:,.0f}".format(match.produce.price) }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ (match.match_score * 100)|round|int }}%</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ match.get_status_badge_class() }}">
+                                            {{ match.status.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-{{ 'globe' if match.delivery_method == 'web' else 'sms' }} me-1"></i>
+                                        {{ match.delivery_method.title() }}
+                                    </td>
+                                    <td>
+                                        <small>{{ match.sent_at.strftime('%m/%d %H:%M') }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                        <h5>No Match Recommendations Yet</h5>
+                        <p class="text-muted">AI-powered matches will appear here once the system starts making recommendations.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

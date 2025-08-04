@@ -446,6 +446,75 @@ class SMSInteraction(db.Model):
     
     def __repr__(self):
         return f'<SMSInteraction {self.phone_number} - {self.message_type}>'
+
+
+class MatchRecommendation(db.Model):
+    """AI-powered marketplace matchmaking recommendations"""
+    id = db.Column(db.Integer, primary_key=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=False)
+    
+    # Match details
+    match_score = db.Column(db.Float, nullable=False)  # 0.0 to 1.0
+    match_factors = db.Column(db.Text)  # JSON string of factors that influenced the match
+    recommendation_reason = db.Column(db.Text)  # Human-readable explanation
+    
+    # Recommendation delivery
+    delivery_method = db.Column(db.String(20), nullable=False)  # 'web', 'sms', 'email'
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # User response
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'accepted', 'declined', 'expired'
+    response_at = db.Column(db.DateTime)
+    response_method = db.Column(db.String(20))  # 'web', 'sms', 'message'
+    
+    # Outcome tracking (for ML training)
+    outcome = db.Column(db.String(20))  # 'contacted', 'deal_made', 'no_response', 'rejected'
+    outcome_notes = db.Column(db.Text)
+    outcome_recorded_at = db.Column(db.DateTime)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='farmer_recommendations')
+    buyer = db.relationship('User', foreign_keys=[buyer_id], backref='buyer_recommendations')
+    produce = db.relationship('Produce', backref='match_recommendations')
+    
+    def get_match_factors(self):
+        """Parse match factors from JSON"""
+        if self.match_factors:
+            import json
+            return json.loads(self.match_factors)
+        return {}
+    
+    def set_match_factors(self, factors):
+        """Store match factors as JSON"""
+        import json
+        self.match_factors = json.dumps(factors)
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'accepted': 'bg-success',
+            'declined': 'bg-danger',
+            'expired': 'bg-secondary'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def is_expired(self):
+        """Check if recommendation has expired (7 days)"""
+        if self.status != 'pending':
+            return False
+        
+        expiry_date = self.sent_at + timedelta(days=7)
+        return datetime.utcnow() > expiry_date
+    
+    def __repr__(self):
+        return f'<MatchRecommendation {self.farmer.name} -> {self.buyer.name} for {self.produce.name}>'
     
     def formatted_timestamp(self):
         """Return formatted timestamp"""

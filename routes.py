@@ -2,7 +2,7 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
@@ -15,6 +15,14 @@ from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 weather_service = WeatherService()
 trade_service = TradeDataService()
 gi_service = GIService()
+
+# Initialize matchmaking engine
+try:
+    from matchmaking_service import MatchmakingEngine
+    matchmaking_engine = MatchmakingEngine()
+except Exception as e:
+    app.logger.error(f"Matchmaking engine initialization failed: {e}")
+    matchmaking_engine = None
 
 # Initialize SMS service
 try:
@@ -130,7 +138,7 @@ def dashboard():
 @app.route('/farmer/dashboard')
 @login_required
 def farmer_dashboard():
-    """Farmer dashboard route"""
+    """Farmer dashboard route with AI-powered buyer recommendations"""
     if not current_user.is_farmer():
         flash('Access denied. Farmers only.', 'danger')
         return redirect(url_for('home'))
@@ -145,11 +153,30 @@ def farmer_dashboard():
     # Get latest CSA data for weather display
     latest_csa = CSAData.query.filter_by(farmer_id=current_user.id).order_by(CSAData.updated_at.desc()).first()
     
+    # Get AI-powered buyer recommendations
+    buyer_recommendations = []
+    if matchmaking_engine:
+        try:
+            available_listings = [p for p in produce_listings if p.is_available]
+            if available_listings:
+                recommendations = matchmaking_engine.find_buyer_matches(current_user.id)
+                buyer_recommendations = recommendations[:5]  # Top 5 recommendations
+        except Exception as e:
+            app.logger.error(f"Error getting buyer recommendations: {e}")
+    
+    # Get pending match recommendations for this farmer
+    pending_matches = MatchRecommendation.query.filter_by(
+        farmer_id=current_user.id,
+        status='pending'
+    ).order_by(MatchRecommendation.sent_at.desc()).limit(5).all()
+    
     return render_template('farmer_dashboard.html', 
                          title='Farmer Dashboard', 
                          produce_listings=produce_listings,
                          recent_funding=recent_funding,
-                         latest_csa=latest_csa)
+                         latest_csa=latest_csa,
+                         buyer_recommendations=buyer_recommendations,
+                         pending_matches=pending_matches)
 
 @app.route('/buyer/dashboard')
 @login_required
@@ -182,10 +209,27 @@ def buyer_dashboard():
     
     produce_listings = query.order_by(Produce.date_listed.desc()).all()
     
+    # Get AI-powered seller recommendations
+    seller_recommendations = []
+    if matchmaking_engine:
+        try:
+            recommendations = matchmaking_engine.find_seller_matches(current_user.id)
+            seller_recommendations = recommendations[:5]  # Top 5 recommendations
+        except Exception as e:
+            app.logger.error(f"Error getting seller recommendations: {e}")
+    
+    # Get pending match recommendations for this buyer
+    pending_matches = MatchRecommendation.query.filter_by(
+        buyer_id=current_user.id,
+        status='pending'
+    ).order_by(MatchRecommendation.sent_at.desc()).limit(5).all()
+    
     return render_template('buyer_dashboard.html', 
                          title='Marketplace', 
                          produce_listings=produce_listings,
-                         form=form)
+                         form=form,
+                         seller_recommendations=seller_recommendations,
+                         pending_matches=pending_matches)
 
 @app.route('/admin/dashboard')
 @login_required
@@ -1675,6 +1719,121 @@ def simulate_sms():
     except Exception as e:
         app.logger.error(f"SMS simulation error: {e}")
         return jsonify({'status': 'error', 'message': 'Simulation failed'}), 500
+
+
+# AI Matchmaking Routes
+@app.route('/matchmaking/recommendations/<user_type>')
+@login_required
+def get_recommendations(user_type):
+    """Get AI-powered recommendations for farmers or buyers"""
+    if user_type not in ['farmer', 'buyer']:
+        abort(404)
+    
+    if not matchmaking_engine:
+        flash('Matchmaking service temporarily unavailable', 'warning')
+        return redirect(url_for('home'))
+    
+    recommendations = []
+    if user_type == 'farmer' and current_user.is_farmer():
+        recommendations = matchmaking_engine.find_buyer_matches(current_user.id)
+    elif user_type == 'buyer' and current_user.is_buyer():
+        recommendations = matchmaking_engine.find_seller_matches(current_user.id)
+    else:
+        flash('Access denied', 'error')
+        return redirect(url_for('home'))
+    
+    return jsonify(recommendations)
+
+@app.route('/matchmaking/accept/<int:recommendation_id>', methods=['POST'])
+@login_required
+def accept_match_recommendation(recommendation_id):
+    """Accept a match recommendation"""
+    recommendation = MatchRecommendation.query.get_or_404(recommendation_id)
+    
+    # Check if user is authorized
+    if (current_user.is_farmer() and recommendation.farmer_id != current_user.id) or \
+       (current_user.is_buyer() and recommendation.buyer_id != current_user.id):
+        abort(403)
+    
+    # Update recommendation status
+    recommendation.status = 'accepted'
+    recommendation.response_at = datetime.utcnow()
+    recommendation.response_method = 'web'
+    
+    db.session.commit()
+    
+    # Create initial message between farmer and buyer
+    if current_user.is_farmer():
+        message_content = f"Hi! I'm {current_user.name}, and I'm interested in connecting with you about my {recommendation.produce.name}. Our AI system suggested we might be a good match!"
+        message = Message(
+            sender_id=current_user.id,
+            receiver_id=recommendation.buyer_id,
+            message_body=message_content
+        )
+    else:  # buyer
+        message_content = f"Hi! I'm {current_user.name}, and I'm interested in your {recommendation.produce.name}. Our AI system suggested we might be a good match!"
+        message = Message(
+            sender_id=current_user.id,
+            receiver_id=recommendation.farmer_id,
+            message_body=message_content
+        )
+    
+    db.session.add(message)
+    db.session.commit()
+    
+    flash('Connection made! Initial message sent.', 'success')
+    return redirect(url_for('messages'))
+
+@app.route('/matchmaking/decline/<int:recommendation_id>', methods=['POST'])
+@login_required
+def decline_match_recommendation(recommendation_id):
+    """Decline a match recommendation"""
+    recommendation = MatchRecommendation.query.get_or_404(recommendation_id)
+    
+    # Check if user is authorized
+    if (current_user.is_farmer() and recommendation.farmer_id != current_user.id) or \
+       (current_user.is_buyer() and recommendation.buyer_id != current_user.id):
+        abort(403)
+    
+    # Update recommendation status
+    recommendation.status = 'declined'
+    recommendation.response_at = datetime.utcnow()
+    recommendation.response_method = 'web'
+    
+    db.session.commit()
+    
+    flash('Recommendation declined', 'info')
+    return redirect(request.referrer or url_for('home'))
+
+@app.route('/admin/matchmaking')
+@login_required
+def admin_matchmaking_dashboard():
+    """Admin dashboard for matchmaking analytics"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get matchmaking statistics
+    stats = {}
+    if matchmaking_engine:
+        stats = matchmaking_engine.get_match_statistics()
+    
+    # Get recent match recommendations
+    recent_matches = MatchRecommendation.query.order_by(
+        MatchRecommendation.sent_at.desc()
+    ).limit(20).all()
+    
+    # Calculate acceptance rate
+    total_recommendations = MatchRecommendation.query.count()
+    accepted_recommendations = MatchRecommendation.query.filter_by(status='accepted').count()
+    acceptance_rate = (accepted_recommendations / total_recommendations * 100) if total_recommendations > 0 else 0
+    
+    return render_template('admin/matchmaking_dashboard.html',
+                         title='AI Matchmaking Dashboard',
+                         stats=stats,
+                         recent_matches=recent_matches,
+                         acceptance_rate=acceptance_rate,
+                         total_recommendations=total_recommendations,
+                         accepted_recommendations=accepted_recommendations)
 
 
 # Error handlers
