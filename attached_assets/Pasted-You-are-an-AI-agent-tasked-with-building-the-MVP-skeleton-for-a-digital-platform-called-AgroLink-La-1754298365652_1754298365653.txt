@@ -1,0 +1,42 @@
+You are an AI agent tasked with building the MVP skeleton for a digital platform called "AgroLink Lagos" to support the "Produce for Lagos" food security initiative. Build a Flask application (Python) with SQLite as the database, following these requirements:
+
+1. **Project Setup**
+   - Create a new Flask app with a modular structure.
+   - Set up SQLite with SQLAlchemy.
+   - Configure basic security: secret key, CSRF protection.
+
+2. **User Authentication**
+   - Implement registration and login for two user types: Farmers and Buyers (use a single User model with a role field: 'farmer', 'buyer', or 'admin').
+   - Hash passwords securely (Werkzeug or Flask-Login).
+   - Protect routes based on user roles.
+
+3. **Core Models**
+   - User (id, name, email, password_hash, role, registration_date)
+   - Produce (id, name, quantity, price, description, date_listed, farmer_id [foreign key])
+   - Optionally, add a simple Admin user for future oversight.
+
+4. **Routes & Views**
+   - Homepage: App intro, links to login/register, and dashboards.
+   - Farmer Dashboard: Add/list/edit their produce, view applications.
+   - Buyer Marketplace: Browse/search available produce, view details, contact farmer.
+   - Admin Dashboard: List all users and produce for basic oversight (read-only for now).
+   - Authentication routes (register, login, logout).
+
+5. **Frontend**
+   - Use Bootstrap for basic styling and responsive design.
+   - HTML templates: base.html, home.html, register.html, login.html, farmer_dashboard.html, buyer_dashboard.html, admin_dashboard.html, produce_list.html, produce_detail.html.
+   - Clear navigation for role-based dashboards.
+
+6. **Database Initialization**
+   - Provide a script or command to initialize the database and create tables.
+
+7. **Testing & Instructions**
+   - Add a sample README.md with setup instructions and a section for running locally on Replit.
+
+**Additional Instructions:**
+- Ensure clear comments in code for maintainability.
+- Make sure the app runs on Replit with no missing dependencies.
+- Use environment variables for config/secrets if possible.
+
+**Goal:** Deliver a working MVP where farmers can register/login, list their produce, and buyers can browse/search produce. Admin can see all data. Prepare for future extensions: logistics, funding, analytics.
+
