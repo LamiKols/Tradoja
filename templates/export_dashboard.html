@@ -76,17 +76,17 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row g-4">
                         {% for export in trending_exports %}
-                        <div class="col-lg-4 col-md-6 mb-3">
-                            <div class="card h-100 border-0 shadow-sm">
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100 shadow-lg" style="border: 3px solid #4a5568; background-color: #2d3748 !important; border-radius: 10px; padding: 5px;">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div class="d-flex align-items-center">
                                             <span class="fs-2 me-2">{{ export.icon }}</span>
                                             <div>
-                                                <h6 class="mb-0">{{ export.product }}</h6>
-                                                <small class="text-muted">{{ export.export_volume }}</small>
+                                                <h6 class="mb-0" style="color: white !important;">{{ export.product }}</h6>
+                                                <small style="color: #cbd5e0 !important;">{{ export.export_volume }}</small>
                                             </div>
                                         </div>
                                         <span class="badge bg-{% if export.change_percent > 0 %}success{% else %}danger{% endif %}">
@@ -94,11 +94,11 @@
                                         </span>
                                     </div>
                                     <div class="mb-2">
-                                        <strong class="text-success">${{ "%.2f"|format(export.current_price) }}</strong>
-                                        <small class="text-muted">{{ export.price_unit }}</small>
+                                        <strong style="color: #48bb78 !important;">${{ "%.2f"|format(export.current_price) }}</strong>
+                                        <small style="color: #a0aec0 !important;">{{ export.price_unit }}</small>
                                     </div>
                                     <div class="mb-2">
-                                        <strong>Top Markets:</strong>
+                                        <strong style="color: white !important;">Top Markets:</strong>
                                         <div class="mt-1">
                                             {% for market in export.top_markets[:3] %}
                                                 <span class="badge bg-light text-dark me-1">{{ market }}</span>
@@ -106,7 +106,7 @@
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-muted">{{ export.seasonal_note }}</small>
+                                        <small style="color: #a0aec0 !important;">{{ export.seasonal_note }}</small>
                                         <span class="badge bg-info">{{ export.demand_trend }}</span>
                                     </div>
                                 </div>
