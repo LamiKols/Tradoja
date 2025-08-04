@@ -6,34 +6,118 @@
     <div class="row mb-4">
         <div class="col-12">
             <h1 class="fw-bold">
-                <i class="fas fa-shopping-cart me-2 text-primary"></i>Buyer Marketplace
+                <i class="fas fa-tachometer-alt me-2 text-primary"></i>Buyer Dashboard
             </h1>
-            <p class="text-muted mb-0">Discover fresh produce from local farmers</p>
+            <p class="text-muted mb-0">Welcome back! Here's your purchase overview and recommendations</p>
         </div>
     </div>
 
-    <!-- Search Bar -->
+    <!-- Quick Stats -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
+        <div class="col-md-4">
+            <div class="card text-center">
                 <div class="card-body">
-                    <form method="GET" action="{{ url_for('buyer_dashboard') }}">
-                        <div class="input-group">
-                            {{ form.search_term(class="form-control", placeholder="Search for produce (e.g., tomatoes, rice, vegetables)...") }}
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fas fa-search me-1"></i>Search
-                            </button>
-                            {% if request.args.get('search_term') %}
-                                <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-times me-1"></i>Clear
-                                </a>
-                            {% endif %}
-                        </div>
-                    </form>
+                    <i class="fas fa-shopping-bag fa-2x text-primary mb-2"></i>
+                    <h4 class="fw-bold">{{ total_purchases }}</h4>
+                    <p class="text-muted mb-0">Total Purchases</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-money-bill-wave fa-2x text-success mb-2"></i>
+                    <h4 class="fw-bold">NGN {{ "{:,.0f}".format(total_spent) }}</h4>
+                    <p class="text-muted mb-0">Total Spent</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-truck fa-2x text-warning mb-2"></i>
+                    <h4 class="fw-bold">{{ recent_logistics|length }}</h4>
+                    <p class="text-muted mb-0">Active Logistics</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('produce_list') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-store me-2"></i>Browse Marketplace
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('my_purchases') }}" class="btn btn-success w-100">
+                                <i class="fas fa-history me-2"></i>My Purchases
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('logistics_request') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-truck me-2"></i>Request Delivery
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('messages') }}" class="btn btn-info w-100">
+                                <i class="fas fa-envelope me-2"></i>Messages
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Purchases -->
+    {% if recent_purchases %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Purchases
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for purchase in recent_purchases %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100" style="border: 3px solid #28a745;">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ purchase.name }}</h6>
+                                    <p class="card-text">
+                                        <strong>Quantity:</strong> {{ purchase.quantity }}<br>
+                                        <strong>Price:</strong> NGN {{ "{:,.0f}".format(purchase.price) }}<br>
+                                        <strong>Purchased:</strong> {{ purchase.sale_date.strftime('%B %d, %Y') if purchase.sale_date else 'N/A' }}<br>
+                                        <strong>From:</strong> {{ purchase.farmer.name }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('my_purchases') }}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>View All Purchases
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- AI-Powered Seller Recommendations -->
     {% if seller_recommendations %}
@@ -51,7 +135,7 @@
                     <div class="row">
                         {% for rec in seller_recommendations %}
                         <div class="col-md-6 mb-3">
-                            <div class="card h-100 border-success">
+                            <div class="card h-100" style="border: 3px solid #17a2b8;">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <h6 class="card-title">{{ rec.farmer_name }}</h6>
@@ -82,150 +166,58 @@
     </div>
     {% endif %}
 
-    <!-- Results Header -->
-    {% if request.args.get('search_term') %}
-    <div class="row mb-3">
+    <!-- Recent Logistics Requests -->
+    {% if recent_logistics %}
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                Showing results for "<strong>{{ request.args.get('search_term') }}</strong>" 
-                ({{ produce_listings|length }} found)
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-truck me-2"></i>Recent Logistics Requests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for logistics in recent_logistics %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100" style="border: 3px solid #ffc107;">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ logistics.request_type|title }} Request</h6>
+                                    <p class="card-text">
+                                        <strong>Status:</strong> <span class="badge {{ logistics.get_status_badge_class() }}">{{ logistics.status|title }}</span><br>
+                                        <strong>Date:</strong> {{ logistics.formatted_date_time() }}<br>
+                                        <strong>From:</strong> {{ logistics.pickup_location[:50] }}...
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('logistics_request') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>New Request
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Produce Listings -->
+    <!-- Empty State Messages -->
+    {% if not recent_purchases and not seller_recommendations and not recent_logistics %}
     <div class="row">
-        {% if produce_listings %}
-            {% for produce in produce_listings %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 produce-card">
-                    <div class="card-body">
-                        <!-- Produce Header -->
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="card-title fw-bold mb-0">{{ produce.name }}</h5>
-                            <div class="d-flex flex-column gap-1">
-                                <span class="badge bg-success">
-                                    <i class="fas fa-check me-1"></i>Available
-                                </span>
-                                {% if produce.gi_certified and produce.gi_label %}
-                                <span class="badge bg-warning text-dark">
-                                    <i class="fas fa-certificate me-1"></i>GI: {{ produce.gi_label }}
-                                </span>
-                                {% elif produce.gi_status == 'pending' and produce.gi_label %}
-                                <span class="badge bg-info">
-                                    <i class="fas fa-clock me-1"></i>GI Pending
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <!-- Produce Details -->
-                        <div class="mb-3">
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <div class="border-end">
-                                        <i class="fas fa-weight-hanging text-muted"></i>
-                                        <div class="fw-bold">{{ produce.quantity }}</div>
-                                        <small class="text-muted">Quantity</small>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <i class="fas fa-tag text-muted"></i>
-                                    <div class="fw-bold text-success">{{ produce.formatted_price() }}</div>
-                                    <small class="text-muted">Price</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Description -->
-                        {% if produce.description %}
-                        <p class="card-text text-muted">
-                            {{ produce.description[:100] }}{% if produce.description|length > 100 %}...{% endif %}
-                        </p>
-                        {% endif %}
-                        
-                        <!-- Farmer Info -->
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                            <div>
-                                <div class="fw-bold">{{ produce.farmer.name }}</div>
-                                <small class="text-muted">
-                                    <i class="fas fa-clock me-1"></i>
-                                    Listed {{ produce.date_listed.strftime('%B %d, %Y') }}
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Card Footer -->
-                    <div class="card-footer bg-transparent">
-                        <div class="d-flex gap-2">
-                            <a href="{{ url_for('produce_detail', id=produce.id) }}" 
-                               class="btn btn-primary flex-fill">
-                                <i class="fas fa-eye me-1"></i>View Details
-                            </a>
-                            <a href="mailto:{{ produce.farmer.email }}?subject=Interest in {{ produce.name }}&body=Hello {{ produce.farmer.name }}, I am interested in your {{ produce.name }} listing on AgroLink Lagos." 
-                               class="btn btn-outline-success flex-fill">
-                                <i class="fas fa-envelope me-1"></i>Contact
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                <div class="text-center py-5">
-                    {% if request.args.get('search_term') %}
-                        <i class="fas fa-search fa-4x text-muted mb-3"></i>
-                        <h4 class="text-muted">No Results Found</h4>
-                        <p class="text-muted mb-4">
-                            No produce found matching "{{ request.args.get('search_term') }}". 
-                            Try searching with different keywords.
-                        </p>
-                        <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-primary">
-                            <i class="fas fa-arrow-left me-2"></i>View All Produce
-                        </a>
-                    {% else %}
-                        <i class="fas fa-store fa-4x text-muted mb-3"></i>
-                        <h4 class="text-muted">No Produce Available</h4>
-                        <p class="text-muted mb-4">
-                            No farmers have listed produce yet. Check back later for fresh listings.
-                        </p>
-                        <a href="{{ url_for('home') }}" class="btn btn-primary">
-                            <i class="fas fa-home me-2"></i>Go Home
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Pagination would go here in a real application -->
-    {% if produce_listings|length > 0 %}
-    <div class="row mt-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-body text-center">
-                    <h6 class="mb-3">
-                        <i class="fas fa-lightbulb me-2"></i>Tips for Buyers
-                    </h6>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <i class="fas fa-handshake text-primary mb-2"></i>
-                            <p class="small mb-0">Contact farmers directly for bulk orders and negotiations</p>
-                        </div>
-                        <div class="col-md-4">
-                            <i class="fas fa-clock text-warning mb-2"></i>
-                            <p class="small mb-0">Fresh produce is updated daily by farmers</p>
-                        </div>
-                        <div class="col-md-4">
-                            <i class="fas fa-shield-alt text-success mb-2"></i>
-                            <p class="small mb-0">All farmers are verified for quality assurance</p>
-                        </div>
-                    </div>
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">Welcome to AgroLink!</h4>
+                    <p class="text-muted mb-4">
+                        Start exploring fresh produce from local farmers and build your marketplace activity.
+                    </p>
+                    <a href="{{ url_for('produce_list') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-store me-2"></i>Browse Marketplace
+                    </a>
                 </div>
             </div>
         </div>
