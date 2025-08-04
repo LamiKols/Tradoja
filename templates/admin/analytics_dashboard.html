@@ -2,7 +2,7 @@
 
 {% block head %}
 <!-- Chart.js for data visualization -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -377,21 +377,29 @@
 </div>
 
 <script>
-// Chart configurations
-const chartConfig = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: {
-            position: 'top',
-        }
-    },
-    scales: {
-        y: {
-            beginAtZero: true
-        }
+// Wait for DOM to load before initializing charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
     }
-};
+
+    // Chart configurations
+    const chartConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
 
 // Listings trend chart
 const listingsCtx = document.getElementById('listingsChart').getContext('2d');
@@ -472,5 +480,7 @@ new Chart(smsCtx, {
     },
     options: chartConfig
 });
+
+}); // End DOMContentLoaded
 </script>
 {% endblock %}
