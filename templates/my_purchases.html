@@ -141,15 +141,17 @@
                                         <td>₦{{ "%.2f"|format(transaction.base_amount) }}</td>
                                         <td>₦{{ "%.2f"|format(transaction.platform_fee) }}</td>
                                         <td>
-                                            {% if transaction.logistics_fee > 0 %}
+                                            {% if transaction.logistics_fee and transaction.logistics_fee > 0 %}
                                                 <span class="badge bg-info">₦{{ "%.2f"|format(transaction.logistics_fee) }}</span>
                                             {% else %}
                                                 <div class="d-flex flex-column">
                                                     <span class="text-muted">-</span>
-                                                    {% if transaction.status == 'successful' and transaction.produce %}
+                                                    {% if transaction.status == 'successful' and transaction.produce and transaction.produce.id %}
                                                         <small class="text-info mt-1">
                                                             <a href="{{ url_for('logistics_request_form', produce_id=transaction.produce.id) }}" 
-                                                               class="text-decoration-none">Request service</a>
+                                                               class="text-decoration-none text-info">
+                                                               <i class="fas fa-truck me-1"></i>Request service
+                                                            </a>
                                                         </small>
                                                     {% endif %}
                                                 </div>

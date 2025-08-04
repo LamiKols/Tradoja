@@ -2481,11 +2481,11 @@ def my_purchases():
         flash('Only buyers can view purchase history', 'error')
         return redirect(url_for('home'))
     
-    # Get user's successful purchases
+    # Get user's purchases with produce relationship loaded
     purchases = Transaction.query.filter_by(
         user_id=current_user.id,
         transaction_type='produce_sale'
-    ).order_by(Transaction.created_at.desc()).all()
+    ).options(db.joinedload(Transaction.produce)).order_by(Transaction.created_at.desc()).all()
     
     # Calculate summary statistics
     successful_purchases = [p for p in purchases if p.status == 'successful']
