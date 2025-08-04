@@ -61,23 +61,23 @@
                                     <i class="fas fa-map-marker-alt me-2"></i>Field Location
                                 </h6>
                             </div>
-                            <div class="card-body bg-light">
+                            <div class="card-body bg-white">
                                 <!-- Address Input -->
                                 <div class="row mb-3">
                                     <div class="col-md-8">
-                                        <label for="{{ form.address.id }}" class="form-label">
+                                        <label for="{{ form.address.id }}" class="form-label text-dark fw-bold">
                                             <i class="fas fa-home me-1"></i>{{ form.address.label.text }}
                                         </label>
                                         <div class="input-group">
-                                            {{ form.address(class="form-control", placeholder="e.g., Lagos, Nigeria or Kano State, Nigeria") }}
-                                            <button type="button" class="btn btn-outline-secondary" onclick="geocodeAddress()">
+                                            {{ form.address(class="form-control border-2", placeholder="e.g., Lagos, Nigeria or Kano State, Nigeria") }}
+                                            <button type="button" class="btn btn-outline-primary" onclick="geocodeAddress()">
                                                 <i class="fas fa-search me-1"></i>Find Location
                                             </button>
                                         </div>
                                         <div class="form-text text-dark">Enter your farm address or nearby landmark</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">Quick Location</label>
+                                        <label class="form-label text-dark fw-bold">Quick Location</label>
                                         <div class="d-grid">
                                             <button type="button" class="btn btn-success" onclick="getCurrentLocation()">
                                                 <i class="fas fa-location-arrow me-1"></i>Use My Location
@@ -90,17 +90,17 @@
                                 <!-- Manual Coordinates -->
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <label for="{{ form.manual_latitude.id }}" class="form-label">
+                                        <label for="{{ form.manual_latitude.id }}" class="form-label text-dark fw-bold">
                                             <i class="fas fa-globe me-1"></i>{{ form.manual_latitude.label.text }}
                                         </label>
-                                        {{ form.manual_latitude(class="form-control", placeholder="6.5244", onchange="manualLocationChange()") }}
+                                        {{ form.manual_latitude(class="form-control border-2", placeholder="6.5244", onchange="manualLocationChange()") }}
                                         <div class="form-text text-dark">Decimal degrees format</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="{{ form.manual_longitude.id }}" class="form-label">
+                                        <label for="{{ form.manual_longitude.id }}" class="form-label text-dark fw-bold">
                                             <i class="fas fa-globe me-1"></i>{{ form.manual_longitude.label.text }}
                                         </label>
-                                        {{ form.manual_longitude(class="form-control", placeholder="3.3792", onchange="manualLocationChange()") }}
+                                        {{ form.manual_longitude(class="form-control border-2", placeholder="3.3792", onchange="manualLocationChange()") }}
                                         <div class="form-text text-dark">Decimal degrees format</div>
                                     </div>
                                 </div>
@@ -115,7 +115,7 @@
                                 
                                 <!-- Quick Location Examples -->
                                 <div class="mt-2">
-                                    <small class="text-muted">
+                                    <small class="text-dark">
                                         <strong>Address examples:</strong> "Lagos, Nigeria" • "Kano State" • "Kaduna, Nigeria" • "Ibadan, Oyo State"
                                     </small>
                                 </div>
@@ -716,6 +716,23 @@ document.addEventListener('DOMContentLoaded', function() {
 .form-control:focus, .form-select:focus {
     border-color: #0d6efd;
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.text-dark {
+    color: #212529 !important;
+}
+
+.form-label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.border-2 {
+    border-width: 2px !important;
+}
+
+.card-body.bg-white {
+    background-color: #ffffff !important;
 }
 </style>
 {% endblock %}
