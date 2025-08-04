@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+                <div>
+                    <h1 class="h3 mb-1">Field Report</h1>
+                    <p class="text-muted mb-0">Comprehensive analytics and recommendations for {{ field.field_name }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('view_precision_field', field_id=field.id) }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Field
+                    </a>
+                    <button onclick="window.print()" class="btn btn-primary me-2">
+                        <i class="fas fa-print me-2"></i>Print Report
+                    </button>
+                    <button onclick="downloadCSV()" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Download CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report Content -->
+            <div class="card report-content">
+                <div class="card-body">
+                    <!-- Report Header -->
+                    <div class="text-center mb-4 pb-4 border-bottom">
+                        <h2 class="fw-bold">AgroLink Precision Agriculture Report</h2>
+                        <h4 class="text-primary">{{ field.field_name }}</h4>
+                        <p class="text-muted mb-1">Generated on {{ report.generated_date }}</p>
+                        <p class="text-muted">Farmer: {{ report.farmer }}</p>
+                    </div>
+
+                    <!-- Field Summary -->
+                    <div class="row mb-5">
+                        <div class="col-md-12">
+                            <h3 class="fw-bold mb-3">
+                                <i class="fas fa-info-circle me-2"></i>Field Summary
+                            </h3>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">Field Name:</td>
+                                            <td>{{ report.field_info.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Crop Type:</td>
+                                            <td>{{ report.field_info.crop }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Field Size:</td>
+                                            <td>{{ report.field_info.size }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Planting Date:</td>
+                                            <td>{{ report.field_info.planting_date }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">Soil Type:</td>
+                                            <td>{{ report.field_info.soil_type }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Irrigation System:</td>
+                                            <td>{{ report.field_info.irrigation }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Fertilizer Type:</td>
+                                            <td>{{ report.field_info.fertilizer }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">GPS Coordinates:</td>
+                                            <td>{{ report.field_info.coordinates }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics & Recommendations -->
+                    <div class="row mb-5">
+                        <div class="col-md-12">
+                            <h3 class="fw-bold mb-3">
+                                <i class="fas fa-chart-bar me-2"></i>Analytics & Recommendations
+                            </h3>
+                            
+                            <!-- Key Metrics -->
+                            <div class="row mb-4">
+                                <div class="col-md-4 text-center">
+                                    <div class="p-4 border rounded bg-light">
+                                        <i class="fas fa-pills fa-2x text-primary mb-2"></i>
+                                        <h4 class="fw-bold text-primary">{{ report.recommendations.fertilizer_kg_ha }} kg/ha</h4>
+                                        <p class="mb-1 fw-bold">Fertilizer Requirement</p>
+                                        <small class="text-muted">Total: {{ report.recommendations.total_fertilizer_kg }} kg</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="p-4 border rounded bg-light">
+                                        <i class="fas fa-tint fa-2x text-info mb-2"></i>
+                                        <h4 class="fw-bold text-info">{{ report.recommendations.irrigation_l_ha|int|string|replace(',', ',')|group_digits }} L/ha</h4>
+                                        <p class="mb-1 fw-bold">Irrigation Requirement</p>
+                                        <small class="text-muted">Total: {{ report.recommendations.total_irrigation_l|int|string|replace(',', ',')|group_digits }} L</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="p-4 border rounded bg-light">
+                                        <i class="fas fa-weight-hanging fa-2x text-success mb-2"></i>
+                                        <h4 class="fw-bold text-success">{{ report.recommendations.estimated_yield_tons_ha }} tons/ha</h4>
+                                        <p class="mb-1 fw-bold">Estimated Yield</p>
+                                        <small class="text-muted">Total: {{ report.recommendations.total_yield_tons }} tons</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Season Compatibility -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold">Season Compatibility</h5>
+                                    <div class="p-3 border rounded">
+                                        {% set season_class = {'optimal': 'success', 'good': 'warning', 'poor': 'danger', 'unknown': 'secondary'} %}
+                                        <span class="badge bg-{{ season_class[report.recommendations.season_fit] or 'secondary' }} fs-6">
+                                            {{ report.recommendations.season_fit.title() }} Season Fit
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold">Risk Assessment</h5>
+                                    <div class="p-3 border rounded">
+                                        {% if report.recommendations.warnings %}
+                                            <ul class="mb-0">
+                                                {% for warning in report.recommendations.warnings %}
+                                                <li class="text-warning">{{ warning }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>No risks detected
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Farming Schedule -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold">Planting Schedule</h5>
+                                    <div class="p-3 border rounded">
+                                        <p class="mb-0">{{ report.recommendations.planting_schedule }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold">Harvest Estimate</h5>
+                                    <div class="p-3 border rounded">
+                                        <p class="mb-0">{{ report.recommendations.harvest_estimate }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Projections -->
+                    <div class="row mb-5">
+                        <div class="col-md-12">
+                            <h3 class="fw-bold mb-3">
+                                <i class="fas fa-dollar-sign me-2"></i>Financial Projections
+                            </h3>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Quantity</th>
+                                            <th>Estimated Cost (NGN)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Fertilizer ({{ report.field_info.fertilizer }})</td>
+                                            <td>{{ report.recommendations.total_fertilizer_kg }} kg</td>
+                                            <td>₦{{ (report.recommendations.total_fertilizer_kg * 300)|int|string|replace(',', ',')|group_digits }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Irrigation</td>
+                                            <td>{{ report.recommendations.total_irrigation_l|int|string|replace(',', ',')|group_digits }} L</td>
+                                            <td>₦{{ (report.recommendations.total_irrigation_l * 0.5)|int|string|replace(',', ',')|group_digits }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Seeds/Planting Materials</td>
+                                            <td>{{ report.field_info.size }}</td>
+                                            <td>₦{{ (field.field_size_hectares * 50000)|int|string|replace(',', ',')|group_digits }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Labor & Operations</td>
+                                            <td>{{ report.field_info.size }}</td>
+                                            <td>₦{{ (field.field_size_hectares * 100000)|int|string|replace(',', ',')|group_digits }}</td>
+                                        </tr>
+                                        <tr class="table-warning">
+                                            <th>Total Estimated Costs</th>
+                                            <th>-</th>
+                                            <th>₦{{ ((report.recommendations.total_fertilizer_kg * 300) + (report.recommendations.total_irrigation_l * 0.5) + (field.field_size_hectares * 150000))|int|string|replace(',', ',')|group_digits }}</th>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <th>Estimated Revenue</th>
+                                            <th>{{ report.recommendations.total_yield_tons }} tons</th>
+                                            <th>₦{{ (report.recommendations.total_yield_tons * 200000)|int|string|replace(',', ',')|group_digits }}</th>
+                                        </tr>
+                                        <tr class="table-info">
+                                            <th>Projected Profit</th>
+                                            <th>-</th>
+                                            <th>₦{{ ((report.recommendations.total_yield_tons * 200000) - ((report.recommendations.total_fertilizer_kg * 300) + (report.recommendations.total_irrigation_l * 0.5) + (field.field_size_hectares * 150000)))|int|string|replace(',', ',')|group_digits }}</th>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted">
+                                <em>Note: Financial projections are estimates based on current market prices and may vary.</em>
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Report Footer -->
+                    <div class="text-center pt-4 border-top">
+                        <p class="text-muted mb-1">This report was generated by AgroLink Precision Agriculture system</p>
+                        <p class="text-muted">For support, contact: support@agrolink.ng</p>
+                        <small class="text-muted">Report ID: AGR-{{ field.id }}-{{ report.generated_date|replace(' ', '')|replace(':', '')|replace('-', '') }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Information (No Print) -->
+            <div class="row mt-4 no-print">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>Export Options
+                        </h5>
+                        <p class="mb-2">This report can be used for:</p>
+                        <ul class="mb-0">
+                            <li>Loan applications to financial institutions</li>
+                            <li>Grant applications for agricultural development</li>
+                            <li>Insurance documentation</li>
+                            <li>Farm planning and record keeping</li>
+                            <li>Sharing with agricultural extension officers</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function downloadCSV() {
+    const reportData = {
+        field_name: "{{ report.field_info.name }}",
+        crop_type: "{{ report.field_info.crop }}",
+        field_size: "{{ field.field_size_hectares }}",
+        planting_date: "{{ report.field_info.planting_date }}",
+        soil_type: "{{ report.field_info.soil_type }}",
+        irrigation_type: "{{ report.field_info.irrigation }}",
+        fertilizer_type: "{{ report.field_info.fertilizer }}",
+        coordinates: "{{ report.field_info.coordinates }}",
+        fertilizer_recommendation_kg_ha: "{{ report.recommendations.fertilizer_kg_ha }}",
+        total_fertilizer_kg: "{{ report.recommendations.total_fertilizer_kg }}",
+        irrigation_requirement_l_ha: "{{ report.recommendations.irrigation_l_ha }}",
+        total_irrigation_l: "{{ report.recommendations.total_irrigation_l }}",
+        estimated_yield_tons_ha: "{{ report.recommendations.estimated_yield_tons_ha }}",
+        total_yield_tons: "{{ report.recommendations.total_yield_tons }}",
+        season_fit: "{{ report.recommendations.season_fit }}",
+        warnings: "{{ report.recommendations.warnings|join('; ') }}",
+        planting_schedule: "{{ report.recommendations.planting_schedule }}",
+        harvest_estimate: "{{ report.recommendations.harvest_estimate }}",
+        generated_date: "{{ report.generated_date }}"
+    };
+    
+    // Convert to CSV
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + "Field,Value\n"
+        + Object.entries(reportData)
+            .map(([key, value]) => `"${key.replace(/_/g, ' ').toUpperCase()}","${value}"`)
+            .join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `{{ field.field_name|replace(' ', '_') }}_precision_report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .report-content {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+}
+
+.report-content {
+    background: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
+</style>
+{% endblock %}

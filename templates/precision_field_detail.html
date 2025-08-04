@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">{{ field.field_name }}</h1>
+                    <p class="text-muted mb-0">Detailed field analytics and recommendations</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('precision_agriculture') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                    <a href="{{ url_for('edit_precision_field', field_id=field.id) }}" class="btn btn-primary me-2">
+                        <i class="fas fa-edit me-2"></i>Edit
+                    </a>
+                    <a href="{{ url_for('field_report', field_id=field.id) }}" class="btn btn-success">
+                        <i class="fas fa-file-alt me-2"></i>Export Report
+                    </a>
+                </div>
+            </div>
+
+            <!-- Field Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Field Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-tag me-2"></i>Field Name:</strong></td>
+                                    <td>{{ field.field_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-seedling me-2"></i>Crop Type:</strong></td>
+                                    <td>{{ field.crop_type.title() }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-expand-arrows-alt me-2"></i>Field Size:</strong></td>
+                                    <td>{{ field.formatted_size() }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-calendar me-2"></i>Planting Date:</strong></td>
+                                    <td>{{ field.formatted_planting_date() }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-mountain me-2"></i>Soil Type:</strong></td>
+                                    <td>{{ field.soil_type.title() if field.soil_type else 'Not specified' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-tint me-2"></i>Irrigation:</strong></td>
+                                    <td>{{ field.irrigation_type.title() if field.irrigation_type else 'Not specified' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-pills me-2"></i>Fertilizer:</strong></td>
+                                    <td>{{ field.fertilizer_type.title() if field.fertilizer_type else 'Not specified' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-map-marker-alt me-2"></i>Coordinates:</strong></td>
+                                    <td>{{ field.formatted_coordinates() }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Season Fit & Warnings -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-calendar-check me-2"></i>Season Compatibility
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            {% if field.planting_season_fit %}
+                            <span class="badge {{ field.get_season_fit_badge_class() }} fs-6 px-3 py-2">
+                                {{ field.planting_season_fit.title() }} Season Fit
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary fs-6 px-3 py-2">Not Calculated</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Risk Warnings
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% set warnings = field.get_risk_warnings_list() %}
+                            {% if warnings %}
+                                <ul class="list-unstyled mb-0">
+                                    {% for warning in warnings %}
+                                    <li class="mb-1">
+                                        <i class="fas fa-warning text-warning me-2"></i>
+                                        <small>{{ warning }}</small>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    No warnings detected
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-pills fa-2x text-primary mb-3"></i>
+                            <h4 class="fw-bold text-primary">
+                                {{ recommendations.fertilizer_kg_ha if recommendations else field.recommended_fertilizer_kg_ha or 'N/A' }}
+                                {% if recommendations.fertilizer_kg_ha or field.recommended_fertilizer_kg_ha %} kg/ha{% endif %}
+                            </h4>
+                            <p class="text-muted mb-1">Fertilizer Recommendation</p>
+                            {% if recommendations and recommendations.total_fertilizer_kg %}
+                            <small class="text-muted">{{ recommendations.total_fertilizer_kg }} kg total</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-tint fa-2x text-info mb-3"></i>
+                            <h4 class="fw-bold text-info">
+                                {{ recommendations.irrigation_l_ha|int if recommendations else field.recommended_irrigation_l_ha|int or 'N/A' }}
+                                {% if recommendations.irrigation_l_ha or field.recommended_irrigation_l_ha %} L/ha{% endif %}
+                            </h4>
+                            <p class="text-muted mb-1">Irrigation Requirement</p>
+                            {% if recommendations and recommendations.total_irrigation_l %}
+                            <small class="text-muted">{{ recommendations.total_irrigation_l|int|string|replace(',', ',')|group_digits }} L total</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-weight-hanging fa-2x text-success mb-3"></i>
+                            <h4 class="fw-bold text-success">
+                                {{ recommendations.estimated_yield_tons_ha if recommendations else field.estimated_yield_tons_ha or 'N/A' }}
+                                {% if recommendations.estimated_yield_tons_ha or field.estimated_yield_tons_ha %} tons/ha{% endif %}
+                            </h4>
+                            <p class="text-muted mb-1">Estimated Yield</p>
+                            {% if recommendations and recommendations.total_yield_tons %}
+                            <small class="text-muted">{{ recommendations.total_yield_tons }} tons total</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Planting Schedule & Harvest -->
+            {% if recommendations %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Farming Schedule
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-seedling me-2"></i>Planting Schedule
+                            </h6>
+                            <p class="mb-0">{{ recommendations.planting_schedule }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">
+                                <i class="fas fa-calendar-check me-2"></i>Harvest Estimate
+                            </h6>
+                            <p class="mb-0">{{ recommendations.harvest_estimate }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Field History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Field History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="fw-bold">Field Created</h6>
+                                <p class="text-muted mb-0">{{ field.date_created.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                            </div>
+                        </div>
+                        {% if field.last_updated != field.date_created %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="fw-bold">Last Updated</h6>
+                                <p class="text-muted mb-0">{{ field.last_updated.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if field.planting_date %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <h6 class="fw-bold">Planting Scheduled</h6>
+                                <p class="text-muted mb-0">{{ field.formatted_planting_date() }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Field Map -->
+            {% if field.center_latitude and field.center_longitude %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-map me-2"></i>Field Location
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="fieldMap" style="height: 250px; width: 100%;"></div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        {{ field.formatted_coordinates() }}
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('edit_precision_field', field_id=field.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit me-1"></i>Edit Field Details
+                        </a>
+                        <a href="{{ url_for('field_report', field_id=field.id) }}" class="btn btn-success">
+                            <i class="fas fa-file-alt me-1"></i>Generate Report
+                        </a>
+                        <button type="button" class="btn btn-info" onclick="recalculateAnalytics()">
+                            <i class="fas fa-calculator me-1"></i>Recalculate Analytics
+                        </button>
+                        <form method="POST" action="{{ url_for('delete_precision_field', field_id=field.id) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this field? This action cannot be undone.')">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-trash me-1"></i>Delete Field
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Field Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Field Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <div class="fw-bold text-primary">{{ field.formatted_size() }}</div>
+                                <small class="text-muted">Area</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <div class="fw-bold text-success">{{ field.crop_type.title() }}</div>
+                                <small class="text-muted">Crop</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% if field.estimated_yield_tons_ha %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="bg-light p-2 rounded text-center">
+                                <div class="fw-bold text-info">
+                                    ₦{{ ((field.estimated_yield_tons_ha * field.field_size_hectares * 200000)|int)|string|replace(',', ',')|group_digits }}
+                                </div>
+                                <small class="text-muted">Estimated Revenue*</small>
+                            </div>
+                            <small class="text-muted mt-1 d-block">*Rough estimate at ₦200,000/ton</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if field.center_latitude and field.center_longitude %}
+<!-- Include Leaflet CSS and JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// Initialize field map
+function initFieldMap() {
+    const lat = {{ field.center_latitude }};
+    const lng = {{ field.center_longitude }};
+    
+    const map = L.map('fieldMap').setView([lat, lng], 15);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Add field marker
+    L.marker([lat, lng]).addTo(map)
+        .bindPopup('<b>{{ field.field_name }}</b><br>{{ field.crop_type.title() }} field')
+        .openPopup();
+    
+    // Add field polygon if coordinates exist
+    {% if field.get_coordinates_list() %}
+    const fieldCoords = {{ field.get_coordinates_list() | tojson }};
+    if (fieldCoords && fieldCoords.length > 0) {
+        L.polygon(fieldCoords, {
+            color: '#28a745',
+            fillColor: '#28a745',
+            fillOpacity: 0.3
+        }).addTo(map);
+        
+        // Fit map to polygon bounds
+        const polygon = L.polygon(fieldCoords);
+        map.fitBounds(polygon.getBounds(), {padding: [10, 10]});
+    }
+    {% endif %}
+}
+
+function recalculateAnalytics() {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Calculating...';
+    button.disabled = true;
+    
+    // Redirect to edit page to recalculate
+    setTimeout(() => {
+        window.location.href = "{{ url_for('edit_precision_field', field_id=field.id) }}";
+    }, 1000);
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initFieldMap();
+});
+</script>
+{% endif %}
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -35px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item:last-child::after {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 15px;
+    bottom: -20px;
+    width: 2px;
+    background: #fff;
+}
+
+#fieldMap {
+    border-radius: 0.375rem;
+}
+
+.card:hover {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+</style>
+{% endblock %}

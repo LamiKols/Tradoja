@@ -335,3 +335,95 @@ class ExportListing(db.Model):
     
     def __repr__(self):
         return f'<ExportListing {self.produce_name} to {self.target_market} by {self.farmer.name}>'
+
+
+class PrecisionField(db.Model):
+    """Precision agriculture field model for GPS-based field mapping"""
+    id = db.Column(db.Integer, primary_key=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    field_name = db.Column(db.String(100), nullable=False)
+    crop_type = db.Column(db.String(50), nullable=False)
+    field_size_hectares = db.Column(db.Float, nullable=False)
+    
+    # Geographic data
+    coordinates = db.Column(db.Text)  # JSON string of polygon coordinates
+    center_latitude = db.Column(db.Float)
+    center_longitude = db.Column(db.Float)
+    
+    # Farming data
+    planting_date = db.Column(db.Date)
+    soil_type = db.Column(db.String(50))
+    irrigation_type = db.Column(db.String(50))
+    fertilizer_type = db.Column(db.String(50))
+    
+    # Analytics results (calculated)
+    recommended_fertilizer_kg_ha = db.Column(db.Float)
+    recommended_irrigation_l_ha = db.Column(db.Float)
+    estimated_yield_tons_ha = db.Column(db.Float)
+    planting_season_fit = db.Column(db.String(20))  # optimal, good, poor
+    risk_warnings = db.Column(db.Text)  # JSON string of warnings
+    
+    # Metadata
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    farmer = db.relationship('User', backref=db.backref('precision_fields', lazy=True))
+    
+    def get_coordinates_list(self):
+        """Parse coordinates from JSON"""
+        if self.coordinates:
+            try:
+                import json
+                return json.loads(self.coordinates)
+            except:
+                return []
+        return []
+    
+    def set_coordinates(self, coords):
+        """Store coordinates as JSON"""
+        import json
+        self.coordinates = json.dumps(coords)
+    
+    def get_risk_warnings_list(self):
+        """Parse risk warnings from JSON"""
+        if self.risk_warnings:
+            try:
+                import json
+                return json.loads(self.risk_warnings)
+            except:
+                return []
+        return []
+    
+    def set_risk_warnings(self, warnings):
+        """Store risk warnings as JSON"""
+        import json
+        self.risk_warnings = json.dumps(warnings)
+    
+    def formatted_size(self):
+        """Return formatted field size"""
+        return f"{self.field_size_hectares:.2f} ha"
+    
+    def formatted_coordinates(self):
+        """Return formatted center coordinates"""
+        if self.center_latitude and self.center_longitude:
+            return f"{self.center_latitude:.6f}, {self.center_longitude:.6f}"
+        return "Not set"
+    
+    def get_season_fit_badge_class(self):
+        """Return Bootstrap badge class for season fit"""
+        fit_classes = {
+            'optimal': 'bg-success',
+            'good': 'bg-warning',
+            'poor': 'bg-danger'
+        }
+        return fit_classes.get(self.planting_season_fit, 'bg-secondary')
+    
+    def formatted_planting_date(self):
+        """Return formatted planting date"""
+        if self.planting_date:
+            return self.planting_date.strftime('%B %d, %Y')
+        return 'Not set'
+    
+    def __repr__(self):
+        return f'<PrecisionField {self.field_name} - {self.crop_type} by {self.farmer.name}>'

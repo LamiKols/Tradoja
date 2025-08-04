@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError, Optional
 from wtforms.widgets import TextArea
 from models import User
 from datetime import date, time
@@ -361,3 +361,55 @@ class ExportStatusForm(FlaskForm):
                                  validators=[Length(max=1000)],
                                  render_kw={'rows': 4, 'placeholder': 'Comment for the farmer...'})
     submit = SubmitField('Update Status')
+
+
+class PrecisionFieldForm(FlaskForm):
+    """Form for creating and editing precision agriculture fields"""
+    field_name = StringField('Field Name', validators=[DataRequired(), Length(min=2, max=100)])
+    crop_type = SelectField('Crop Type', validators=[DataRequired()])
+    
+    # Geographic fields (will be populated by map interface)
+    coordinates = HiddenField('Field Coordinates')
+    center_latitude = HiddenField('Center Latitude')
+    center_longitude = HiddenField('Center Longitude')  
+    field_size_hectares = FloatField('Field Size (hectares)', validators=[DataRequired(), NumberRange(min=0.01)])
+    
+    # Farming details
+    planting_date = DateField('Planting Date', validators=[Optional()])
+    soil_type = SelectField('Soil Type', validators=[Optional()])
+    irrigation_type = SelectField('Irrigation Type', validators=[Optional()])
+    fertilizer_type = SelectField('Fertilizer Type', validators=[Optional()])
+    
+    submit = SubmitField('Save Field')
+    
+    def __init__(self, *args, **kwargs):
+        super(PrecisionFieldForm, self).__init__(*args, **kwargs)
+        # Import here to avoid circular imports
+        from precision_service import PrecisionAgricultureService
+        service = PrecisionAgricultureService()
+        
+        self.crop_type.choices = service.get_crop_choices()
+        self.soil_type.choices = service.get_soil_choices()
+        self.irrigation_type.choices = service.get_irrigation_choices()
+        self.fertilizer_type.choices = service.get_fertilizer_choices()
+
+
+class FieldAnalyticsForm(FlaskForm):
+    """Form for updating field analytics parameters"""
+    crop_type = SelectField('Crop Type', validators=[DataRequired()])
+    planting_date = DateField('Planting Date', validators=[Optional()])
+    soil_type = SelectField('Soil Type', validators=[Optional()])
+    irrigation_type = SelectField('Irrigation Type', validators=[Optional()])
+    fertilizer_type = SelectField('Fertilizer Type', validators=[Optional()])
+    
+    submit = SubmitField('Update Analytics')
+    
+    def __init__(self, *args, **kwargs):
+        super(FieldAnalyticsForm, self).__init__(*args, **kwargs)
+        from precision_service import PrecisionAgricultureService
+        service = PrecisionAgricultureService()
+        
+        self.crop_type.choices = service.get_crop_choices()
+        self.soil_type.choices = service.get_soil_choices()
+        self.irrigation_type.choices = service.get_irrigation_choices()
+        self.fertilizer_type.choices = service.get_fertilizer_choices()

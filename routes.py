@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
 from gi_service import GIService
@@ -367,6 +367,262 @@ def manage_gi_claim(produce_id):
                          produce=produce,
                          form=form,
                          gi_info=gi_info)
+
+
+@app.route('/precision-ag')
+@login_required
+def precision_agriculture():
+    """Precision agriculture dashboard for farmers"""
+    if current_user.role != 'farmer':
+        flash('Access denied. This feature is for farmers only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get farmer's fields
+    fields = PrecisionField.query.filter_by(farmer_id=current_user.id).all()
+    
+    # Get productivity KPIs
+    from precision_service import PrecisionAgricultureService
+    service = PrecisionAgricultureService()
+    kpis = service.get_productivity_kpis(fields)
+    
+    return render_template('precision_agriculture.html',
+                         title='Precision Agriculture',
+                         fields=fields,
+                         kpis=kpis)
+
+
+@app.route('/precision-ag/field/new', methods=['GET', 'POST'])
+@login_required
+def add_precision_field():
+    """Add new precision agriculture field"""
+    if current_user.role != 'farmer':
+        flash('Access denied. This feature is for farmers only.', 'danger')
+        return redirect(url_for('home'))
+    
+    form = PrecisionFieldForm()
+    
+    if form.validate_on_submit():
+        # Parse coordinates and calculate area if provided
+        coordinates_data = None
+        calculated_area = None
+        
+        if form.coordinates.data:
+            try:
+                import json
+                coordinates_data = json.loads(form.coordinates.data)
+                from precision_service import PrecisionAgricultureService
+                service = PrecisionAgricultureService()
+                calculated_area = service.calculate_field_area(coordinates_data)
+            except Exception as e:
+                app.logger.error(f"Coordinate parsing error: {e}")
+        
+        # Create new field
+        field = PrecisionField(
+            farmer_id=current_user.id,
+            field_name=form.field_name.data,
+            crop_type=form.crop_type.data,
+            field_size_hectares=calculated_area or form.field_size_hectares.data,
+            planting_date=form.planting_date.data,
+            soil_type=form.soil_type.data,
+            irrigation_type=form.irrigation_type.data,
+            fertilizer_type=form.fertilizer_type.data,
+            center_latitude=float(form.center_latitude.data) if form.center_latitude.data else None,
+            center_longitude=float(form.center_longitude.data) if form.center_longitude.data else None
+        )
+        
+        if coordinates_data:
+            field.set_coordinates(coordinates_data)
+        
+        # Calculate recommendations
+        from precision_service import PrecisionAgricultureService
+        service = PrecisionAgricultureService()
+        recommendations = service.calculate_recommendations(
+            field.crop_type, field.field_size_hectares, field.soil_type,
+            field.irrigation_type, field.fertilizer_type, field.planting_date
+        )
+        
+        # Store calculated values
+        field.recommended_fertilizer_kg_ha = recommendations['fertilizer_kg_ha']
+        field.recommended_irrigation_l_ha = recommendations['irrigation_l_ha']
+        field.estimated_yield_tons_ha = recommendations['estimated_yield_tons_ha']
+        field.planting_season_fit = recommendations['season_fit']
+        field.set_risk_warnings(recommendations['warnings'])
+        
+        try:
+            db.session.add(field)
+            db.session.commit()
+            flash(f'Field "{field.field_name}" added successfully with analytics!', 'success')
+            return redirect(url_for('precision_agriculture'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Add field error: {e}")
+            flash('Failed to add field. Please try again.', 'danger')
+    
+    return render_template('add_precision_field.html', title='Add Field', form=form)
+
+
+@app.route('/precision-ag/field/<int:field_id>')
+@login_required
+def view_precision_field(field_id):
+    """View detailed field analytics"""
+    field = PrecisionField.query.get_or_404(field_id)
+    
+    if field.farmer_id != current_user.id and not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('precision_agriculture'))
+    
+    # Get fresh recommendations
+    from precision_service import PrecisionAgricultureService
+    service = PrecisionAgricultureService()
+    recommendations = service.calculate_recommendations(
+        field.crop_type, field.field_size_hectares, field.soil_type,
+        field.irrigation_type, field.fertilizer_type, field.planting_date
+    )
+    
+    return render_template('precision_field_detail.html',
+                         title=f'Field: {field.field_name}',
+                         field=field,
+                         recommendations=recommendations)
+
+
+@app.route('/precision-ag/field/<int:field_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_precision_field(field_id):
+    """Edit precision agriculture field"""
+    field = PrecisionField.query.get_or_404(field_id)
+    
+    if field.farmer_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('precision_agriculture'))
+    
+    form = FieldAnalyticsForm()
+    
+    if form.validate_on_submit():
+        # Update field data
+        field.crop_type = form.crop_type.data
+        field.planting_date = form.planting_date.data
+        field.soil_type = form.soil_type.data
+        field.irrigation_type = form.irrigation_type.data
+        field.fertilizer_type = form.fertilizer_type.data
+        
+        # Recalculate recommendations
+        from precision_service import PrecisionAgricultureService
+        service = PrecisionAgricultureService()
+        recommendations = service.calculate_recommendations(
+            field.crop_type, field.field_size_hectares, field.soil_type,
+            field.irrigation_type, field.fertilizer_type, field.planting_date
+        )
+        
+        # Update calculated values
+        field.recommended_fertilizer_kg_ha = recommendations['fertilizer_kg_ha']
+        field.recommended_irrigation_l_ha = recommendations['irrigation_l_ha']
+        field.estimated_yield_tons_ha = recommendations['estimated_yield_tons_ha']
+        field.planting_season_fit = recommendations['season_fit']
+        field.set_risk_warnings(recommendations['warnings'])
+        field.last_updated = datetime.utcnow()
+        
+        try:
+            db.session.commit()
+            flash(f'Field "{field.field_name}" updated successfully!', 'success')
+            return redirect(url_for('view_precision_field', field_id=field.id))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Edit field error: {e}")
+            flash('Failed to update field. Please try again.', 'danger')
+    
+    # Pre-populate form
+    if request.method == 'GET':
+        form.crop_type.data = field.crop_type
+        form.planting_date.data = field.planting_date
+        form.soil_type.data = field.soil_type
+        form.irrigation_type.data = field.irrigation_type
+        form.fertilizer_type.data = field.fertilizer_type
+    
+    return render_template('edit_precision_field.html',
+                         title=f'Edit Field: {field.field_name}',
+                         field=field,
+                         form=form)
+
+
+@app.route('/precision-ag/field/<int:field_id>/report')
+@login_required
+def field_report(field_id):
+    """Generate field report for export"""
+    field = PrecisionField.query.get_or_404(field_id)
+    
+    if field.farmer_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('precision_agriculture'))
+    
+    from precision_service import PrecisionAgricultureService
+    service = PrecisionAgricultureService()
+    report = service.generate_field_report(field)
+    
+    return render_template('precision_field_report.html',
+                         title=f'Field Report: {field.field_name}',
+                         field=field,
+                         report=report)
+
+
+@app.route('/precision-ag/field/<int:field_id>/delete', methods=['POST'])
+@login_required
+def delete_precision_field(field_id):
+    """Delete precision agriculture field"""
+    field = PrecisionField.query.get_or_404(field_id)
+    
+    if field.farmer_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('precision_agriculture'))
+    
+    try:
+        field_name = field.field_name
+        db.session.delete(field)
+        db.session.commit()
+        flash(f'Field "{field_name}" deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Delete field error: {e}")
+        flash('Failed to delete field. Please try again.', 'danger')
+    
+    return redirect(url_for('precision_agriculture'))
+
+
+@app.route('/api/precision-ag/calculate', methods=['POST'])
+@login_required
+def calculate_field_analytics():
+    """API endpoint for real-time field analytics calculation"""
+    if current_user.role != 'farmer':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        data = request.get_json()
+        
+        from precision_service import PrecisionAgricultureService
+        service = PrecisionAgricultureService()
+        
+        # Parse planting date
+        planting_date = None
+        if data.get('planting_date'):
+            from datetime import datetime
+            planting_date = datetime.strptime(data['planting_date'], '%Y-%m-%d').date()
+        
+        recommendations = service.calculate_recommendations(
+            data.get('crop_type'),
+            float(data.get('field_size_hectares', 1.0)),
+            data.get('soil_type'),
+            data.get('irrigation_type'),
+            data.get('fertilizer_type'),
+            planting_date
+        )
+        
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Analytics calculation error: {e}")
+        return jsonify({'error': 'Calculation failed'}), 500
 
 @app.route('/produce/<int:id>/edit', methods=['GET', 'POST'])
 @login_required

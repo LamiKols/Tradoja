@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Add New Field</h1>
+                    <p class="text-muted mb-0">Map your field with GPS precision and get instant analytics</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('precision_agriculture') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marked-alt me-2"></i>Field Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="fieldForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <!-- Field Name -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.field_name.id }}" class="form-label">
+                                    <i class="fas fa-tag me-1"></i>{{ form.field_name.label.text }}
+                                </label>
+                                {{ form.field_name(class="form-control" + (" is-invalid" if form.field_name.errors else ""), placeholder="e.g., North Field, Main Farm") }}
+                                {% if form.field_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.field_name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Crop Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.crop_type.id }}" class="form-label">
+                                    <i class="fas fa-seedling me-1"></i>{{ form.crop_type.label.text }}
+                                </label>
+                                {{ form.crop_type(class="form-select" + (" is-invalid" if form.crop_type.errors else ""), onchange="updateAnalytics()") }}
+                                {% if form.crop_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.crop_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Field Size -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.field_size_hectares.id }}" class="form-label">
+                                    <i class="fas fa-expand-arrows-alt me-1"></i>{{ form.field_size_hectares.label.text }}
+                                </label>
+                                {{ form.field_size_hectares(class="form-control" + (" is-invalid" if form.field_size_hectares.errors else ""), step="0.01", placeholder="1.0", onchange="updateAnalytics()") }}
+                                {% if form.field_size_hectares.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.field_size_hectares.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    Size will be auto-calculated if you draw the field on the map below
+                                </div>
+                            </div>
+                            
+                            <!-- Planting Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.planting_date.id }}" class="form-label">
+                                    <i class="fas fa-calendar me-1"></i>{{ form.planting_date.label.text }}
+                                </label>
+                                {{ form.planting_date(class="form-control" + (" is-invalid" if form.planting_date.errors else ""), onchange="updateAnalytics()") }}
+                                {% if form.planting_date.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.planting_date.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Soil Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.soil_type.id }}" class="form-label">
+                                    <i class="fas fa-mountain me-1"></i>{{ form.soil_type.label.text }}
+                                </label>
+                                {{ form.soil_type(class="form-select" + (" is-invalid" if form.soil_type.errors else ""), onchange="updateAnalytics()") }}
+                                {% if form.soil_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.soil_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Irrigation Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.irrigation_type.id }}" class="form-label">
+                                    <i class="fas fa-tint me-1"></i>{{ form.irrigation_type.label.text }}
+                                </label>
+                                {{ form.irrigation_type(class="form-select" + (" is-invalid" if form.irrigation_type.errors else ""), onchange="updateAnalytics()") }}
+                                {% if form.irrigation_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.irrigation_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Fertilizer Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.fertilizer_type.id }}" class="form-label">
+                                    <i class="fas fa-pills me-1"></i>{{ form.fertilizer_type.label.text }}
+                                </label>
+                                {{ form.fertilizer_type(class="form-select" + (" is-invalid" if form.fertilizer_type.errors else ""), onchange="updateAnalytics()") }}
+                                {% if form.fertilizer_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.fertilizer_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Field Area</label>
+                                <div class="form-control bg-light" id="calculatedArea">
+                                    Draw field boundary to calculate area
+                                </div>
+                                <div class="form-text">
+                                    Area will be automatically calculated from map drawing
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden fields for coordinates -->
+                        {{ form.coordinates() }}
+                        {{ form.center_latitude() }}
+                        {{ form.center_longitude() }}
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('precision_agriculture') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg" id="saveButton">
+                                <i class="fas fa-save me-2"></i>Save Field
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map and Analytics Panel -->
+        <div class="col-md-4">
+            <!-- Interactive Map -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-map me-2"></i>Field Mapping
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 300px; width: 100%;"></div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Click on the map to draw your field boundary. The area will be calculated automatically.
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Real-time Analytics -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Instant Analytics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="analyticsResults">
+                        <div class="text-center py-3">
+                            <i class="fas fa-calculator fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">Fill in field details to see analytics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Leaflet CSS and JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+let map;
+let drawnItems;
+let drawControl;
+let currentPolygon = null;
+
+// Initialize the map
+function initMap() {
+    // Default to Lagos coordinates
+    map = L.map('map').setView([6.5244, 3.3792], 10);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Initialize the FeatureGroup to store editable layers
+    drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    
+    // Initialize the draw control
+    drawControl = new L.Control.Draw({
+        position: 'topright',
+        draw: {
+            polyline: false,
+            circle: false,
+            rectangle: true,
+            marker: false,
+            circlemarker: false,
+            polygon: {
+                allowIntersection: false,
+                drawError: {
+                    color: '#e1e100',
+                    message: '<strong>Error:</strong> shape edges cannot cross!'
+                },
+                shapeOptions: {
+                    color: '#97009c'
+                }
+            }
+        },
+        edit: {
+            featureGroup: drawnItems,
+            remove: true
+        }
+    });
+    map.addControl(drawControl);
+    
+    // Handle new drawings
+    map.on(L.Draw.Event.CREATED, function (e) {
+        const layer = e.layer;
+        
+        // Remove existing polygon if any
+        if (currentPolygon) {
+            drawnItems.removeLayer(currentPolygon);
+        }
+        
+        // Add new polygon
+        drawnItems.addLayer(layer);
+        currentPolygon = layer;
+        
+        // Get coordinates and calculate area
+        const coordinates = layer.getLatLngs()[0].map(point => [point.lat, point.lng]);
+        const center = layer.getBounds().getCenter();
+        
+        // Store coordinates in form
+        document.getElementById('coordinates').value = JSON.stringify(coordinates);
+        document.getElementById('center_latitude').value = center.lat;
+        document.getElementById('center_longitude').value = center.lng;
+        
+        // Calculate and display area
+        const area = calculatePolygonArea(coordinates);
+        document.getElementById('calculatedArea').textContent = area.toFixed(3) + ' hectares';
+        document.getElementById('field_size_hectares').value = area.toFixed(3);
+        
+        // Update analytics
+        updateAnalytics();
+    });
+    
+    // Handle polygon edits
+    map.on(L.Draw.Event.EDITED, function (e) {
+        if (currentPolygon) {
+            const coordinates = currentPolygon.getLatLngs()[0].map(point => [point.lat, point.lng]);
+            const center = currentPolygon.getBounds().getCenter();
+            
+            document.getElementById('coordinates').value = JSON.stringify(coordinates);
+            document.getElementById('center_latitude').value = center.lat;
+            document.getElementById('center_longitude').value = center.lng;
+            
+            const area = calculatePolygonArea(coordinates);
+            document.getElementById('calculatedArea').textContent = area.toFixed(3) + ' hectares';
+            document.getElementById('field_size_hectares').value = area.toFixed(3);
+            
+            updateAnalytics();
+        }
+    });
+    
+    // Handle polygon deletion
+    map.on(L.Draw.Event.DELETED, function (e) {
+        currentPolygon = null;
+        document.getElementById('coordinates').value = '';
+        document.getElementById('center_latitude').value = '';
+        document.getElementById('center_longitude').value = '';
+        document.getElementById('calculatedArea').textContent = 'Draw field boundary to calculate area';
+        document.getElementById('field_size_hectares').value = '';
+        updateAnalytics();
+    });
+}
+
+// Calculate polygon area in hectares using shoelace formula
+function calculatePolygonArea(coordinates) {
+    if (coordinates.length < 3) return 0;
+    
+    let area = 0;
+    const n = coordinates.length;
+    
+    // Convert to radians and use spherical excess formula for more accuracy
+    const toRadians = (deg) => deg * Math.PI / 180;
+    const earthRadius = 6378137; // meters
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const lat1 = toRadians(coordinates[i][0]);
+        const lon1 = toRadians(coordinates[i][1]);
+        const lat2 = toRadians(coordinates[j][0]);
+        const lon2 = toRadians(coordinates[j][1]);
+        
+        area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    
+    area = Math.abs(area) * earthRadius * earthRadius / 2;
+    return area / 10000; // Convert to hectares
+}
+
+// Update analytics in real-time
+function updateAnalytics() {
+    const cropType = document.getElementById('crop_type').value;
+    const fieldSize = parseFloat(document.getElementById('field_size_hectares').value) || 0;
+    const soilType = document.getElementById('soil_type').value;
+    const irrigationType = document.getElementById('irrigation_type').value;
+    const fertilizerType = document.getElementById('fertilizer_type').value;
+    const plantingDate = document.getElementById('planting_date').value;
+    
+    if (!cropType || fieldSize <= 0) {
+        document.getElementById('analyticsResults').innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-calculator fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-0">Fill in field details to see analytics</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('analyticsResults').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Calculating...</span>
+            </div>
+            <p class="text-muted mt-2 mb-0">Calculating recommendations...</p>
+        </div>
+    `;
+    
+    // Make API call for analytics
+    fetch('/api/precision-ag/calculate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            crop_type: cropType,
+            field_size_hectares: fieldSize,
+            soil_type: soilType,
+            irrigation_type: irrigationType,
+            fertilizer_type: fertilizerType,
+            planting_date: plantingDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayAnalytics(data.recommendations);
+        } else {
+            document.getElementById('analyticsResults').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Failed to calculate analytics
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Analytics error:', error);
+        document.getElementById('analyticsResults').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-wifi me-1"></i>
+                Unable to connect for real-time analytics
+            </div>
+        `;
+    });
+}
+
+function displayAnalytics(recommendations) {
+    const seasonBadge = {
+        'optimal': 'bg-success',
+        'good': 'bg-warning',
+        'poor': 'bg-danger',
+        'unknown': 'bg-secondary'
+    };
+    
+    let warningsHtml = '';
+    if (recommendations.warnings && recommendations.warnings.length > 0) {
+        warningsHtml = `
+            <div class="alert alert-warning alert-sm py-2 mb-3">
+                <small>
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    ${recommendations.warnings.length} warning(s)
+                </small>
+            </div>
+        `;
+    }
+    
+    document.getElementById('analyticsResults').innerHTML = `
+        <div class="mb-3">
+            <span class="badge ${seasonBadge[recommendations.season_fit] || 'bg-secondary'}">
+                ${recommendations.season_fit ? recommendations.season_fit.charAt(0).toUpperCase() + recommendations.season_fit.slice(1) : 'Unknown'} Season Fit
+            </span>
+        </div>
+        
+        ${warningsHtml}
+        
+        <div class="row mb-3">
+            <div class="col-12 mb-2">
+                <div class="bg-light p-2 rounded text-center">
+                    <small class="text-muted d-block">Fertilizer Needed</small>
+                    <div class="fw-bold text-primary">${recommendations.fertilizer_kg_ha} kg/ha</div>
+                    <small class="text-muted">(${recommendations.total_fertilizer_kg} kg total)</small>
+                </div>
+            </div>
+            <div class="col-12 mb-2">
+                <div class="bg-light p-2 rounded text-center">
+                    <small class="text-muted d-block">Irrigation Required</small>
+                    <div class="fw-bold text-info">${recommendations.irrigation_l_ha.toLocaleString()} L/ha</div>
+                    <small class="text-muted">(${recommendations.total_irrigation_l.toLocaleString()} L total)</small>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="bg-light p-2 rounded text-center">
+                    <small class="text-muted d-block">Estimated Yield</small>
+                    <div class="fw-bold text-success">${recommendations.estimated_yield_tons_ha} tons/ha</div>
+                    <small class="text-muted">(${recommendations.total_yield_tons} tons total)</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="border-top pt-2">
+            <small class="text-muted">
+                <strong>Planting:</strong> ${recommendations.planting_schedule}<br>
+                <strong>Harvest:</strong> ${recommendations.harvest_estimate}
+            </small>
+        </div>
+    `;
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+});
+</script>
+
+<style>
+.alert-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#map {
+    border-radius: 0.375rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-map-marked-alt me-2"></i>Precision Agriculture
+                    </h1>
+                    <p class="text-muted mb-0">GPS-based field mapping, analytics, and crop optimization</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('add_precision_field') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Add New Field
+                    </a>
+                </div>
+            </div>
+
+            <!-- KPIs Dashboard -->
+            {% if kpis %}
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ kpis.total_fields }}</h4>
+                                    <p class="mb-0">Total Fields</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-map fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ kpis.total_area_ha }}</h4>
+                                    <p class="mb-0">Total Area (ha)</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-expand-arrows-alt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ kpis.estimated_total_yield_tons }}</h4>
+                                    <p class="mb-0">Est. Yield (tons)</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-weight-hanging fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ kpis.average_yield_per_ha }}</h4>
+                                    <p class="mb-0">Avg Yield/ha</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crop Distribution Chart -->
+            {% if kpis.crop_distribution %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-pie me-2"></i>Crop Distribution
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="cropChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Field Performance
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded">
+                                        <h3 class="text-success">{{ kpis.optimal_fields }}</h3>
+                                        <small class="text-muted">Optimal Fields</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded">
+                                        <h3 class="text-warning">{{ kpis.fields_with_warnings }}</h3>
+                                        <small class="text-muted">Fields with Warnings</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <!-- Fields List -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Your Fields ({{ fields|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if fields %}
+                        <div class="row">
+                            {% for field in fields %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100 field-card">
+                                    <div class="card-body">
+                                        <!-- Field Header -->
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <h5 class="card-title fw-bold mb-0">{{ field.field_name }}</h5>
+                                            {% if field.planting_season_fit %}
+                                            <span class="badge {{ field.get_season_fit_badge_class() }}">
+                                                {{ field.planting_season_fit.title() }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Field Info -->
+                                        <div class="mb-3">
+                                            <div class="row text-center">
+                                                <div class="col-6">
+                                                    <div class="border-end">
+                                                        <i class="fas fa-seedling text-success"></i>
+                                                        <div class="fw-bold">{{ field.crop_type.title() }}</div>
+                                                        <small class="text-muted">Crop</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <i class="fas fa-expand-arrows-alt text-primary"></i>
+                                                    <div class="fw-bold">{{ field.formatted_size() }}</div>
+                                                    <small class="text-muted">Size</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Analytics Cards -->
+                                        {% if field.recommended_fertilizer_kg_ha or field.estimated_yield_tons_ha %}
+                                        <div class="mb-3">
+                                            <div class="row">
+                                                {% if field.recommended_fertilizer_kg_ha %}
+                                                <div class="col-12 mb-2">
+                                                    <div class="bg-light p-2 rounded text-center">
+                                                        <small class="text-muted d-block">Fertilizer Rec.</small>
+                                                        <div class="fw-bold text-primary">{{ field.recommended_fertilizer_kg_ha }} kg/ha</div>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% if field.estimated_yield_tons_ha %}
+                                                <div class="col-12">
+                                                    <div class="bg-light p-2 rounded text-center">
+                                                        <small class="text-muted d-block">Est. Yield</small>
+                                                        <div class="fw-bold text-success">{{ field.estimated_yield_tons_ha }} tons/ha</div>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Warnings -->
+                                        {% if field.get_risk_warnings_list() %}
+                                        <div class="mb-3">
+                                            <div class="alert alert-warning alert-sm py-2">
+                                                <small>
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    {{ field.get_risk_warnings_list()|length }} warning(s)
+                                                </small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Field Metadata -->
+                                        <div class="mb-3">
+                                            {% if field.planting_date %}
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-calendar me-1"></i>Planted: {{ field.formatted_planting_date() }}
+                                            </small>
+                                            {% endif %}
+                                            {% if field.center_latitude and field.center_longitude %}
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-map-marker-alt me-1"></i>{{ field.formatted_coordinates() }}
+                                            </small>
+                                            {% endif %}
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-clock me-1"></i>Updated: {{ field.last_updated.strftime('%b %d, %Y') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card Footer -->
+                                    <div class="card-footer bg-transparent">
+                                        <div class="d-flex gap-2">
+                                            <a href="{{ url_for('view_precision_field', field_id=field.id) }}" 
+                                               class="btn btn-primary btn-sm flex-fill">
+                                                <i class="fas fa-eye me-1"></i>View
+                                            </a>
+                                            <a href="{{ url_for('edit_precision_field', field_id=field.id) }}" 
+                                               class="btn btn-outline-secondary btn-sm flex-fill">
+                                                <i class="fas fa-edit me-1"></i>Edit
+                                            </a>
+                                            <a href="{{ url_for('field_report', field_id=field.id) }}" 
+                                               class="btn btn-outline-info btn-sm flex-fill">
+                                                <i class="fas fa-file-alt me-1"></i>Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-map-marked-alt fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Fields Yet</h4>
+                            <p class="text-muted mb-4">
+                                Start mapping your agricultural fields with GPS precision to get detailed analytics and recommendations.
+                            </p>
+                            <a href="{{ url_for('add_precision_field') }}" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus me-2"></i>Add Your First Field
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Information Section -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>About Precision Agriculture
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Precision agriculture uses GPS technology and data analytics to optimize farming practices for maximum efficiency and yield.</p>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Features:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>GPS field mapping with area calculation</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Crop-specific fertilizer recommendations</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Irrigation optimization based on soil type</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Yield estimation and seasonal planning</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">Benefits:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-dollar-sign text-primary me-2"></i>Reduced input costs</li>
+                                        <li><i class="fas fa-chart-line text-primary me-2"></i>Increased productivity</li>
+                                        <li><i class="fas fa-leaf text-primary me-2"></i>Environmental sustainability</li>
+                                        <li><i class="fas fa-file-alt text-primary me-2"></i>Data-driven decision making</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if kpis and kpis.crop_distribution %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Crop Distribution Chart
+const ctx = document.getElementById('cropChart').getContext('2d');
+const cropData = {{ kpis.crop_distribution | tojson }};
+
+const labels = Object.keys(cropData);
+const data = Object.values(cropData);
+const colors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+];
+
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': ' + context.parsed + ' ha';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+
+<style>
+.field-card {
+    transition: transform 0.2s;
+}
+
+.field-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.alert-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#cropChart {
+    max-height: 300px;
+}
+</style>
+{% endblock %}
