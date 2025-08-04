@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request, abort
+from flask import render_template, url_for, flash, redirect, request, abort, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
@@ -1563,6 +1563,14 @@ def sms_webhook():
         return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
     
     try:
+        # Skip CSRF check for webhook
+        from flask_wtf.csrf import validate_csrf
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except:
+            # Allow webhooks without CSRF token
+            pass
+        
         # Get SMS data from Africa's Talking
         phone_number = request.form.get('from')
         message = request.form.get('text')
