@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-money-bill-wave me-2"></i>Apply for Offtake Guarantee Fund</h4>
+                    <small class="text-muted">Complete the form below to submit your funding application</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.amount_requested.label(class="form-label") }}
+                                {{ form.amount_requested(class="form-control" + (" is-invalid" if form.amount_requested.errors else "")) }}
+                                {% if form.amount_requested.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.amount_requested.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Enter amount between NGN 1,000 - NGN 10,000,000</small>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.produce_id.label(class="form-label") }}
+                                {{ form.produce_id(class="form-select" + (" is-invalid" if form.produce_id.errors else "")) }}
+                                {% if form.produce_id.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.produce_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Link to specific produce (optional)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.application_reason.label(class="form-label") }}
+                            {{ form.application_reason(class="form-control" + (" is-invalid" if form.application_reason.errors else "")) }}
+                            {% if form.application_reason.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.application_reason.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Provide detailed explanation of how funding will be used</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.supporting_document.label(class="form-label") }}
+                            {{ form.supporting_document(class="form-control" + (" is-invalid" if form.supporting_document.errors else "")) }}
+                            {% if form.supporting_document.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.supporting_document.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Upload supporting documents (PDF, JPG, JPEG, PNG)</small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-paper-plane me-1"></i>Submit Application
+                            </button>
+                            <a href="{{ url_for('funding_portal') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Portal
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Guidelines Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-lightbulb me-2"></i>Application Guidelines</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Required Information</h6>
+                            <ul class="small">
+                                <li>Clear funding amount</li>
+                                <li>Detailed use case explanation</li>
+                                <li>Expected impact on farming operations</li>
+                                <li>Timeline for fund utilization</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Supporting Documents</h6>
+                            <ul class="small">
+                                <li>Equipment quotations</li>
+                                <li>Land documentation</li>
+                                <li>Previous harvest records</li>
+                                <li>Business plan (if applicable)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Processing Time:</strong> Applications are typically reviewed within 7-14 business days. 
+                        You will receive updates via your dashboard and any admin feedback will be provided.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

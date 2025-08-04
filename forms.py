@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, FloatField, BooleanField, HiddenField, DateField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError
 from wtforms.widgets import TextArea
@@ -111,3 +112,36 @@ class LogisticsStatusForm(FlaskForm):
                         choices=[('pending', 'Pending'), ('approved', 'Approved'), 
                                 ('fulfilled', 'Fulfilled'), ('cancelled', 'Cancelled')],
                         validators=[DataRequired()])
+
+
+class FundingApplicationForm(FlaskForm):
+    """Form for funding applications"""
+    produce_id = SelectField('Related Produce (Optional)', 
+                           choices=[('', 'None - General funding')],
+                           coerce=lambda x: int(x) if x else None)
+    amount_requested = FloatField('Amount Requested (NGN)', 
+                                 validators=[DataRequired(), NumberRange(min=1000, max=10000000,
+                                           message="Amount must be between NGN 1,000 and NGN 10,000,000")])
+    application_reason = TextAreaField('Reason for Application', 
+                                     validators=[DataRequired(), Length(min=50, max=2000,
+                                               message="Please provide detailed reason (50-2000 characters)")],
+                                     render_kw={"rows": 6, "placeholder": "Explain how this funding will help your farming operations..."})
+    supporting_document = FileField('Supporting Document (Optional)', 
+                                   validators=[FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 
+                                             'Only PDF, JPG, JPEG, and PNG files are allowed')])
+    
+    def __init__(self, user_produce=None, *args, **kwargs):
+        super(FundingApplicationForm, self).__init__(*args, **kwargs)
+        if user_produce:
+            self.produce_id.choices = [('', 'None - General funding')] + \
+                                    [(str(p.id), f"{p.name} - {p.quantity}") for p in user_produce]
+
+
+class FundingStatusForm(FlaskForm):
+    """Form for updating funding application status (admin use)"""
+    status = SelectField('Status', 
+                        choices=[('pending', 'Pending'), ('approved', 'Approved'), ('declined', 'Declined')],
+                        validators=[DataRequired()])
+    admin_comment = TextAreaField('Admin Comment', 
+                                 validators=[Length(max=1000)],
+                                 render_kw={"rows": 4, "placeholder": "Optional comment for the applicant..."})

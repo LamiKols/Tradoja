@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message, LogisticsRequest
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm
 from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 
 @app.route('/')
@@ -106,9 +106,14 @@ def farmer_dashboard():
     # Get farmer's produce listings
     produce_listings = Produce.query.filter_by(farmer_id=current_user.id).order_by(Produce.date_listed.desc()).all()
     
+    # Get recent funding applications
+    recent_funding = FundingApplication.query.filter_by(applicant_id=current_user.id)\
+                                           .order_by(FundingApplication.timestamp.desc()).limit(3).all()
+    
     return render_template('farmer_dashboard.html', 
                          title='Farmer Dashboard', 
-                         produce_listings=produce_listings)
+                         produce_listings=produce_listings,
+                         recent_funding=recent_funding)
 
 @app.route('/buyer/dashboard')
 @login_required
@@ -574,6 +579,137 @@ def update_logistics_status(request_id):
             flash('Failed to update status. Please try again.', 'danger')
     
     return redirect(url_for('admin_logistics_dashboard'))
+
+# Funding routes
+@app.route('/funding_portal')
+@login_required
+def funding_portal():
+    """Funding portal for farmers"""
+    if not current_user.is_farmer():
+        flash('Access denied. Funding portal is only available to farmers.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get farmer's applications
+    applications = FundingApplication.query.filter_by(applicant_id=current_user.id)\
+                                         .order_by(FundingApplication.timestamp.desc()).all()
+    
+    return render_template('funding_portal.html', 
+                         title='Funding Portal',
+                         applications=applications)
+
+@app.route('/funding_application', methods=['GET', 'POST'])
+@login_required
+def funding_application():
+    """Create funding application"""
+    if not current_user.is_farmer():
+        flash('Access denied. Only farmers can apply for funding.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get farmer's produce for dropdown
+    user_produce = Produce.query.filter_by(farmer_id=current_user.id, is_available=True).all()
+    form = FundingApplicationForm(user_produce=user_produce)
+    
+    if form.validate_on_submit():
+        # Handle file upload
+        supporting_document_path = None
+        if form.supporting_document.data:
+            from werkzeug.utils import secure_filename
+            import os
+            
+            filename = secure_filename(form.supporting_document.data.filename)
+            # Create uploads directory if it doesn't exist
+            upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'funding')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Generate unique filename
+            import uuid
+            unique_filename = f"{uuid.uuid4()}_{filename}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            
+            try:
+                form.supporting_document.data.save(file_path)
+                supporting_document_path = f"uploads/funding/{unique_filename}"
+            except Exception as e:
+                app.logger.error(f"File upload error: {e}")
+                flash('Failed to upload supporting document. Application saved without document.', 'warning')
+        
+        funding_app = FundingApplication(
+            applicant_id=current_user.id,
+            produce_id=form.produce_id.data,
+            amount_requested=form.amount_requested.data,
+            application_reason=form.application_reason.data,
+            supporting_document=supporting_document_path
+        )
+        
+        try:
+            db.session.add(funding_app)
+            db.session.commit()
+            flash(f'Funding application for {funding_app.formatted_amount()} submitted successfully!', 'success')
+            return redirect(url_for('funding_portal'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Funding application error: {e}")
+            flash('Failed to submit funding application. Please try again.', 'danger')
+    
+    return render_template('funding_application.html', 
+                         title='Apply for Funding',
+                         form=form)
+
+@app.route('/admin/funding')
+@login_required
+def admin_funding_dashboard():
+    """Admin dashboard for managing funding applications"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', 'all')
+    
+    # Build query
+    query = FundingApplication.query
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    applications = query.order_by(FundingApplication.timestamp.desc()).all()
+    
+    # Get statistics
+    stats = {
+        'total': FundingApplication.query.count(),
+        'pending': FundingApplication.query.filter_by(status='pending').count(),
+        'approved': FundingApplication.query.filter_by(status='approved').count(),
+        'declined': FundingApplication.query.filter_by(status='declined').count(),
+        'total_amount_requested': db.session.query(db.func.sum(FundingApplication.amount_requested)).scalar() or 0,
+        'approved_amount': db.session.query(db.func.sum(FundingApplication.amount_requested)).filter_by(status='approved').scalar() or 0
+    }
+    
+    return render_template('admin_funding.html', 
+                         title='Funding Management',
+                         applications=applications,
+                         stats=stats,
+                         current_filter=status_filter)
+
+@app.route('/admin/funding/<int:app_id>/update_status', methods=['POST'])
+@login_required
+def update_funding_status(app_id):
+    """Update funding application status (admin only)"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    funding_app = FundingApplication.query.get_or_404(app_id)
+    form = FundingStatusForm()
+    
+    if form.validate_on_submit():
+        try:
+            funding_app.status = form.status.data
+            funding_app.admin_comment = form.admin_comment.data
+            db.session.commit()
+            flash(f'Application status updated to {form.status.data}.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Update funding status error: {e}")
+            flash('Failed to update status. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_funding_dashboard'))
 
 # Error handlers
 @app.errorhandler(404)

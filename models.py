@@ -132,3 +132,40 @@ class LogisticsRequest(db.Model):
     def can_be_modified(self):
         """Check if request can still be modified by requester"""
         return self.status in ['pending', 'approved']
+
+
+class FundingApplication(db.Model):
+    """Funding application model for Offtake Guarantee Fund"""
+    id = db.Column(db.Integer, primary_key=True)
+    applicant_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=True)  # Optional
+    amount_requested = db.Column(db.Float, nullable=False)
+    application_reason = db.Column(db.Text, nullable=False)
+    supporting_document = db.Column(db.String(255), nullable=True)  # File path
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'declined'
+    admin_comment = db.Column(db.Text, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    applicant = db.relationship('User', backref='funding_applications')
+    produce = db.relationship('Produce', backref='funding_applications')
+    
+    def __repr__(self):
+        return f'<FundingApplication ${self.amount_requested} by {self.applicant.name}>'
+    
+    def formatted_amount(self):
+        """Return formatted amount"""
+        return f"NGN {self.amount_requested:,.2f}"
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'approved': 'bg-success',
+            'declined': 'bg-danger'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def formatted_timestamp(self):
+        """Return formatted timestamp"""
+        return self.timestamp.strftime('%B %d, %Y at %I:%M %p')

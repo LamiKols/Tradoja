@@ -12,9 +12,12 @@
                     </h1>
                     <p class="text-muted mb-0">Welcome back, {{ current_user.name }}!</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
                     <a href="{{ url_for('add_produce') }}" class="btn btn-success">
                         <i class="fas fa-plus me-2"></i>Add New Produce
+                    </a>
+                    <a href="{{ url_for('funding_portal') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-money-bill-wave me-2"></i>Funding Portal
                     </a>
                 </div>
             </div>

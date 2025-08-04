@@ -102,6 +102,9 @@
                                     <li><a class="dropdown-item" href="{{ url_for('add_produce') }}">
                                         <i class="fas fa-plus me-1"></i>Add Produce
                                     </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('funding_portal') }}">
+                                        <i class="fas fa-money-bill-wave me-1"></i>Funding Portal
+                                    </a></li>
                                 {% elif current_user.is_buyer() %}
                                     <li><a class="dropdown-item" href="{{ url_for('buyer_dashboard') }}">
                                         <i class="fas fa-shopping-cart me-1"></i>Dashboard
@@ -112,6 +115,9 @@
                                     </a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('admin_logistics_dashboard') }}">
                                         <i class="fas fa-truck me-1"></i>Logistics Management
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_funding_dashboard') }}">
+                                        <i class="fas fa-money-bill-wave me-1"></i>Funding Management
                                     </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
