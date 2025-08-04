@@ -2695,7 +2695,7 @@ def onboarding_step_3(registration):
     # Get appropriate form based on role
     if registration.role == 'farmer':
         form = OnboardingStep3FarmerForm()
-        template = 'onboarding/step3_farmer.html'
+        template = 'onboarding/step3_farmer_wizard.html'
     elif registration.role == 'aggregator':
         form = OnboardingStep3AggregatorForm()
         template = 'onboarding/step3_aggregator.html'
@@ -2755,12 +2755,13 @@ def onboarding_step_3(registration):
             registration.supplier_network = form.supplier_network.data
             registration.distribution_channels = form.distribution_channels.data
         
-        # Update progress
+        # Update progress and program tag
         registration.current_step = max(registration.current_step, 4)
+        registration.program_tag = 'LAFSINCO/Produce for Lagos Registration'
         registration.calculate_completion_percentage()
         
         db.session.commit()
-        flash('Role-specific information saved successfully', 'success')
+        flash('Farmer information saved successfully', 'success')
         return redirect(url_for('onboarding_step', step=4))
     
     # Pre-populate form if data exists
@@ -2832,10 +2833,11 @@ def onboarding_step_4(registration):
         registration.registration_status = 'completed'
         registration.completed_date = datetime.utcnow()
         registration.completion_percentage = 100
+        registration.program_tag = 'LAFSINCO/Produce for Lagos Registration'
         
         db.session.commit()
         flash('Registration completed successfully! Your application is now under review.', 'success')
-        return redirect(url_for('onboarding_status'))
+        return redirect(url_for('onboarding_success_confirmation'))
     
     # Pre-populate form if data exists
     if registration.bank_name:
@@ -2849,6 +2851,17 @@ def onboarding_step_4(registration):
                          registration=registration,
                          current_step=4)
 
+
+@app.route('/onboarding/success')
+@login_required
+def onboarding_success_confirmation():
+    """Success confirmation page after completing registration"""
+    registration = ProduceLagosRegistration.query.filter_by(user_id=current_user.id).first()
+    if not registration or registration.registration_status != 'completed':
+        flash('Registration not found or incomplete', 'error')
+        return redirect(url_for('onboarding_start'))
+    
+    return render_template('onboarding/success_confirmation.html', registration=registration)
 
 @app.route('/onboarding/status')
 @login_required

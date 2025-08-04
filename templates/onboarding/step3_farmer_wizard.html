@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Progress Bar -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>LAFSINCO/Produce for Lagos Registration
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Step {{ current_step }} of {{ registration.total_steps }}</span>
+                                <span class="badge bg-success">{{ registration.get_role_display_name() }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ (current_step / registration.total_steps) * 100 }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-success">Personal Info</small>
+                                <small class="text-success">Business Info</small>
+                                <small class="text-primary fw-bold">Farmer Details</small>
+                                <small class="text-muted">Documents</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-step Farmer Form Wizard -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tractor me-2"></i>Step 3: Farmer Information
+                    </h5>
+                    <small class="text-muted">Complete all sections to proceed</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="farmerWizardForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Sub-step Navigation -->
+                        <ul class="nav nav-tabs mb-4" id="farmerTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="farm-basics-tab" data-bs-toggle="tab" data-bs-target="#farm-basics" type="button" role="tab">
+                                    <i class="fas fa-map-marker-alt me-1"></i>Farm Basics
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="production-tab" data-bs-toggle="tab" data-bs-target="#production" type="button" role="tab">
+                                    <i class="fas fa-seedling me-1"></i>Production Info
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure" type="button" role="tab">
+                                    <i class="fas fa-warehouse me-1"></i>Infrastructure
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="support-systems-tab" data-bs-toggle="tab" data-bs-target="#support-systems" type="button" role="tab">
+                                    <i class="fas fa-handshake me-1"></i>Support Systems
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="farmerTabContent">
+                            <!-- Farm Basics Tab -->
+                            <div class="tab-pane fade show active" id="farm-basics" role="tabpanel">
+                                <h6 class="text-primary mb-3">Basic Farm Information</h6>
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Farm Location (LGA/State)*</label>
+                                        <input type="text" name="farm_location" class="form-control" required 
+                                               value="{{ registration.lga or '' }}, {{ registration.state or '' }}" readonly>
+                                        <div class="form-text">This information is taken from your personal details</div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.farm_size.label(class="form-label") }}
+                                        <div class="input-group">
+                                            {{ form.farm_size(class="form-control", step="0.01", required=True) }}
+                                            <span class="input-group-text">Hectares or Acres</span>
+                                        </div>
+                                        <div class="form-text">Enter the total size of your farm</div>
+                                        {% if form.farm_size.errors %}
+                                            <div class="text-danger small">{{ form.farm_size.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.farming_methods.label(class="form-label") }}
+                                        {{ form.farming_methods(class="form-select") }}
+                                        {% if form.farming_methods.errors %}
+                                            <div class="text-danger small">{{ form.farming_methods.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.farming_experience.label(class="form-label") }}
+                                        <div class="input-group">
+                                            {{ form.farming_experience(class="form-control") }}
+                                            <span class="input-group-text">Years</span>
+                                        </div>
+                                        {% if form.farming_experience.errors %}
+                                            <div class="text-danger small">{{ form.farming_experience.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Production Info Tab -->
+                            <div class="tab-pane fade" id="production" role="tabpanel">
+                                <h6 class="text-primary mb-3">Production Details</h6>
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        {{ form.crops_grown.label(class="form-label") }}
+                                        {{ form.crops_grown(class="form-control", required=True) }}
+                                        <div class="form-text">List the main crops you grow, separated by commas</div>
+                                        {% if form.crops_grown.errors %}
+                                            <div class="text-danger small">{{ form.crops_grown.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.season_calendar.label(class="form-label") }}
+                                        {{ form.season_calendar(class="form-control", required=True) }}
+                                        <div class="form-text">Describe your planting and harvest cycles</div>
+                                        {% if form.season_calendar.errors %}
+                                            <div class="text-danger small">{{ form.season_calendar.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.avg_output.label(class="form-label") }}
+                                        {{ form.avg_output(class="form-control", required=True) }}
+                                        <div class="form-text">Specify units (bags, kg, tonnes, etc.)</div>
+                                        {% if form.avg_output.errors %}
+                                            <div class="text-danger small">{{ form.avg_output.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Infrastructure Tab -->
+                            <div class="tab-pane fade" id="infrastructure" role="tabpanel">
+                                <h6 class="text-primary mb-3">Farm Infrastructure</h6>
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Irrigation Methods Used (if any)</label>
+                                        {{ form.irrigation_methods(class="form-control") }}
+                                        <div class="form-text">Describe your irrigation systems or specify "Rain-fed" if applicable</div>
+                                        {% if form.irrigation_methods.errors %}
+                                            <div class="text-danger small">{{ form.irrigation_methods.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12 mb-3">
+                                        {{ form.postharvest_facilities.label(class="form-label") }}
+                                        {{ form.postharvest_facilities(class="form-control", rows="4") }}
+                                        <div class="form-text">Include storage facilities, processing equipment, drying areas, etc.</div>
+                                        {% if form.postharvest_facilities.errors %}
+                                            <div class="text-danger small">{{ form.postharvest_facilities.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Support Systems Tab -->
+                            <div class="tab-pane fade" id="support-systems" role="tabpanel">
+                                <h6 class="text-primary mb-3">Agricultural Support Networks</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.coop_member.label(class="form-label") }}
+                                        {{ form.coop_member(class="form-select") }}
+                                        <div class="form-text">Cooperative membership provides access to resources and markets</div>
+                                        {% if form.coop_member.errors %}
+                                            <div class="text-danger small">{{ form.coop_member.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.extension_service.label(class="form-label") }}
+                                        {{ form.extension_service(class="form-select") }}
+                                        <div class="form-text">Extension services provide technical assistance and training</div>
+                                        {% if form.extension_service.errors %}
+                                            <div class="text-danger small">{{ form.extension_service.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Validation Summary -->
+                                <div id="validationSummary" class="alert alert-warning d-none">
+                                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Please complete the following required fields:</h6>
+                                    <ul id="validationList" class="mb-0"></ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('onboarding_step', step=2) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Previous Step
+                            </a>
+                            
+                            <div>
+                                <button type="button" id="validateAndSubmit" class="btn btn-primary">
+                                    <i class="fas fa-check me-2"></i>Validate & Continue
+                                </button>
+                                <button type="submit" id="submitBtn" class="btn btn-success d-none">
+                                    <i class="fas fa-arrow-right me-2"></i>Next Step
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const validateBtn = document.getElementById('validateAndSubmit');
+    const submitBtn = document.getElementById('submitBtn');
+    const validationSummary = document.getElementById('validationSummary');
+    const validationList = document.getElementById('validationList');
+    const form = document.getElementById('farmerWizardForm');
+    
+    // Tab validation status
+    const tabStatus = {
+        'farm-basics': false,
+        'production': false,
+        'infrastructure': false,
+        'support-systems': false
+    };
+    
+    // Update tab indicators based on validation
+    function updateTabIndicators() {
+        Object.keys(tabStatus).forEach(tabId => {
+            const tab = document.getElementById(tabId + '-tab');
+            if (tabStatus[tabId]) {
+                tab.classList.add('text-success');
+                tab.innerHTML = tab.innerHTML.replace('<i class="fas', '<i class="fas fa-check-circle me-1"></i><i class="fas');
+            } else {
+                tab.classList.remove('text-success');
+                tab.innerHTML = tab.innerHTML.replace('<i class="fas fa-check-circle me-1"></i>', '');
+            }
+        });
+    }
+    
+    // Validate form sections
+    function validateForm() {
+        const errors = [];
+        
+        // Farm Basics validation
+        const farmSize = document.querySelector('input[name="farm_size"]');
+        const farmingType = document.querySelector('select[name="farming_methods"]');
+        const experience = document.querySelector('input[name="farming_experience"]');
+        
+        if (!farmSize.value.trim()) errors.push('Farm Size is required');
+        if (!farmingType.value) errors.push('Type of Farming is required');
+        if (!experience.value) errors.push('Years of Farming Experience is required');
+        
+        tabStatus['farm-basics'] = !errors.some(e => e.includes('Farm Size') || e.includes('Type of Farming') || e.includes('Years of Farming'));
+        
+        // Production validation
+        const crops = document.querySelector('textarea[name="crops_grown"]');
+        const seasonCalendar = document.querySelector('input[name="season_calendar"]');
+        const avgOutput = document.querySelector('input[name="avg_output"]');
+        
+        if (!crops.value.trim()) errors.push('Main Crops/Produce is required');
+        if (!seasonCalendar.value.trim()) errors.push('Seasonal Calendar is required');
+        if (!avgOutput.value.trim()) errors.push('Average Monthly Output is required');
+        
+        tabStatus['production'] = !errors.some(e => e.includes('Crops') || e.includes('Seasonal') || e.includes('Output'));
+        
+        // Infrastructure validation (optional fields)
+        tabStatus['infrastructure'] = true;
+        
+        // Support Systems validation
+        const coopMember = document.querySelector('select[name="coop_member"]');
+        const extensionService = document.querySelector('select[name="extension_service"]');
+        
+        if (!coopMember.value) errors.push('Cooperative membership status is required');
+        if (!extensionService.value) errors.push('Extension service access is required');
+        
+        tabStatus['support-systems'] = !errors.some(e => e.includes('Cooperative') || e.includes('Extension'));
+        
+        updateTabIndicators();
+        
+        if (errors.length > 0) {
+            validationList.innerHTML = errors.map(error => `<li>${error}</li>`).join('');
+            validationSummary.classList.remove('d-none');
+            
+            // Switch to the first tab with errors
+            const firstErrorTab = Object.keys(tabStatus).find(tab => !tabStatus[tab]);
+            if (firstErrorTab) {
+                document.getElementById(firstErrorTab + '-tab').click();
+            }
+            
+            return false;
+        } else {
+            validationSummary.classList.add('d-none');
+            return true;
+        }
+    }
+    
+    // Validate button click
+    validateBtn.addEventListener('click', function() {
+        if (validateForm()) {
+            validateBtn.classList.add('d-none');
+            submitBtn.classList.remove('d-none');
+            
+            // Show success message
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success mt-3';
+            successAlert.innerHTML = '<i class="fas fa-check-circle me-2"></i>All required fields completed successfully! Click "Next Step" to continue.';
+            validationSummary.parentNode.insertBefore(successAlert, validationSummary.nextSibling);
+        }
+    });
+    
+    // Real-time validation on input changes
+    form.addEventListener('input', function() {
+        submitBtn.classList.add('d-none');
+        validateBtn.classList.remove('d-none');
+        
+        // Remove success alerts
+        const successAlerts = form.querySelectorAll('.alert-success');
+        successAlerts.forEach(alert => alert.remove());
+    });
+});
+</script>
+{% endblock %}

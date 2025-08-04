@@ -42,6 +42,10 @@
                         <h6>Registration Information</h6>
                         <table class="table table-sm">
                             <tr>
+                                <td><strong>Program:</strong></td>
+                                <td>{{ registration.program_tag }}</td>
+                            </tr>
+                            <tr>
                                 <td><strong>Role:</strong></td>
                                 <td>{{ registration.get_role_display_name() }}</td>
                             </tr>

@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Success Header -->
+            <div class="card border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Registration Submitted Successfully!
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="success-icon mb-3">
+                            <i class="fas fa-clipboard-check text-success" style="font-size: 4rem;"></i>
+                        </div>
+                        <h5 class="text-success">Thank you for registering with LAFSINCO/Produce for Lagos!</h5>
+                        <p class="text-muted">Your application has been received and is now under review.</p>
+                    </div>
+                    
+                    <!-- Registration Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Registration ID</h6>
+                                    <span class="badge bg-primary fs-6">#PFL-{{ registration.id }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Status</h6>
+                                    <span class="badge bg-warning fs-6">Under Review</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Registration Details -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-info-circle me-2"></i>Registration Details</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Program:</strong></td>
+                                <td>{{ registration.program_tag }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Role:</strong></td>
+                                <td>{{ registration.get_role_display_name() }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Applicant:</strong></td>
+                                <td>{{ registration.full_name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Organization:</strong></td>
+                                <td>{{ registration.organization_name or 'Individual Farmer' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Location:</strong></td>
+                                <td>{{ registration.lga }}, {{ registration.state }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Submitted:</strong></td>
+                                <td>{{ registration.completed_date.strftime('%B %d, %Y at %I:%M %p') if registration.completed_date else 'Just now' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Next Steps -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>What Happens Next?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success">
+                                <i class="fas fa-check text-white"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="text-success">Application Submitted</h6>
+                                <p class="text-muted mb-0">Your registration has been successfully submitted to LAFSINCO.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-warning">
+                                <i class="fas fa-clock text-white"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="text-warning">Under Review</h6>
+                                <p class="text-muted mb-0">Our team will review your application and verify the information provided. This typically takes 3-5 business days.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info">
+                                <i class="fas fa-phone text-white"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="text-info">Contact & Verification</h6>
+                                <p class="text-muted mb-0">We may contact you via phone ({{ registration.primary_phone }}) or email ({{ registration.email_address }}) for additional verification.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary">
+                                <i class="fas fa-certificate text-white"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="text-primary">Approval & Onboarding</h6>
+                                <p class="text-muted mb-0">Upon approval, you'll receive your official participation certificate and access to program benefits.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Important Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>Important Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Keep This Information Safe</h6>
+                        <ul class="mb-0">
+                            <li><strong>Registration ID:</strong> #PFL-{{ registration.id }}</li>
+                            <li><strong>Reference Number:</strong> {{ registration.program_tag }}/{{ registration.id }}/{{ registration.role.upper() }}</li>
+                            <li>You may be asked to provide this information during follow-up communications</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-phone me-2"></i>Contact Information</h6>
+                        <p class="mb-2">For inquiries about your application status:</p>
+                        <ul class="mb-0">
+                            <li><strong>Phone:</strong> +234-1-234-5678</li>
+                            <li><strong>Email:</strong> registration@lafsinco.gov.ng</li>
+                            <li><strong>Office Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="text-center">
+                <a href="{{ url_for('onboarding_status') }}" class="btn btn-primary me-3">
+                    <i class="fas fa-eye me-2"></i>Check Status
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>Go to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 3rem;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 2rem;
+    height: calc(100% + 1rem);
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -3rem;
+    top: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-content {
+    padding-left: 1rem;
+}
+
+.success-icon {
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+</style>
+{% endblock %}

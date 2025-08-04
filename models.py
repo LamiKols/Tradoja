@@ -70,6 +70,7 @@ class ProduceLagosRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     role = db.Column(db.String(30), nullable=False)  # Full role selection
+    program_tag = db.Column(db.String(100), default='LAFSINCO/Produce for Lagos Registration')  # Program identification tag
     
     # Progress tracking
     registration_status = db.Column(db.String(20), default='in_progress')  # 'in_progress', 'completed', 'pending_approval', 'approved', 'rejected'
