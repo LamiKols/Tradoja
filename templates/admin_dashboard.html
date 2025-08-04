@@ -220,6 +220,49 @@
         </div>
     </div>
 
+    <!-- SMS Gateway Management -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sms me-2"></i>SMS Gateway
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Rural farmer SMS access via Africa's Talking</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin_sms_dashboard') }}" class="btn btn-info">
+                            <i class="fas fa-chart-line me-1"></i>SMS Dashboard
+                        </a>
+                        <a href="{{ url_for('admin_sms_test') }}" class="btn btn-outline-info">
+                            <i class="fas fa-test-tube me-1"></i>Test SMS
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-mobile-alt me-2"></i>SMS Commands
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Available farmer commands:</p>
+                    <ul class="list-unstyled small">
+                        <li><code>JOIN [name] [location] [crop]</code></li>
+                        <li><code>LIST [crop] [qty] [price]</code></li>
+                        <li><code>PRICE [crop]</code></li>
+                        <li><code>HELP</code> - Show commands</li>
+                        <li><code>STOP</code> - Unsubscribe</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- System Information -->
     <div class="row mt-4">
         <div class="col-12">

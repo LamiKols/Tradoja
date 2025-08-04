@@ -2,7 +2,7 @@ from flask import render_template, url_for, flash, redirect, request, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
@@ -15,6 +15,18 @@ from config import PRODUCE_IMAGE_MAP, DEFAULT_PRODUCE_IMAGE
 weather_service = WeatherService()
 trade_service = TradeDataService()
 gi_service = GIService()
+
+# Initialize SMS service
+try:
+    from sms_service import SMSService
+    # Use environment variables for Africa's Talking credentials
+    sms_service = SMSService(
+        username=os.environ.get('AFRICASTALKING_USERNAME', 'sandbox'),
+        api_key=os.environ.get('AFRICASTALKING_API_KEY', '')
+    )
+except Exception as e:
+    app.logger.error(f"SMS service initialization failed: {e}")
+    sms_service = None
 
 @app.route('/')
 def home():
@@ -1540,6 +1552,126 @@ def download_certificate(listing_id):
     else:
         flash('Certificate file not found.', 'danger')
         return redirect(url_for('export_listing_detail', listing_id=listing_id))
+
+
+# SMS Integration Routes
+@app.route('/sms', methods=['POST'])
+def sms_webhook():
+    """Handle incoming SMS from Africa's Talking"""
+    if not sms_service:
+        app.logger.error("SMS service not available")
+        return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
+    
+    try:
+        # Get SMS data from Africa's Talking
+        phone_number = request.form.get('from')
+        message = request.form.get('text')
+        
+        if not phone_number or not message:
+            app.logger.error("Missing phone number or message in SMS webhook")
+            return jsonify({'status': 'error', 'message': 'Invalid SMS data'}), 400
+        
+        # Process the SMS
+        sms_service.process_incoming_sms(phone_number, message)
+        
+        return jsonify({'status': 'success', 'message': 'SMS processed'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"SMS webhook error: {e}")
+        return jsonify({'status': 'error', 'message': 'Processing failed'}), 500
+
+
+@app.route('/admin/sms-dashboard')
+@login_required
+def admin_sms_dashboard():
+    """Admin dashboard for SMS interactions and metrics"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if not sms_service:
+        flash('SMS service not available', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    try:
+        # Get SMS metrics
+        metrics = sms_service.get_sms_metrics()
+        
+        # Get recent SMS interactions
+        recent_sms = SMSInteraction.query.order_by(SMSInteraction.timestamp.desc()).limit(50).all()
+        
+        # Get SMS users
+        sms_users = User.query.filter(User.sms_enabled == True).all()
+        
+        return render_template('admin/sms_dashboard.html',
+                             title='SMS Dashboard',
+                             metrics=metrics,
+                             recent_sms=recent_sms,
+                             sms_users=sms_users)
+    except Exception as e:
+        app.logger.error(f"SMS dashboard error: {e}")
+        flash('Unable to load SMS dashboard', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/sms-test', methods=['GET', 'POST'])
+@login_required  
+def admin_sms_test():
+    """Admin SMS testing interface"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if not sms_service:
+        flash('SMS service not available', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            phone_number = request.form.get('phone_number')
+            message = request.form.get('message')
+            
+            if phone_number and message:
+                # Send test SMS
+                response = sms_service.send_sms(phone_number, message)
+                if response:
+                    flash(f'Test SMS sent to {phone_number}', 'success')
+                else:
+                    flash('Failed to send test SMS', 'error')
+            else:
+                flash('Phone number and message are required', 'error')
+                
+        except Exception as e:
+            app.logger.error(f"SMS test error: {e}")
+            flash('SMS test failed', 'error')
+    
+    return render_template('admin/sms_test.html', title='SMS Test Interface')
+
+
+@app.route('/admin/simulate-sms', methods=['POST'])
+@login_required
+def simulate_sms():
+    """Simulate incoming SMS for demo purposes"""
+    if not current_user.is_admin():
+        return jsonify({'status': 'error', 'message': 'Access denied'}), 403
+    
+    if not sms_service:
+        return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
+    
+    try:
+        phone_number = request.form.get('phone_number')
+        message = request.form.get('message')
+        
+        if phone_number and message:
+            # Process simulated SMS
+            sms_service.process_incoming_sms(phone_number, message)
+            return jsonify({'status': 'success', 'message': 'SMS simulated successfully'})
+        else:
+            return jsonify({'status': 'error', 'message': 'Phone number and message required'}), 400
+            
+    except Exception as e:
+        app.logger.error(f"SMS simulation error: {e}")
+        return jsonify({'status': 'error', 'message': 'Simulation failed'}), 500
 
 
 # Error handlers

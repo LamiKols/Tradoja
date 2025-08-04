@@ -427,3 +427,20 @@ class PrecisionField(db.Model):
     
     def __repr__(self):
         return f'<PrecisionField {self.field_name} - {self.crop_type} by {self.farmer.name}>'
+
+
+class SMSInteraction(db.Model):
+    """SMS interaction model for tracking Africa's Talking SMS communications"""
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), nullable=False)
+    message_type = db.Column(db.String(10), nullable=False)  # 'incoming' or 'outgoing'
+    content = db.Column(db.String(500))
+    status = db.Column(db.String(20), nullable=False)  # 'sent', 'received', 'failed'
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SMSInteraction {self.phone_number} - {self.message_type}>'
+    
+    def formatted_timestamp(self):
+        """Return formatted timestamp"""
+        return self.timestamp.strftime('%Y-%m-%d %H:%M:%S')

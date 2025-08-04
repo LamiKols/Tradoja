@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-sms me-2"></i>SMS Gateway Dashboard
+                </h1>
+                <div>
+                    <a href="{{ url_for('admin_sms_test') }}" class="btn btn-primary">
+                        <i class="fas fa-test-tube me-1"></i>Test SMS
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-2x text-primary mb-2"></i>
+                    <h3 class="mb-1">{{ metrics.total_sms_interactions or 0 }}</h3>
+                    <p class="text-muted mb-0">Total SMS Messages</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x text-success mb-2"></i>
+                    <h3 class="mb-1">{{ metrics.unique_sms_users or 0 }}</h3>
+                    <p class="text-muted mb-0">Unique SMS Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-2x text-warning mb-2"></i>
+                    <h3 class="mb-1">{{ metrics.sms_listings or 0 }}</h3>
+                    <p class="text-muted mb-0">Listings via SMS</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-2x text-info mb-2"></i>
+                    <h3 class="mb-1">{{ metrics.sms_listing_percentage or 0 }}%</h3>
+                    <p class="text-muted mb-0">SMS Adoption Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Command Usage Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h4 class="text-primary">{{ metrics.join_commands or 0 }}</h4>
+                                <p class="mb-0">JOIN Commands</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h4 class="text-success">{{ metrics.list_commands or 0 }}</h4>
+                                <p class="mb-0">LIST Commands</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h4 class="text-info">{{ metrics.price_commands or 0 }}</h4>
+                                <p class="mb-0">PRICE Commands</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h4 class="text-secondary">{{ (metrics.total_sms_interactions or 0) - (metrics.join_commands or 0) - (metrics.list_commands or 0) - (metrics.price_commands or 0) }}</h4>
+                                <p class="mb-0">Other Commands</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Users and Recent Messages -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>SMS Registered Users ({{ sms_users|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if sms_users %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Main Crop</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in sms_users %}
+                                <tr>
+                                    <td>{{ user.name }}</td>
+                                    <td>{{ user.phone_number or 'N/A' }}</td>
+                                    <td>{{ user.main_crop or 'N/A' }}</td>
+                                    <td>{{ user.location or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No SMS users registered yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent SMS Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_sms %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Phone</th>
+                                    <th>Type</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sms in recent_sms %}
+                                <tr>
+                                    <td><small>{{ sms.timestamp.strftime('%m/%d %H:%M') }}</small></td>
+                                    <td><small>{{ sms.phone_number[-8:] }}</small></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if sms.message_type == 'incoming' else 'secondary' }}">
+                                            {{ sms.message_type }}
+                                        </span>
+                                    </td>
+                                    <td><small>{{ sms.content[:30] + '...' if sms.content and sms.content|length > 30 else sms.content or 'N/A' }}</small></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if sms.status == 'sent' or sms.status == 'received' else 'danger' }}">
+                                            {{ sms.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No SMS activity yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Commands Help -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>SMS Commands Reference
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Farmer Commands:</h6>
+                            <ul class="list-unstyled">
+                                <li><code>JOIN [name] [location] [crop]</code> - Register farmer account</li>
+                                <li><code>LIST [crop] [quantity] [price]</code> - List produce for sale</li>
+                                <li><code>PRICE [crop]</code> - Check current market prices</li>
+                                <li><code>HELP</code> - Show available commands</li>
+                                <li><code>STOP</code> - Unsubscribe from SMS service</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">Examples:</h6>
+                            <ul class="list-unstyled">
+                                <li><code>JOIN John Lagos Tomatoes</code></li>
+                                <li><code>LIST TOMATOES 5T 150000</code></li>
+                                <li><code>LIST YAM 10KG 50000</code></li>
+                                <li><code>PRICE CASSAVA</code></li>
+                                <li><code>PRICE RICE</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

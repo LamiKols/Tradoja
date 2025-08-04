@@ -1,0 +1,45 @@
+Integrate Africa’s Talking SMS gateway into AgroLink to allow farmers without internet or smartphones to access the platform via SMS.
+
+Features to implement:
+
+1. **Farmer Registration via SMS**
+   - Farmers send `JOIN` to a provided number.
+   - System registers their phone number and prompts for name, location, and main crop via SMS dialogue.
+
+2. **Produce Listing via SMS**
+   - Farmers send `LIST [crop] [quantity] [price]` (e.g., `LIST YAM 10T 500000`) to list new produce.
+   - System parses the message and adds the produce to their AgroLink profile.
+
+3. **Market Price Check via SMS**
+   - Farmers send `PRICE [crop]` (e.g., `PRICE TOMATOES`) to receive current market prices.
+   - System looks up the crop in the database and replies with the latest price.
+
+4. **Order & Logistics Alerts**
+   - System automatically sends SMS updates for key actions (e.g., “Pickup scheduled for your produce”, “Payment received”, “CSA weather alert”).
+
+5. **Multilingual SMS Templates**
+   - Reply SMSes use templates in English, with placeholders for local language versions (Yoruba, Hausa, Pidgin, etc.) for future rollout.
+
+6. **Admin & Metrics Dashboard**
+   - Log every SMS interaction (phone number, action, timestamp, status) to the database.
+   - Track and display % of listings created via SMS and rural/urban adoption in admin dashboard.
+
+**Technical Instructions:**
+
+- Use the Africa’s Talking Python SDK.
+- Expose a `/sms` Flask endpoint to handle incoming POST requests from Africa’s Talking.
+- Parse incoming SMS for commands (`JOIN`, `LIST`, `PRICE`, etc.), extract and store data in SQLite or the main database.
+- Use Africa’s Talking SDK to send SMS replies.
+- Each farmer’s profile is linked to their phone number.
+- Add error handling for invalid commands, missing fields, and help messages.
+
+**Optional for Demo:**
+- Simulate a real farmer onboarding journey by sending example SMSes in the test dashboard.
+- Create an opt-out command: `STOP`.
+
+**References:**
+- Africa’s Talking [Python SDK](https://github.com/AfricasTalkingLtd/africastalking-python)
+- [SMS API Docs](https://africastalking.com/sms)
+- [Flask Example for Africa’s Talking SMS](https://docs.africastalking.com/sms/sandbox)
+
+**All SMS flows must be simple, fast, and usable by low-literacy farmers.**
