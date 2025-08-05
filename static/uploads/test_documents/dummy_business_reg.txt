@@ -1,0 +1,11 @@
+BUSINESS REGISTRATION CERTIFICATE
+=================================
+
+Certificate of Incorporation
+Business Name: Ruth's Farm Enterprise
+Registration Number: RC123456
+Date of Incorporation: 01/01/2020
+Business Type: Sole Proprietorship
+Principal Activity: Agricultural Production
+
+Note: This is a dummy document for testing purposes only.
