@@ -170,10 +170,16 @@ def farmer_dashboard():
     
     # Check if farmer has completed Produce for Lagos onboarding
     registration = ProduceLagosRegistration.query.filter_by(user_id=current_user.id).first()
-    if not registration or registration.registration_status not in ['approved', 'completed']:
+    if not registration:
         # Redirect new farmers to complete onboarding
         flash('Welcome! Please complete your Produce for Lagos registration to access all features.', 'info')
         return redirect(url_for('onboarding_start'))
+    elif registration.registration_status == 'pending':
+        # Show pending approval message but allow dashboard access
+        flash('Your Produce for Lagos registration is under review. You have limited access until approved.', 'warning')
+    elif registration.registration_status == 'rejected':
+        flash('Your registration was rejected. Please contact support or resubmit your application.', 'danger')
+        return redirect(url_for('onboarding_status'))
     
     # Get farmer's produce listings
     produce_listings = Produce.query.filter_by(farmer_id=current_user.id).order_by(Produce.date_listed.desc()).all()
