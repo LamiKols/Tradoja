@@ -28,6 +28,12 @@ class RegistrationForm(FlaskForm):
         ('ngo_dev_partner', 'NGO/Development Partner'),
         ('buyer', 'Buyer')  # Keep buyer for backwards compatibility
     ], validators=[DataRequired()])
+    buyer_type = SelectField('Buyer Category', choices=[
+        ('retail_buyer', 'Retail Buyer'),
+        ('bulk_trader', 'Bulk Trader'),  
+        ('institutional_buyer', 'Institutional Buyer'),
+        ('agro_processor', 'Agro Processor')
+    ], validators=[Optional()])
     password = PasswordField('Password', validators=[
         DataRequired(), 
         Length(min=6, message="Password must be at least 6 characters long")
@@ -709,3 +715,137 @@ class BulkOnboardingForm(FlaskForm):
         FileAllowed(['csv'], 'Only CSV files allowed')
     ])
     submit = SubmitField('Upload Bulk Registration')
+
+
+class ProcessorOnboardingStep1Form(FlaskForm):
+    """Step 1: Business Information for Agro-Processors"""
+    business_name = StringField('Business Name', validators=[DataRequired(), Length(min=2, max=200)])
+    cac_number = StringField('CAC Registration Number', validators=[DataRequired(), Length(min=2, max=100)])
+    business_type = SelectField('Business Type', choices=[
+        ('sole_proprietorship', 'Sole Proprietorship'),
+        ('partnership', 'Partnership'),
+        ('limited_liability', 'Limited Liability Company'),
+        ('cooperative', 'Cooperative Society')
+    ], validators=[DataRequired()])
+    years_in_operation = IntegerField('Years in Operation', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    contact_person = StringField('Contact Person Name', validators=[DataRequired(), Length(min=2, max=200)])
+    contact_phone = StringField('Contact Phone Number', validators=[DataRequired(), Length(min=10, max=20)])
+    website = StringField('Website (Optional)', validators=[Optional(), Length(max=200)])
+
+
+class ProcessorOnboardingStep2Form(FlaskForm):
+    """Step 2: Processing Capacity and Products"""
+    processing_capacity_tpd = FloatField('Processing Capacity (Tons per Day)', validators=[DataRequired(), NumberRange(min=0.1, max=10000)])
+    products_processed = TextAreaField('Products Processed', validators=[DataRequired()], 
+                                     render_kw={'rows': 4, 'placeholder': 'e.g., cassava -> garri, flour; maize -> flour, starch'})
+    employees_count = IntegerField('Number of Employees', validators=[DataRequired(), NumberRange(min=1, max=10000)])
+    annual_processing_volume = FloatField('Annual Processing Volume (Tons)', validators=[Optional(), NumberRange(min=0)])
+
+
+class ProcessorOnboardingStep3Form(FlaskForm):
+    """Step 3: Plant Location and Logistics"""
+    plant_location_state = SelectField('Plant Location - State', choices=[], validators=[DataRequired()])
+    plant_location_lga = StringField('Plant Location - LGA', validators=[DataRequired(), Length(max=100)])
+    plant_address = TextAreaField('Complete Plant Address', validators=[DataRequired()], render_kw={'rows': 3})
+    storage_capacity = FloatField('Storage Capacity (Tons)', validators=[Optional(), NumberRange(min=0)])
+    has_cold_storage = BooleanField('Cold Storage Available')
+    transportation_fleet = SelectField('Transportation Fleet', choices=[
+        ('none', 'No Fleet - Use Third Party'),
+        ('small', 'Small Fleet (1-5 vehicles)'),
+        ('medium', 'Medium Fleet (6-20 vehicles)'),
+        ('large', 'Large Fleet (20+ vehicles)')
+    ], validators=[DataRequired()])
+    
+    def __init__(self, *args, **kwargs):
+        super(ProcessorOnboardingStep3Form, self).__init__(*args, **kwargs)
+        # Nigerian states
+        nigerian_states = [
+            ('abia', 'Abia'), ('adamawa', 'Adamawa'), ('akwa_ibom', 'Akwa Ibom'),
+            ('anambra', 'Anambra'), ('bauchi', 'Bauchi'), ('bayelsa', 'Bayelsa'),
+            ('benue', 'Benue'), ('borno', 'Borno'), ('cross_river', 'Cross River'),
+            ('delta', 'Delta'), ('ebonyi', 'Ebonyi'), ('edo', 'Edo'),
+            ('ekiti', 'Ekiti'), ('enugu', 'Enugu'), ('gombe', 'Gombe'),
+            ('imo', 'Imo'), ('jigawa', 'Jigawa'), ('kaduna', 'Kaduna'),
+            ('kano', 'Kano'), ('katsina', 'Katsina'), ('kebbi', 'Kebbi'),
+            ('kogi', 'Kogi'), ('kwara', 'Kwara'), ('lagos', 'Lagos'),
+            ('nasarawa', 'Nasarawa'), ('niger', 'Niger'), ('ogun', 'Ogun'),
+            ('ondo', 'Ondo'), ('osun', 'Osun'), ('oyo', 'Oyo'),
+            ('plateau', 'Plateau'), ('rivers', 'Rivers'), ('sokoto', 'Sokoto'),
+            ('taraba', 'Taraba'), ('yobe', 'Yobe'), ('zamfara', 'Zamfara'),
+            ('abuja', 'FCT Abuja')
+        ]
+        self.plant_location_state.choices = nigerian_states
+
+
+class ProcessorOnboardingStep4Form(FlaskForm):
+    """Step 4: Document Uploads"""
+    nafdac_permit_file = FileField('NAFDAC Permit/License', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    utility_docs_file = FileField('Utility Documents (Lease/Title, Power Bills)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    cac_certificate = FileField('CAC Certificate', validators=[
+        DataRequired(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    tax_clearance = FileField('Tax Clearance Certificate', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+
+
+class ProcessorOnboardingStep5Form(FlaskForm):
+    """Step 5: Banking and Final Details"""
+    bank_name = SelectField('Bank Name', choices=[
+        ('', 'Select Bank'),
+        ('access_bank', 'Access Bank'),
+        ('first_bank', 'First Bank'),
+        ('gtbank', 'Guaranty Trust Bank'),
+        ('uba', 'United Bank for Africa'),
+        ('zenith_bank', 'Zenith Bank'),
+        ('fidelity_bank', 'Fidelity Bank'),
+        ('union_bank', 'Union Bank'),
+        ('sterling_bank', 'Sterling Bank'),
+        ('stanbic_ibtc', 'Stanbic IBTC'),
+        ('fcmb', 'First City Monument Bank')
+    ], validators=[DataRequired()])
+    account_number = StringField('Account Number', validators=[DataRequired(), Length(min=10, max=10)])
+    account_name = StringField('Account Name', validators=[DataRequired(), Length(min=2, max=200)])
+    bvn = StringField('Bank Verification Number (BVN)', validators=[DataRequired(), Length(min=11, max=11)])
+    preferred_crops = TextAreaField('Preferred Crops for Sourcing', validators=[DataRequired()],
+                                   render_kw={'rows': 3, 'placeholder': 'e.g., cassava, maize, rice, yam'})
+
+
+class BOILoanApplicationForm(FlaskForm):
+    """BOI Loan Application Form"""
+    loan_amount_requested = FloatField('Loan Amount Requested (NGN)', validators=[
+        DataRequired(), 
+        NumberRange(min=500000, max=500000000, message="Loan amount must be between ₦500,000 and ₦500,000,000")
+    ])
+    purpose_of_loan = TextAreaField('Purpose of Loan', validators=[DataRequired()], 
+                                   render_kw={'rows': 4, 'placeholder': 'Detailed description of how the loan will be used'})
+    tenor_months = SelectField('Loan Tenor (Months)', choices=[
+        (12, '12 months'),
+        (18, '18 months'),
+        (24, '24 months'),
+        (36, '36 months'),
+        (48, '48 months'),
+        (60, '60 months')
+    ], coerce=int, validators=[DataRequired()])
+    collateral_description = TextAreaField('Collateral Description (Optional)', validators=[Optional()],
+                                         render_kw={'rows': 3, 'placeholder': 'Description of assets to be used as collateral'})
+    financials_file = FileField('Financial Statements/Bank Statements', validators=[
+        DataRequired(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    projections_file = FileField('Business Projections (Optional)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    supporting_docs_file = FileField('Supporting Documents (Optional)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])

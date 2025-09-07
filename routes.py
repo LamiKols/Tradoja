@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
 from gi_service import GIService
@@ -102,6 +102,11 @@ def register():
             email=form.email.data.lower(),
             role=form.role.data
         )
+        
+        # Set buyer_type if user is a buyer
+        if form.role.data == 'buyer' and form.buyer_type.data:
+            user.buyer_type = form.buyer_type.data
+        
         user.set_password(form.password.data)
         
         try:
@@ -3109,3 +3114,467 @@ def admin_export_registrations():
     response.headers['Content-Disposition'] = f'attachment; filename=produce_lagos_registrations_{datetime.utcnow().strftime("%Y%m%d")}.csv'
     
     return response
+
+
+# ==========================================
+# PROCESSOR ONBOARDING ROUTES
+# ==========================================
+
+@app.route('/processor/onboarding')
+@login_required
+def processor_onboarding_start():
+    """Start processor onboarding for agro-processors"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Check if processor profile already exists
+    profile = ProcessorProfile.query.filter_by(user_id=current_user.id).first()
+    if profile:
+        if profile.kyc_status == 'verified':
+            flash('Your processor profile is already verified!', 'success')
+            return redirect(url_for('processor_dashboard'))
+        else:
+            flash('Continue your processor profile setup.', 'info')
+            return redirect(url_for('processor_onboarding_step', step=1))
+    
+    return render_template('processor/onboarding_intro.html', title='Processor Onboarding')
+
+
+@app.route('/processor/onboarding/step/<int:step>', methods=['GET', 'POST'])
+@login_required
+def processor_onboarding_step(step):
+    """Multi-step processor onboarding process"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get or create processor profile
+    profile = ProcessorProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        profile = ProcessorProfile(user_id=current_user.id, business_name='', cac_number='', contact_phone='')
+        db.session.add(profile)
+        db.session.commit()
+    
+    if step == 1:
+        return processor_onboarding_step_1(profile)
+    elif step == 2:
+        return processor_onboarding_step_2(profile)
+    elif step == 3:
+        return processor_onboarding_step_3(profile)
+    elif step == 4:
+        return processor_onboarding_step_4(profile)
+    elif step == 5:
+        return processor_onboarding_step_5(profile)
+    else:
+        flash('Invalid step', 'error')
+        return redirect(url_for('processor_onboarding_start'))
+
+
+def processor_onboarding_step_1(profile):
+    """Step 1: Business Information"""
+    form = ProcessorOnboardingStep1Form()
+    
+    if form.validate_on_submit():
+        profile.business_name = form.business_name.data
+        profile.cac_number = form.cac_number.data
+        profile.contact_person = form.contact_person.data
+        profile.contact_phone = form.contact_phone.data
+        profile.website = form.website.data
+        profile.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Business information saved successfully!', 'success')
+        return redirect(url_for('processor_onboarding_step', step=2))
+    
+    # Pre-populate form with existing data
+    if profile.business_name:
+        form.business_name.data = profile.business_name
+        form.cac_number.data = profile.cac_number
+        form.contact_person.data = profile.contact_person
+        form.contact_phone.data = profile.contact_phone
+        form.website.data = profile.website
+    
+    return render_template('processor/onboarding_step_1.html', form=form, step=1, title='Business Information')
+
+
+def processor_onboarding_step_2(profile):
+    """Step 2: Processing Capacity and Products"""
+    form = ProcessorOnboardingStep2Form()
+    
+    if form.validate_on_submit():
+        profile.processing_capacity_tpd = form.processing_capacity_tpd.data
+        profile.products_processed = form.products_processed.data
+        profile.employees_count = form.employees_count.data
+        profile.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Processing capacity information saved successfully!', 'success')
+        return redirect(url_for('processor_onboarding_step', step=3))
+    
+    # Pre-populate form
+    if profile.processing_capacity_tpd:
+        form.processing_capacity_tpd.data = profile.processing_capacity_tpd
+        form.products_processed.data = profile.products_processed
+        form.employees_count.data = profile.employees_count
+    
+    return render_template('processor/onboarding_step_2.html', form=form, step=2, title='Processing Capacity')
+
+
+def processor_onboarding_step_3(profile):
+    """Step 3: Plant Location and Logistics"""
+    form = ProcessorOnboardingStep3Form()
+    
+    if form.validate_on_submit():
+        profile.plant_location_state = form.plant_location_state.data
+        profile.plant_location_lga = form.plant_location_lga.data
+        profile.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Location information saved successfully!', 'success')
+        return redirect(url_for('processor_onboarding_step', step=4))
+    
+    # Pre-populate form
+    if profile.plant_location_state:
+        form.plant_location_state.data = profile.plant_location_state
+        form.plant_location_lga.data = profile.plant_location_lga
+    
+    return render_template('processor/onboarding_step_3.html', form=form, step=3, title='Plant Location')
+
+
+def processor_onboarding_step_4(profile):
+    """Step 4: Document Uploads"""
+    form = ProcessorOnboardingStep4Form()
+    
+    if form.validate_on_submit():
+        upload_folder = 'static/uploads/processor'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Handle NAFDAC permit upload
+        if form.nafdac_permit_file.data:
+            filename = secure_filename(f"{current_user.id}_nafdac_{form.nafdac_permit_file.data.filename}")
+            filepath = os.path.join(upload_folder, 'nafdac', filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            form.nafdac_permit_file.data.save(filepath)
+            profile.nafdac_permit_file = filepath
+        
+        # Handle utility documents upload
+        if form.utility_docs_file.data:
+            filename = secure_filename(f"{current_user.id}_utility_{form.utility_docs_file.data.filename}")
+            filepath = os.path.join(upload_folder, 'utility', filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            form.utility_docs_file.data.save(filepath)
+            profile.utility_docs_file = filepath
+        
+        profile.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('Documents uploaded successfully!', 'success')
+        return redirect(url_for('processor_onboarding_step', step=5))
+    
+    return render_template('processor/onboarding_step_4.html', form=form, step=4, title='Document Uploads')
+
+
+def processor_onboarding_step_5(profile):
+    """Step 5: Banking and Final Details"""
+    form = ProcessorOnboardingStep5Form()
+    
+    if form.validate_on_submit():
+        profile.bank_name = form.bank_name.data
+        profile.account_number = form.account_number.data
+        profile.kyc_status = 'pending'  # Submit for admin review
+        profile.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Processor profile submitted for review! You will be notified once approved.', 'success')
+        return redirect(url_for('processor_dashboard'))
+    
+    # Pre-populate form
+    if profile.bank_name:
+        form.bank_name.data = profile.bank_name
+        form.account_number.data = profile.account_number
+    
+    return render_template('processor/onboarding_step_5.html', form=form, step=5, title='Banking Information')
+
+
+@app.route('/processor/dashboard')
+@login_required
+def processor_dashboard():
+    """Processor dashboard with sourcing and loan features"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Check if processor profile exists
+    profile = ProcessorProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        flash('Please complete your processor profile setup first.', 'info')
+        return redirect(url_for('processor_onboarding_start'))
+    
+    # Get recent produce for sourcing
+    available_produce = Produce.query.filter_by(is_available=True, is_sold=False).order_by(Produce.date_listed.desc()).limit(10).all()
+    
+    # Get processor's loan applications
+    loan_applications = LoanApplication.query.filter_by(user_id=current_user.id).order_by(LoanApplication.created_at.desc()).limit(5).all()
+    
+    return render_template('processor/dashboard.html', 
+                         title='Processor Dashboard',
+                         profile=profile,
+                         available_produce=available_produce,
+                         loan_applications=loan_applications)
+
+
+# ==========================================
+# BOI LOAN APPLICATION ROUTES
+# ==========================================
+
+@app.route('/processor/boi-loan/apply')
+@login_required
+def boi_loan_intro():
+    """BOI Loan application intro with processing fee information"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Check if processor profile is verified
+    profile = ProcessorProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile or not profile.is_verified():
+        flash('Your processor profile must be verified before applying for loans.', 'warning')
+        return redirect(url_for('processor_dashboard'))
+    
+    return render_template('processor/boi_loan_intro.html', 
+                         title='BOI Loan Application',
+                         processing_fee=5000)
+
+
+@app.route('/processor/boi-loan/payment', methods=['POST'])
+@login_required
+def boi_loan_payment():
+    """Process BOI loan application processing fee payment"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Create draft loan application
+    profile = ProcessorProfile.query.filter_by(user_id=current_user.id).first()
+    loan_app = LoanApplication(
+        processor_id=profile.id,
+        user_id=current_user.id,
+        loan_amount_requested=0,  # Will be filled in later
+        purpose_of_loan='',  # Will be filled in later
+        tenor_months=12,  # Default value
+        status='payment_pending',
+        platform_fee_amount=5000.00
+    )
+    db.session.add(loan_app)
+    db.session.commit()
+    
+    if payment_service:
+        try:
+            # Generate payment reference
+            reference = payment_service.generate_reference("boi_loan_fee")
+            
+            # Initialize payment with Paystack
+            payment_data = payment_service.initialize_transaction(
+                email=current_user.email,
+                amount=5000.00,
+                reference=reference,
+                callback_url=url_for('boi_loan_payment_callback', _external=True),
+                metadata={
+                    'loan_application_id': loan_app.id,
+                    'user_id': current_user.id,
+                    'type': 'boi_loan_processing_fee'
+                }
+            )
+            
+            # Update loan application with payment reference
+            loan_app.payment_reference = reference
+            db.session.commit()
+            
+            return redirect(payment_data['data']['authorization_url'])
+            
+        except Exception as e:
+            app.logger.error(f"BOI loan payment initialization failed: {e}")
+            flash('Payment initialization failed. Please try again.', 'danger')
+            return redirect(url_for('boi_loan_intro'))
+    else:
+        flash('Payment service not available. Please try again later.', 'danger')
+        return redirect(url_for('boi_loan_intro'))
+
+
+@app.route('/processor/boi-loan/payment/callback')
+@login_required
+def boi_loan_payment_callback():
+    """Handle BOI loan payment callback from Paystack"""
+    reference = request.args.get('reference')
+    
+    if not reference:
+        flash('Payment verification failed. Invalid reference.', 'danger')
+        return redirect(url_for('processor_dashboard'))
+    
+    # Find loan application by payment reference
+    loan_app = LoanApplication.query.filter_by(payment_reference=reference).first()
+    if not loan_app:
+        flash('Loan application not found.', 'danger')
+        return redirect(url_for('processor_dashboard'))
+    
+    if payment_service:
+        try:
+            # Verify payment with Paystack
+            verification_result = payment_service.verify_transaction(reference)
+            
+            if verification_result['status'] and verification_result['data']['status'] == 'success':
+                # Payment successful
+                loan_app.platform_fee_status = 'paid'
+                loan_app.payment_date = datetime.utcnow()
+                loan_app.status = 'draft'  # Now user can fill out loan form
+                db.session.commit()
+                
+                flash('Processing fee payment successful! You can now complete your loan application.', 'success')
+                return redirect(url_for('boi_loan_application', loan_id=loan_app.id))
+            else:
+                # Payment failed
+                loan_app.platform_fee_status = 'failed'
+                db.session.commit()
+                
+                flash('Payment verification failed. Please try again.', 'danger')
+                return redirect(url_for('boi_loan_intro'))
+                
+        except Exception as e:
+            app.logger.error(f"BOI loan payment verification failed: {e}")
+            flash('Payment verification failed. Please contact support.', 'danger')
+            return redirect(url_for('processor_dashboard'))
+    else:
+        flash('Payment service not available. Please contact support.', 'danger')
+        return redirect(url_for('processor_dashboard'))
+
+
+@app.route('/processor/boi-loan/application/<int:loan_id>', methods=['GET', 'POST'])
+@login_required
+def boi_loan_application(loan_id):
+    """BOI Loan application form (unlocked after payment)"""
+    if not current_user.is_agro_processor():
+        flash('Access denied. Agro-processors only.', 'danger')
+        return redirect(url_for('home'))
+    
+    loan_app = LoanApplication.query.get_or_404(loan_id)
+    
+    # Verify ownership and payment status
+    if loan_app.user_id != current_user.id:
+        abort(403)
+    
+    if not loan_app.is_payment_completed():
+        flash('Processing fee payment required before completing application.', 'warning')
+        return redirect(url_for('boi_loan_intro'))
+    
+    form = BOILoanApplicationForm()
+    
+    if form.validate_on_submit():
+        # Update loan application with form data
+        loan_app.loan_amount_requested = form.loan_amount_requested.data
+        loan_app.purpose_of_loan = form.purpose_of_loan.data
+        loan_app.tenor_months = form.tenor_months.data
+        loan_app.collateral_description = form.collateral_description.data
+        
+        # Handle file uploads
+        upload_folder = 'static/uploads/loans'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        if form.financials_file.data:
+            filename = secure_filename(f"{current_user.id}_financials_{form.financials_file.data.filename}")
+            filepath = os.path.join(upload_folder, 'financials', filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            form.financials_file.data.save(filepath)
+            loan_app.financials_file = filepath
+        
+        if form.projections_file.data:
+            filename = secure_filename(f"{current_user.id}_projections_{form.projections_file.data.filename}")
+            filepath = os.path.join(upload_folder, 'projections', filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            form.projections_file.data.save(filepath)
+            loan_app.projections_file = filepath
+        
+        if form.supporting_docs_file.data:
+            filename = secure_filename(f"{current_user.id}_supporting_{form.supporting_docs_file.data.filename}")
+            filepath = os.path.join(upload_folder, 'supporting', filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            form.supporting_docs_file.data.save(filepath)
+            loan_app.supporting_docs_file = filepath
+        
+        # Generate AgroLink data snapshot
+        snapshot_data = generate_agrolink_data_snapshot(current_user.id)
+        loan_app.set_agrolink_data_snapshot(snapshot_data)
+        
+        # Submit application
+        loan_app.status = 'submitted'
+        loan_app.submitted_at = datetime.utcnow()
+        loan_app.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        flash('BOI loan application submitted successfully! You will be notified of the review outcome.', 'success')
+        return redirect(url_for('processor_dashboard'))
+    
+    # Pre-populate form if data exists
+    if loan_app.loan_amount_requested:
+        form.loan_amount_requested.data = loan_app.loan_amount_requested
+        form.purpose_of_loan.data = loan_app.purpose_of_loan
+        form.tenor_months.data = loan_app.tenor_months
+        form.collateral_description.data = loan_app.collateral_description
+    
+    return render_template('processor/boi_loan_application.html', 
+                         form=form, 
+                         loan_app=loan_app,
+                         title='BOI Loan Application')
+
+
+def generate_agrolink_data_snapshot(user_id):
+    """Generate AgroLink data snapshot for loan applications"""
+    try:
+        # Get transaction history (last 12 months)
+        cutoff_date = datetime.utcnow() - timedelta(days=365)
+        transactions = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.created_at >= cutoff_date,
+            Transaction.status == 'successful'
+        ).all()
+        
+        # Calculate metrics
+        total_transactions = len(transactions)
+        total_value = sum(t.total_amount for t in transactions)
+        avg_monthly_volume = total_value / 12 if total_value > 0 else 0
+        
+        # Get produce interactions (as buyer)
+        produce_purchased = Produce.query.filter_by(buyer_id=user_id).all()
+        
+        snapshot = {
+            'snapshot_date': datetime.utcnow().isoformat(),
+            'period': '12_months',
+            'transaction_summary': {
+                'total_transactions': total_transactions,
+                'total_trade_value_ngn': total_value,
+                'average_monthly_value_ngn': avg_monthly_volume,
+                'transaction_types': list(set(t.transaction_type for t in transactions))
+            },
+            'sourcing_activity': {
+                'total_produce_purchased': len(produce_purchased),
+                'primary_crops': list(set(p.name for p in produce_purchased)),
+                'supplier_states': list(set(p.farmer.name if hasattr(p, 'farmer') else 'Unknown' for p in produce_purchased))
+            },
+            'platform_engagement': {
+                'registration_date': user_id,  # This would be actual user registration date
+                'last_activity': datetime.utcnow().isoformat(),
+                'profile_completion': 'complete'
+            }
+        }
+        
+        return snapshot
+    except Exception as e:
+        app.logger.error(f"Error generating AgroLink data snapshot: {e}")
+        return {
+            'snapshot_date': datetime.utcnow().isoformat(),
+            'error': 'Unable to generate complete snapshot',
+            'basic_info': {
+                'user_id': user_id,
+                'snapshot_requested': True
+            }
+        }
