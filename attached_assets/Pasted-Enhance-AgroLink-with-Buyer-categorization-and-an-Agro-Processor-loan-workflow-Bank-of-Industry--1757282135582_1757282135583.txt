@@ -1,0 +1,141 @@
+Enhance AgroLink with Buyer categorization and an Agro-Processor loan workflow (Bank of Industry).
+
+Context:
+- Stack: Flask, SQLAlchemy, Jinja/Bootstrap, existing auth (Flask-Login), admin dashboards, SMS optional.
+- We already have universal onboarding and role-based auth (farmer, buyer, admin, etc.). Extend “buyer” into sub-types.
+
+Goals:
+1) Buyer Sub-Types
+   - Add a field `buyer_type` to the Buyer profile with enum/choices:
+     ["retail_buyer", "bulk_trader", "institutional_buyer", "agro_processor"].
+   - Update Buyer registration/onboarding UI to include a “Buyer Category” step.
+   - Persist `buyer_type` in DB and surface in dashboards/filters.
+   - Backfill/migrate existing buyers to "retail_buyer" (safe default) if null.
+
+2) Agro-Processor Onboarding (only when buyer_type == "agro_processor")
+   - Create a ProcessorProfile model linked 1:1 to User (or Buyer):
+       fields:
+         business_name (str, required)
+         cac_number (str, required)
+         processing_capacity_tpd (float, tons/day)
+         plant_location_state (str)
+         plant_location_lga (str)
+         products_processed (text)  # e.g., cassava->garri, maize->flour
+         employees_count (int)
+         nafdac_permit_file (file, optional)
+         utility_docs_file (file, optional)  # e.g., lease/title, power bill
+         bank_name (str, optional)
+         account_number (str, optional)
+         contact_person (str, optional)
+         contact_phone (str, required)
+         website (str, optional)
+         kyc_status (enum: pending, verified, rejected; default: pending)
+         created_at/updated_at
+   - Build a multi-step onboarding wizard for processors (Bootstrap):
+       Step 1: Business info + CAC
+       Step 2: Capacity & products
+       Step 3: Plant location (state/LGA) + employees
+       Step 4: Uploads (NAFDAC permit, utility docs)
+       Step 5: Banking/contact + review & submit
+     Include save-and-continue using your existing progress mechanism.
+   - Add processor dashboard section with:
+       - “Sourcing” tab: filter farmers/aggregators by crop, volume, state, price.
+       - “Contracts” quick actions (request offtake, message seller, request logistics).
+
+3) BOI Loan Application Module (for processors)
+   - Create LoanApplication model linked to ProcessorProfile and User:
+       fields:
+         processor_id (fk)
+         loan_amount_requested (decimal)
+         purpose_of_loan (text)           # e.g., working capital, equipment
+         tenor_months (int)
+         collateral_description (text)    # optional
+         financials_file (file)           # upload P&L or bank statements
+         projections_file (file)          # optional
+         supporting_docs_file (file)      # optional bundle
+         agrolink_data_snapshot_json (json)  # auto-filled transactions, sourcing, capacity
+         status (enum: draft, submitted, under_review, approved, declined)
+         reviewer_comments (text)
+         created_at/updated_at
+   - Add “Apply for BOI Loan” button on the processor dashboard that launches a loan wizard:
+       Step A: Pre-fill business info from ProcessorProfile (read-only)
+       Step B: Loan details (amount, tenor, purpose)
+       Step C: Upload docs (financials, projections, supporting)
+       Step D: Auto-attach “AgroLink data snapshot”:
+          - last 6–12 months aggregate: number_of_orders, total_volume_sourced (tons),
+            total_trade_value (NGN), average_monthly_volume, primary_crops_sourced,
+            top supplier LGAs, logistics usage stats (if available).
+          - Store as JSON on submission for audit reproducibility.
+       Step E: Review & submit (status -> submitted)
+   - Processor can track application status in a “Loans” tab.
+   - Admin panel:
+       - New “BOI Applications” view with filters (status, state, amount).
+       - Detail page to review app, download docs, view snapshot JSON, leave reviewer comments, and set status.
+       - Export CSV/PDF of applications for BOI handoff.
+   - Add a PDF/CSV export service that composes a BOI-readable pack:
+       - Cover sheet (business + contact + CAC + location)
+       - Loan details (amount/tenor/purpose/collateral)
+       - Snapshot summary (key metrics)
+       - Links to/downloads of attachments
+     Provide a single ZIP export for each application.
+
+4) Permissions & Navigation
+   - Show “Processor Setup” and “BOI Loans” only for users with buyer_type == "agro_processor".
+   - Add Admin menu: “Processors (KYC)” and “BOI Applications”.
+   - Add buyer filters everywhere to include `buyer_type`.
+
+5) Data Model & Migrations
+   - Create Alembic migration(s):
+       - Add `buyer_type` to users/buyer_profile table (default=null).
+       - Create `processor_profile` table.
+       - Create `loan_applications` table.
+   - Backfill existing buyers to `retail_buyer` by default.
+
+6) File Uploads & Storage
+   - Reuse existing uploads infra. Create subfolders:
+       /uploads/processor/nafdac/
+       /uploads/processor/utility/
+       /uploads/loans/financials/
+       /uploads/loans/projections/
+       /uploads/loans/supporting/
+   - Validate file types (pdf, jpg, png), size limits, and secure filenames.
+
+7) UI/UX Details
+   - Use Bootstrap cards and progress indicators for both wizards.
+   - Add “Continue Later” and “Save Draft” for both onboarding and loan apps.
+   - Add clear help text on what BOI typically expects (non-binding guidance).
+   - Surface compliance badges:
+       - “Processor KYC: Pending/Verified”
+       - “BOI Application: Under Review/Approved”
+   - In the Sourcing tab, show quick filters for crops that map to processor’s “products_processed”.
+
+8) Admin & Reporting
+   - Admin list pages with search, sort, filter by state/LGA, status, date.
+   - Aggregate metrics cards:
+       - # Verified processors
+       - Total processing capacity (TPD)
+       - # BOI applications by status
+       - Total requested amount vs approved
+   - Exports: CSV for grid views, per-app ZIP.
+
+9) Hooks to Existing Features
+   - Messaging: enable “Contact Supplier” from processor sourcing cards.
+   - Logistics: add “Request Logistics” from sourcing/contract screens.
+   - Monetization:
+       - Processors can be premium subscribers (gated advanced sourcing analytics).
+       - Optional: small “loan facilitation” fee after approval (future toggle).
+
+10) Testing
+   - Seed one processor user and walk through:
+       - Select “Agro Processor” during buyer onboarding.
+       - Complete processor profile.
+       - Browse sourcing list, initiate messages.
+       - Submit a BOI loan app with dummy files.
+       - Verify admin can review, change status, export ZIP.
+   - Verify permissions (non-processors cannot access processor-only routes).
+
+Deliverables:
+- DB models, migrations, services for snapshots/exports.
+- Routes, templates, forms, and admin views.
+- Navigation updates and role guards.
+- Basic unit tests for model validation and permissions.

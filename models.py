@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,6 +11,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(30), nullable=False)  # Extended roles for Lagos program
+    buyer_type = db.Column(db.String(30))  # 'retail_buyer', 'bulk_trader', 'institutional_buyer', 'agro_processor'
     registration_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     # SMS integration fields
@@ -52,6 +53,20 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is an admin"""
         return self.role == 'admin'
+    
+    def is_agro_processor(self):
+        """Check if user is an agro-processor"""
+        return self.role == 'buyer' and self.buyer_type == 'agro_processor'
+    
+    def get_buyer_type_display(self):
+        """Get human-readable buyer type"""
+        buyer_types = {
+            'retail_buyer': 'Retail Buyer',
+            'bulk_trader': 'Bulk Trader',
+            'institutional_buyer': 'Institutional Buyer',
+            'agro_processor': 'Agro Processor'
+        }
+        return buyer_types.get(self.buyer_type, 'Buyer')
         
     def has_premium_access(self):
         """Check if user has active premium subscription"""
@@ -747,7 +762,7 @@ class MatchRecommendation(db.Model):
     
     def formatted_timestamp(self):
         """Return formatted timestamp"""
-        return self.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        return self.sent_at.strftime('%Y-%m-%d %H:%M:%S')
 
 
 class Transaction(db.Model):
@@ -847,3 +862,140 @@ class PaymentLog(db.Model):
     
     def __repr__(self):
         return f'<PaymentLog {self.transaction_id}: {self.event_type}>'
+
+
+class ProcessorProfile(db.Model):
+    """Agro-processor profile with business details and KYC information"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Business Information
+    business_name = db.Column(db.String(200), nullable=False)
+    cac_number = db.Column(db.String(100), nullable=False)
+    processing_capacity_tpd = db.Column(db.Float)  # Tons per day
+    plant_location_state = db.Column(db.String(50))
+    plant_location_lga = db.Column(db.String(100))
+    products_processed = db.Column(db.Text)  # e.g., cassava->garri, maize->flour
+    employees_count = db.Column(db.Integer)
+    
+    # Document uploads
+    nafdac_permit_file = db.Column(db.String(255))  # File path
+    utility_docs_file = db.Column(db.String(255))   # File path
+    
+    # Banking and contact details
+    bank_name = db.Column(db.String(100))
+    account_number = db.Column(db.String(20))
+    contact_person = db.Column(db.String(200))
+    contact_phone = db.Column(db.String(20), nullable=False)
+    website = db.Column(db.String(200))
+    
+    # KYC status
+    kyc_status = db.Column(db.String(20), default='pending')  # 'pending', 'verified', 'rejected'
+    admin_comment = db.Column(db.Text)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='processor_profile')
+    
+    def get_kyc_status_badge_class(self):
+        """Return Bootstrap badge class for KYC status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'verified': 'bg-success',
+            'rejected': 'bg-danger'
+        }
+        return status_classes.get(self.kyc_status, 'bg-secondary')
+    
+    def is_verified(self):
+        """Check if processor KYC is verified"""
+        return self.kyc_status == 'verified'
+    
+    def __repr__(self):
+        return f'<ProcessorProfile {self.business_name}>'
+
+
+class LoanApplication(db.Model):
+    """BOI Loan Application with payment processing fee tracking"""
+    id = db.Column(db.Integer, primary_key=True)
+    processor_id = db.Column(db.Integer, db.ForeignKey('processor_profile.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # For quick lookups
+    
+    # Loan details
+    loan_amount_requested = db.Column(db.Float, nullable=False)
+    purpose_of_loan = db.Column(db.Text, nullable=False)
+    tenor_months = db.Column(db.Integer, nullable=False)
+    collateral_description = db.Column(db.Text)
+    
+    # Document uploads
+    financials_file = db.Column(db.String(255))      # P&L or bank statements
+    projections_file = db.Column(db.String(255))     # Business projections
+    supporting_docs_file = db.Column(db.String(255)) # Additional documents
+    
+    # AgroLink data snapshot (auto-generated)
+    agrolink_data_snapshot_json = db.Column(db.Text)  # JSON data about trading activity
+    
+    # Application status
+    status = db.Column(db.String(20), default='draft')  # 'draft', 'payment_pending', 'submitted', 'under_review', 'approved', 'declined'
+    reviewer_comments = db.Column(db.Text)
+    
+    # Processing fee payment tracking
+    platform_fee_amount = db.Column(db.Float, default=5000.00)  # ₦5,000 processing fee
+    platform_fee_status = db.Column(db.String(20), default='pending')  # 'pending', 'paid', 'failed'
+    payment_reference = db.Column(db.String(100))  # Paystack reference
+    payment_date = db.Column(db.DateTime)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime)
+    
+    # Relationships
+    processor = db.relationship('ProcessorProfile', backref='loan_applications')
+    user = db.relationship('User', backref='loan_applications')
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for application status"""
+        status_classes = {
+            'draft': 'bg-secondary',
+            'payment_pending': 'bg-warning',
+            'submitted': 'bg-info',
+            'under_review': 'bg-primary',
+            'approved': 'bg-success',
+            'declined': 'bg-danger'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def get_payment_status_badge_class(self):
+        """Return Bootstrap badge class for payment status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'paid': 'bg-success',
+            'failed': 'bg-danger'
+        }
+        return status_classes.get(self.platform_fee_status, 'bg-secondary')
+    
+    def is_payment_completed(self):
+        """Check if processing fee has been paid"""
+        return self.platform_fee_status == 'paid'
+    
+    def can_submit_application(self):
+        """Check if application can be submitted (payment completed)"""
+        return self.is_payment_completed() and self.status in ['draft', 'payment_pending']
+    
+    def get_agrolink_data_snapshot(self):
+        """Parse AgroLink data snapshot from JSON"""
+        if self.agrolink_data_snapshot_json:
+            import json
+            return json.loads(self.agrolink_data_snapshot_json)
+        return {}
+    
+    def set_agrolink_data_snapshot(self, data):
+        """Store AgroLink data snapshot as JSON"""
+        import json
+        self.agrolink_data_snapshot_json = json.dumps(data)
+    
+    def __repr__(self):
+        return f'<LoanApplication {self.id}: ₦{self.loan_amount_requested:,.0f}>'
