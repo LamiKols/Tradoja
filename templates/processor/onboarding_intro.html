@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-industry fa-4x text-primary mb-3"></i>
+                        <h1 class="fw-bold text-primary">Agro-Processor Setup</h1>
+                        <p class="lead text-muted">Complete your processor profile to access sourcing and financing opportunities</p>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3 mb-3">
+                                <i class="fas fa-building fa-2x text-primary mb-2"></i>
+                                <h6>Business Info</h6>
+                                <small class="text-muted">Company details and registration</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3 mb-3">
+                                <i class="fas fa-cogs fa-2x text-success mb-2"></i>
+                                <h6>Processing Capacity</h6>
+                                <small class="text-muted">Facility specifications</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3 mb-3">
+                                <i class="fas fa-money-bill-wave fa-2x text-warning mb-2"></i>
+                                <h6>BOI Loans</h6>
+                                <small class="text-muted">Access financing opportunities</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>What you'll gain:</h6>
+                        <ul class="mb-0">
+                            <li><strong>Direct Sourcing:</strong> Access to fresh produce from verified farmers</li>
+                            <li><strong>BOI Loan Access:</strong> Apply for Bank of Industry financing (KYC verification required)</li>
+                            <li><strong>Market Analytics:</strong> Data insights on crop availability and pricing</li>
+                            <li><strong>Logistics Support:</strong> Delivery and pickup coordination services</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Required Documents:</h6>
+                        <ul class="mb-0">
+                            <li>CAC Certificate (Corporate Affairs Commission)</li>
+                            <li>NAFDAC Permit/License (if applicable)</li>
+                            <li>Utility Documents (Lease agreement or title documents)</li>
+                            <li>Tax Clearance Certificate (optional but recommended)</li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center">
+                        <a href="{{ url_for('processor_onboarding_step', step=1) }}" class="btn btn-primary btn-lg px-4">
+                            <i class="fas fa-play me-2"></i>Start Setup Process
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            Setup takes about 10-15 minutes. You can save your progress and continue later.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

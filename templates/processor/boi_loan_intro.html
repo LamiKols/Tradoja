@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-university fa-4x text-warning mb-3"></i>
+                        <h1 class="fw-bold text-warning">Bank of Industry Loan Application</h1>
+                        <p class="lead text-muted">Access competitive financing for your agro-processing business</p>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded p-4 h-100">
+                                <h5><i class="fas fa-percentage text-success me-2"></i>Competitive Rates</h5>
+                                <ul class="mb-0">
+                                    <li>Interest rates from 5% per annum</li>
+                                    <li>Flexible repayment terms (12-60 months)</li>
+                                    <li>Grace period options available</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded p-4 h-100">
+                                <h5><i class="fas fa-money-bill-wave text-primary me-2"></i>Loan Amounts</h5>
+                                <ul class="mb-0">
+                                    <li>Minimum: ₦500,000</li>
+                                    <li>Maximum: ₦500,000,000</li>
+                                    <li>Based on processing capacity</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning border-warning">
+                        <h5><i class="fas fa-credit-card me-2"></i>Processing Fee Required</h5>
+                        <p class="mb-2">
+                            A non-refundable processing fee of <strong>₦{{ "{:,.2f}".format(processing_fee) }}</strong> is required before accessing the loan application form.
+                        </p>
+                        <small class="text-muted">
+                            This fee covers application processing, document review, and AgroLink transaction analysis.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-info border-info">
+                        <h6><i class="fas fa-chart-line me-2"></i>AgroLink Data Advantage</h6>
+                        <p class="mb-0">
+                            Your application will include an automatic data snapshot of your AgroLink trading history, 
+                            including transaction volume, sourcing patterns, and supplier relationships. This enhances 
+                            your creditworthiness assessment.
+                        </p>
+                    </div>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h6><i class="fas fa-list-check me-2"></i>Application Process</h6>
+                            <div class="row">
+                                <div class="col-md-3 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-primary rounded-circle p-2 fs-6">1</span>
+                                    </div>
+                                    <small>Pay Processing Fee</small>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-secondary rounded-circle p-2 fs-6">2</span>
+                                    </div>
+                                    <small>Complete Application</small>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-info rounded-circle p-2 fs-6">3</span>
+                                    </div>
+                                    <small>Document Review</small>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-success rounded-circle p-2 fs-6">4</span>
+                                    </div>
+                                    <small>Loan Approval</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <form method="POST" action="{{ url_for('boi_loan_payment') }}">
+                            {{ csrf_token() }}
+                            <button type="submit" class="btn btn-warning btn-lg px-4">
+                                <i class="fas fa-credit-card me-2"></i>
+                                Pay ₦{{ "{:,.2f}".format(processing_fee) }} & Start Application
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Secure payment processed via Paystack. You will be redirected to complete payment.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
