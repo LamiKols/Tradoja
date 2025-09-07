@@ -46,7 +46,7 @@
                             <label for="{{ form.role.id }}" class="form-label">
                                 <i class="fas fa-users me-1"></i>{{ form.role.label.text }}
                             </label>
-                            {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
+                            {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else ""), id="role-select") }}
                             {% if form.role.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.role.errors %}{{ error }}{% endfor %}
@@ -55,6 +55,25 @@
                             <div class="form-text">
                                 <strong>Farmer:</strong> List and manage produce<br>
                                 <strong>Buyer:</strong> Browse and purchase produce
+                            </div>
+                        </div>
+                        
+                        <!-- Buyer Type Field (conditional) -->
+                        <div class="mb-3" id="buyer-type-section" style="display: none;">
+                            <label for="{{ form.buyer_type.id }}" class="form-label">
+                                <i class="fas fa-tag me-1"></i>{{ form.buyer_type.label.text }}
+                            </label>
+                            {{ form.buyer_type(class="form-select" + (" is-invalid" if form.buyer_type.errors else "")) }}
+                            {% if form.buyer_type.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.buyer_type.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                <strong>Retail Buyer:</strong> Small-scale purchases for retail<br>
+                                <strong>Bulk Trader:</strong> Large volume trading operations<br>
+                                <strong>Institutional Buyer:</strong> Schools, hospitals, corporations<br>
+                                <strong>Agro Processor:</strong> Food processing and value addition
                             </div>
                         </div>
                         
@@ -103,4 +122,25 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role-select');
+    const buyerTypeSection = document.getElementById('buyer-type-section');
+    
+    function toggleBuyerTypeSection() {
+        if (roleSelect.value === 'buyer') {
+            buyerTypeSection.style.display = 'block';
+        } else {
+            buyerTypeSection.style.display = 'none';
+        }
+    }
+    
+    // Initial check
+    toggleBuyerTypeSection();
+    
+    // Listen for changes
+    roleSelect.addEventListener('change', toggleBuyerTypeSection);
+});
+</script>
 {% endblock %}

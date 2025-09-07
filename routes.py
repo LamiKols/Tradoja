@@ -229,6 +229,10 @@ def buyer_dashboard():
         flash('Access denied. Buyers only.', 'danger')
         return redirect(url_for('home'))
     
+    # Redirect agro-processors to their specific dashboard
+    if current_user.is_agro_processor():
+        return redirect(url_for('processor_dashboard'))
+    
     # Get buyer's recent purchases
     recent_purchases = Produce.query.filter_by(buyer_id=current_user.id).order_by(Produce.sale_date.desc()).limit(5).all()
     
