@@ -19,6 +19,15 @@ class User(UserMixin, db.Model):
     sms_enabled = db.Column(db.Boolean, default=False)
     sms_registration_date = db.Column(db.DateTime)
     
+    # Digital inclusion fields (USSD/WhatsApp/T2)
+    whatsapp_id = db.Column(db.String(50))  # WhatsApp phone ID
+    t2_customer_code = db.Column(db.String(100))  # T2/9mobile wallet customer code
+    t2_wallet_balance = db.Column(db.Float, default=0.0)  # T2 wallet balance in Naira
+    preferred_language = db.Column(db.String(10), default='en')  # en, yo, ha, pcm, ig
+    is_ussd_user = db.Column(db.Boolean, default=False)  # Registered via USSD
+    location = db.Column(db.String(200))  # Auto-filled from cell tower or manual
+    registered_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # If agent-assisted
+    
     # Subscription fields
     is_premium = db.Column(db.Boolean, default=False)
     subscription_start_date = db.Column(db.DateTime)
@@ -75,6 +84,21 @@ class User(UserMixin, db.Model):
         if self.subscription_end_date and self.subscription_end_date < datetime.utcnow():
             return False
         return True
+    
+    def is_agent(self):
+        """Check if user is an agent for assisted onboarding"""
+        return self.role == 'agent'
+    
+    def get_language_display(self):
+        """Get human-readable language name"""
+        languages = {
+            'en': 'English',
+            'yo': 'Yoruba',
+            'ha': 'Hausa',
+            'pcm': 'Pidgin',
+            'ig': 'Igbo'
+        }
+        return languages.get(self.preferred_language, 'English')
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -298,6 +322,10 @@ class Produce(db.Model):
     date_listed = db.Column(db.DateTime, default=datetime.utcnow)
     is_available = db.Column(db.Boolean, default=True)
     contact_method = db.Column(db.String(50), default='web')  # 'web', 'sms', 'phone'
+    
+    # Digital inclusion: source channel tracking
+    source_channel = db.Column(db.String(20), default='web')  # 'web', 'ussd', 'whatsapp', 'sms', 'agent'
+    listing_location = db.Column(db.String(200))  # Location from cell tower or manual entry
     
     # Geographical Indications (GI) fields
     gi_label = db.Column(db.String(200))  # e.g., "Ogun Cassava", "Ebonyi Rice"
@@ -692,6 +720,92 @@ class SMSInteraction(db.Model):
         return f'<SMSInteraction {self.phone_number} - {self.message_type}>'
 
 
+class USSDSession(db.Model):
+    """USSD session tracking for Africa's Talking and T2 USSD"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(100), unique=True, nullable=False)
+    phone_number = db.Column(db.String(20), nullable=False)
+    service_code = db.Column(db.String(20))  # e.g., *712*55#
+    provider = db.Column(db.String(20), default='africastalking')  # 'africastalking' or 't2'
+    
+    # Session state
+    current_menu = db.Column(db.String(50), default='main')  # Current menu level
+    current_step = db.Column(db.Integer, default=0)
+    session_data = db.Column(db.Text)  # JSON for temporary form data
+    
+    # User tracking
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    is_authenticated = db.Column(db.Boolean, default=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_activity = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime)
+    
+    # Relationship
+    user = db.relationship('User', backref='ussd_sessions')
+    
+    def get_session_data(self):
+        """Parse session data from JSON"""
+        if self.session_data:
+            import json
+            return json.loads(self.session_data)
+        return {}
+    
+    def set_session_data(self, data):
+        """Store session data as JSON"""
+        import json
+        self.session_data = json.dumps(data)
+    
+    def update_session_data(self, key, value):
+        """Update a single key in session data"""
+        data = self.get_session_data()
+        data[key] = value
+        self.set_session_data(data)
+    
+    def is_expired(self):
+        """Check if session has expired (USSD sessions typically expire after 5 minutes)"""
+        if self.ended_at:
+            return True
+        expiry_time = self.last_activity + timedelta(minutes=5)
+        return datetime.utcnow() > expiry_time
+    
+    def __repr__(self):
+        return f'<USSDSession {self.session_id} - {self.phone_number}>'
+
+
+class WhatsAppInteraction(db.Model):
+    """WhatsApp interaction tracking for Meta WhatsApp Cloud API"""
+    id = db.Column(db.Integer, primary_key=True)
+    wa_message_id = db.Column(db.String(100), unique=True)  # WhatsApp message ID
+    phone_number = db.Column(db.String(20), nullable=False)
+    message_type = db.Column(db.String(10), nullable=False)  # 'incoming' or 'outgoing'
+    content_type = db.Column(db.String(20), default='text')  # 'text', 'audio', 'image', 'template'
+    content = db.Column(db.Text)  # Message content or transcription
+    
+    # Voice message handling
+    is_voice_note = db.Column(db.Boolean, default=False)
+    voice_transcription = db.Column(db.Text)  # Transcribed text from voice note
+    detected_language = db.Column(db.String(10))  # Detected language from voice
+    
+    # Processing status
+    status = db.Column(db.String(20), default='received')  # 'received', 'processed', 'responded', 'failed'
+    processing_action = db.Column(db.String(50))  # What action was taken (e.g., 'listing_created')
+    
+    # User tracking
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Timestamps
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime)
+    
+    # Relationship
+    user = db.relationship('User', backref='whatsapp_interactions')
+    
+    def __repr__(self):
+        return f'<WhatsAppInteraction {self.phone_number} - {self.message_type}>'
+
+
 class MatchRecommendation(db.Model):
     """AI-powered marketplace matchmaking recommendations"""
     id = db.Column(db.Integer, primary_key=True)
@@ -780,9 +894,11 @@ class Transaction(db.Model):
     logistics_fee = db.Column(db.Float, default=0.0)
     total_amount = db.Column(db.Float, nullable=False)
     
-    # Payment status
+    # Payment method and status
+    payment_method = db.Column(db.String(30), default='paystack')  # 'paystack', 't2_wallet', 'cash_on_delivery'
     status = db.Column(db.String(20), default='pending')  # 'pending', 'successful', 'failed', 'cancelled'
     paystack_reference = db.Column(db.String(100))
+    t2_transaction_id = db.Column(db.String(100))  # T2 wallet transaction ID
     payment_date = db.Column(db.DateTime)
     
     # Related entities
