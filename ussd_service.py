@@ -30,7 +30,9 @@ class USSDService:
                 '4': 'balance',
                 '5': 'register',
                 '6': 'transport_jobs',
-                '7': 'register_buyer'
+                '7': 'register_buyer',
+                '8': 'register_agent',
+                '9': 'agent_menu'
             }
         },
         'list_produce': {
@@ -56,6 +58,27 @@ class USSDService:
         'register_buyer': {
             'steps': ['name', 'location', 'buyer_type'],
             'next': 'main'
+        },
+        'register_agent': {
+            'steps': ['name', 'location', 'referral_code'],
+            'next': 'main'
+        },
+        'agent_menu': {
+            'options': {
+                '1': 'agent_register_farmer',
+                '2': 'agent_register_buyer',
+                '3': 'agent_my_farmers',
+                '4': 'agent_earnings'
+            },
+            'next': 'main'
+        },
+        'agent_register_farmer': {
+            'steps': ['farmer_name', 'farmer_location', 'farmer_crop'],
+            'next': 'agent_menu'
+        },
+        'agent_register_buyer': {
+            'steps': ['buyer_name', 'buyer_location'],
+            'next': 'agent_menu'
         },
         'transport_jobs': {
             'options': {
@@ -100,7 +123,7 @@ class USSDService:
         """Lazy load database models to avoid circular imports"""
         if self.db is None:
             from app import db
-            from models import User, USSDSession, Produce, TransportProfile, LogisticsRequest, LogisticsBid
+            from models import User, USSDSession, Produce, TransportProfile, LogisticsRequest, LogisticsBid, AgentProfile
             self.db = db
             self.User = User
             self.USSDSession = USSDSession
@@ -108,6 +131,7 @@ class USSDService:
             self.TransportProfile = TransportProfile
             self.LogisticsRequest = LogisticsRequest
             self.LogisticsBid = LogisticsBid
+            self.AgentProfile = AgentProfile
     
     def process_request(
         self, 
@@ -244,6 +268,24 @@ class USSDService:
         elif session.current_menu == 'register_buyer':
             return self._handle_register_buyer(session, current_input, user, lang)
         
+        elif session.current_menu == 'register_agent':
+            return self._handle_register_agent(session, current_input, user, lang)
+        
+        elif session.current_menu == 'agent_menu':
+            return self._handle_agent_menu(session, current_input, user, lang)
+        
+        elif session.current_menu == 'agent_register_farmer':
+            return self._handle_agent_register_farmer(session, current_input, user, lang)
+        
+        elif session.current_menu == 'agent_register_buyer':
+            return self._handle_agent_register_buyer(session, current_input, user, lang)
+        
+        elif session.current_menu == 'agent_my_farmers':
+            return self._show_agent_farmers(session, user, lang)
+        
+        elif session.current_menu == 'agent_earnings':
+            return self._show_agent_earnings(session, user, lang)
+        
         elif session.current_menu == 'transport_balance':
             return self._show_transport_balance(session, user, lang)
         
@@ -304,6 +346,21 @@ class USSDService:
                 if user and user.role == 'buyer':
                     return get_message('already_buyer', lang), False
                 return get_message('register_buyer_name', lang), True
+            
+            elif target_menu == 'register_agent':
+                if user:
+                    profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+                    if profile:
+                        return get_message('already_agent', lang, agent_id=profile.agent_id), False
+                return get_message('register_agent_name', lang), True
+            
+            elif target_menu == 'agent_menu':
+                if not user:
+                    return get_message('register_agent_first', lang), False
+                profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+                if not profile:
+                    return get_message('register_agent_first', lang), False
+                return self._show_agent_menu(session, user, lang)
         
         return get_message('invalid_command', lang), True
     
@@ -851,6 +908,330 @@ class USSDService:
                 return get_message('error', lang), False
         
         return get_message('error', lang), False
+    
+    def _handle_register_agent(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle 3-step agent LITE registration via USSD"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            data['name'] = user_input.strip().title()
+            session.update_session_data('name', data['name'])
+            session.current_step = 1
+            return get_message('register_agent_location', lang), True
+        
+        elif step == 1:
+            data['lga'] = user_input.strip().title()
+            session.update_session_data('lga', data['lga'])
+            session.current_step = 2
+            return get_message('register_agent_referral', lang), True
+        
+        elif step == 2:
+            referral_code = user_input.strip() if user_input.strip() not in ('0', 'SKIP', 'skip', '') else None
+            
+            name = data.get('name')
+            lga = data.get('lga')
+            
+            if not name or not lga:
+                session.current_menu = 'main'
+                session.current_step = 0
+                return "Session expired. Please try again.\nDial *712*55# > 8", False
+            
+            try:
+                from werkzeug.security import generate_password_hash
+                
+                phone = session.phone_number
+                is_nysc = self.AgentProfile.is_valid_nysc_code(referral_code) if referral_code else False
+                
+                if user:
+                    user.role = 'agent'
+                    user.location = lga
+                    new_user = user
+                else:
+                    new_user = self.User(
+                        name=name,
+                        phone_number=phone,
+                        email=f"{phone.replace('+', '').replace('-', '')}@agent.agrolink.ng",
+                        role='agent',
+                        is_ussd_user=True,
+                        source_channel='ussd',
+                        preferred_language=lang,
+                        location=lga
+                    )
+                    new_user.password_hash = generate_password_hash('ussd_agent_temp')
+                    self.db.session.add(new_user)
+                    self.db.session.flush()
+                
+                agent_id = self.AgentProfile.generate_agent_id()
+                
+                profile = self.AgentProfile(
+                    user_id=new_user.id,
+                    agent_id=agent_id,
+                    lga=lga,
+                    referral_code_used=referral_code,
+                    registration_channel='ussd_lite',
+                    is_approved=is_nysc,
+                    is_nysc=is_nysc
+                )
+                
+                self.db.session.add(profile)
+                self.db.session.commit()
+                
+                session.current_menu = 'main'
+                session.current_step = 0
+                session.set_session_data({})
+                
+                return get_message('register_agent_success', lang, 
+                                  agent_id=agent_id, 
+                                  name=name), False
+                
+            except Exception as e:
+                logger.error(f"USSD agent registration error: {e}")
+                self.db.session.rollback()
+                return get_message('error', lang), False
+        
+        return get_message('error', lang), False
+    
+    def _show_agent_menu(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show the agent menu"""
+        profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return get_message('register_agent_first', lang), False
+        
+        status = "Approved" if profile.is_approved else "Pending"
+        return get_message('agent_menu', lang, 
+                          agent_id=profile.agent_id,
+                          status=status), True
+    
+    def _handle_agent_menu(
+        self, 
+        session, 
+        selection: str, 
+        user, 
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle selection from agent menu"""
+        
+        if selection == '0':
+            session.current_menu = 'main'
+            session.current_step = 0
+            return self._show_main_menu(lang, user), True
+        
+        profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return get_message('register_agent_first', lang), False
+        
+        menu_map = self.MENUS['agent_menu'].get('options', {})
+        
+        if selection in menu_map:
+            target = menu_map[selection]
+            session.current_menu = target
+            session.current_step = 0
+            session.set_session_data({})
+            
+            if target == 'agent_register_farmer':
+                if not profile.is_approved:
+                    return get_message('agent_pending_approval', lang), False
+                return get_message('agent_farmer_name', lang), True
+            elif target == 'agent_register_buyer':
+                if not profile.is_approved:
+                    return get_message('agent_pending_approval', lang), False
+                return get_message('agent_buyer_name', lang), True
+            elif target == 'agent_my_farmers':
+                return self._show_agent_farmers(session, user, lang)
+            elif target == 'agent_earnings':
+                return self._show_agent_earnings(session, user, lang)
+        
+        return get_message('invalid_command', lang), True
+    
+    def _handle_agent_register_farmer(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle agent registering a farmer via USSD"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            data['farmer_name'] = user_input.strip().title()
+            session.update_session_data('farmer_name', data['farmer_name'])
+            session.current_step = 1
+            return get_message('agent_farmer_location', lang), True
+        
+        elif step == 1:
+            data['farmer_location'] = user_input.strip().title()
+            session.update_session_data('farmer_location', data['farmer_location'])
+            session.current_step = 2
+            return get_message('agent_farmer_crop', lang), True
+        
+        elif step == 2:
+            farmer_crop = user_input.strip().title()
+            farmer_name = data.get('farmer_name')
+            farmer_location = data.get('farmer_location')
+            
+            if not farmer_name or not farmer_location:
+                session.current_menu = 'agent_menu'
+                session.current_step = 0
+                return "Session expired. Try again.", False
+            
+            try:
+                from werkzeug.security import generate_password_hash
+                import random
+                
+                phone_placeholder = f"+234{random.randint(7000000000, 9999999999)}"
+                
+                new_farmer = self.User(
+                    name=farmer_name,
+                    phone_number=phone_placeholder,
+                    email=f"farmer{random.randint(10000, 99999)}@agrolink.ng",
+                    role='farmer',
+                    is_ussd_user=True,
+                    source_channel='agent',
+                    preferred_language=lang,
+                    location=farmer_location,
+                    registered_by_agent_id=user.id
+                )
+                new_farmer.password_hash = generate_password_hash('agent_farmer_temp')
+                self.db.session.add(new_farmer)
+                
+                profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+                if profile:
+                    profile.total_farmers_registered += 1
+                    if profile.total_farmers_registered % 10 == 0:
+                        profile.pending_earnings += 200.0
+                
+                self.db.session.commit()
+                
+                session.current_menu = 'agent_menu'
+                session.current_step = 0
+                session.set_session_data({})
+                
+                return get_message('agent_farmer_success', lang, 
+                                  name=farmer_name,
+                                  total=profile.total_farmers_registered if profile else 1), False
+                
+            except Exception as e:
+                logger.error(f"Agent farmer registration error: {e}")
+                self.db.session.rollback()
+                return get_message('error', lang), False
+        
+        return get_message('error', lang), False
+    
+    def _handle_agent_register_buyer(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle agent registering a buyer via USSD"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            data['buyer_name'] = user_input.strip().title()
+            session.update_session_data('buyer_name', data['buyer_name'])
+            session.current_step = 1
+            return get_message('agent_buyer_location', lang), True
+        
+        elif step == 1:
+            buyer_location = user_input.strip().title()
+            buyer_name = data.get('buyer_name')
+            
+            if not buyer_name:
+                session.current_menu = 'agent_menu'
+                session.current_step = 0
+                return "Session expired. Try again.", False
+            
+            try:
+                from werkzeug.security import generate_password_hash
+                import random
+                
+                phone_placeholder = f"+234{random.randint(7000000000, 9999999999)}"
+                
+                new_buyer = self.User(
+                    name=buyer_name,
+                    phone_number=phone_placeholder,
+                    email=f"buyer{random.randint(10000, 99999)}@agrolink.ng",
+                    role='buyer',
+                    buyer_type='retail_buyer',
+                    is_ussd_user=True,
+                    source_channel='agent',
+                    preferred_language=lang,
+                    location=buyer_location,
+                    registered_by_agent_id=user.id
+                )
+                new_buyer.password_hash = generate_password_hash('agent_buyer_temp')
+                self.db.session.add(new_buyer)
+                
+                profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+                if profile:
+                    profile.total_buyers_registered += 1
+                
+                self.db.session.commit()
+                
+                session.current_menu = 'agent_menu'
+                session.current_step = 0
+                session.set_session_data({})
+                
+                return get_message('agent_buyer_success', lang, 
+                                  name=buyer_name,
+                                  total=profile.total_buyers_registered if profile else 1), False
+                
+            except Exception as e:
+                logger.error(f"Agent buyer registration error: {e}")
+                self.db.session.rollback()
+                return get_message('error', lang), False
+        
+        return get_message('error', lang), False
+    
+    def _show_agent_farmers(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show farmers registered by this agent"""
+        farmers = self.User.query.filter_by(
+            registered_by_agent_id=user.id, 
+            role='farmer'
+        ).order_by(self.User.registration_date.desc()).limit(5).all()
+        
+        profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+        
+        if not farmers:
+            session.current_menu = 'agent_menu'
+            return get_message('agent_no_farmers', lang), True
+        
+        farmer_list = "\n".join([f"{i+1}. {f.name} ({f.location})" for i, f in enumerate(farmers)])
+        total = profile.total_farmers_registered if profile else len(farmers)
+        
+        session.current_menu = 'agent_menu'
+        return get_message('agent_farmers_list', lang, 
+                          farmers=farmer_list, 
+                          total=total), True
+    
+    def _show_agent_earnings(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show agent earnings"""
+        profile = self.AgentProfile.query.filter_by(user_id=user.id).first()
+        
+        if not profile:
+            session.current_menu = 'main'
+            return get_message('register_agent_first', lang), False
+        
+        session.current_menu = 'agent_menu'
+        return get_message('agent_earnings', lang,
+                          pending=profile.pending_earnings,
+                          total=profile.total_earnings,
+                          farmers=profile.total_farmers_registered,
+                          buyers=profile.total_buyers_registered), True
     
     def _show_available_jobs(
         self,

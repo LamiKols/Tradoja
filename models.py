@@ -1290,3 +1290,63 @@ class LogisticsBid(db.Model):
     
     def __repr__(self):
         return f'<LogisticsBid ₦{self.bid_amount:,.0f} by {self.transporter.company_name}>'
+
+
+class AgentProfile(db.Model):
+    """Agent profile for field agents who register farmers/buyers"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    agent_id = db.Column(db.String(20), unique=True)  # AGT-XXXXX unique ID
+    lga = db.Column(db.String(100))  # Local Government Area
+    referral_code_used = db.Column(db.String(50))  # Referral/NYSC code used during registration
+    registration_channel = db.Column(db.String(50), default='web')  # ussd_lite, sms_lite, web
+    is_approved = db.Column(db.Boolean, default=False)  # Manual approval required (auto for NYSC)
+    is_nysc = db.Column(db.Boolean, default=False)  # Auto-approved if NYSC member
+    
+    # Performance tracking
+    total_farmers_registered = db.Column(db.Integer, default=0)
+    total_buyers_registered = db.Column(db.Integer, default=0)
+    total_earnings = db.Column(db.Float, default=0.0)  # Cumulative earnings in Naira
+    pending_earnings = db.Column(db.Float, default=0.0)  # Earnings not yet paid out
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    approved_at = db.Column(db.DateTime)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Relationship
+    user = db.relationship('User', foreign_keys=[user_id], backref='agent_profile')
+    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
+    
+    @staticmethod
+    def generate_agent_id():
+        """Generate unique agent ID like AGT-04821"""
+        import random
+        while True:
+            new_id = f"AGT-{random.randint(10000, 99999)}"
+            existing = AgentProfile.query.filter_by(agent_id=new_id).first()
+            if not existing:
+                return new_id
+    
+    @staticmethod
+    def is_valid_nysc_code(code):
+        """Check if code looks like a valid NYSC state code (e.g., NYSC-EN/24C/1234)"""
+        if not code:
+            return False
+        code_upper = code.upper()
+        if code_upper.startswith('NYSC-') or code_upper.startswith('NYSC/'):
+            return True
+        # Also accept state codes like EN/24C/1234
+        import re
+        if re.match(r'^[A-Z]{2}/\d{2}[A-Z]/\d+$', code_upper):
+            return True
+        return False
+    
+    def calculate_bonus(self):
+        """Calculate bonus based on registrations (₦200 per 10 farmers)"""
+        bonus_per_batch = 200.0
+        farmers_per_batch = 10
+        batches = self.total_farmers_registered // farmers_per_batch
+        return batches * bonus_per_batch
+    
+    def __repr__(self):
+        return f'<AgentProfile {self.agent_id} - {self.user.name if self.user else "Unknown"}>'

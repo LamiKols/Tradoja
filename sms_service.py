@@ -80,6 +80,8 @@ class SMSService:
                     return self._handle_transport_registration(phone_number, command_parts)
                 if len(command_parts) > 1 and command_parts[1] in ('BUYER', 'BUY'):
                     return self._handle_buyer_registration(phone_number, command_parts)
+                if len(command_parts) > 1 and command_parts[1] == 'AGENT':
+                    return self._handle_agent_registration(phone_number, command_parts)
                 return self._handle_registration(phone_number, command_parts)
             elif command == 'LIST':
                 return self._handle_produce_listing(phone_number, command_parts)
@@ -718,6 +720,92 @@ class SMSService:
             db.session.rollback()
             return self.send_sms(phone_number, "Registration failed. Please try again or dial *712*55#")
     
+    def _handle_agent_registration(self, phone_number, command_parts):
+        """Handle agent LITE registration via SMS
+        
+        Format: JOIN AGENT [name] [location]
+        or with NYSC: JOIN AGENT [name] NYSC-XX/XXX/XXXX
+        
+        Examples:
+            JOIN AGENT Ahmed Katsina
+            JOIN AGENT Ngozi NYSC-EN/24C/1234
+        """
+        from models import User, AgentProfile
+        from werkzeug.security import generate_password_hash
+        from app import db
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if user:
+            profile = AgentProfile.query.filter_by(user_id=user.id).first()
+            if profile:
+                return self.send_sms(phone_number,
+                    f"You're already registered as agent.\nID: {profile.agent_id}\nDial *712*55# > 9 for agent menu.")
+        
+        if len(command_parts) < 4:
+            message = ("Register as agent:\nJOIN AGENT [name] [location]\n\n"
+                      "Examples:\nJOIN AGENT Ahmed Katsina\n"
+                      "JOIN AGENT Ngozi NYSC-EN/24C/1234")
+            return self.send_sms(phone_number, message)
+        
+        location = command_parts[-1].title()
+        name = ' '.join(command_parts[2:-1]).title() if len(command_parts) > 4 else command_parts[2].title()
+        
+        referral_code = None
+        is_nysc = False
+        if AgentProfile.is_valid_nysc_code(location):
+            referral_code = location.upper()
+            is_nysc = True
+            location = command_parts[-2].title() if len(command_parts) > 4 else "Nigeria"
+        
+        try:
+            if user:
+                user.role = 'agent'
+                user.location = location
+                user.sms_enabled = True
+                user.source_channel = 'sms'
+            else:
+                user = User(
+                    name=name,
+                    phone_number=phone_number,
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@agent.agrolink.ng",
+                    role='agent',
+                    sms_enabled=True,
+                    source_channel='sms',
+                    location=location
+                )
+                user.password_hash = generate_password_hash('sms_agent_temp')
+                db.session.add(user)
+                db.session.flush()
+            
+            agent_id = AgentProfile.generate_agent_id()
+            
+            profile = AgentProfile(
+                user_id=user.id,
+                agent_id=agent_id,
+                lga=location,
+                referral_code_used=referral_code,
+                registration_channel='sms_lite',
+                is_approved=is_nysc,
+                is_nysc=is_nysc
+            )
+            
+            db.session.add(profile)
+            db.session.commit()
+            
+            approval_msg = "Auto-approved! Start registering now!" if is_nysc else "Approval in 24 hrs."
+            
+            return self.send_sms(phone_number,
+                f"You are now an AgroLink Agent!\n"
+                f"Your ID: {agent_id}\n"
+                f"You will earn ₦200 airtime for every 10 farmers you register.\n"
+                f"{approval_msg}\n"
+                f"Dial *712*55# > 9 for agent menu.")
+        
+        except Exception as e:
+            current_app.logger.error(f"SMS agent registration error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number, "Registration failed. Please try again or dial *712*55#")
+    
     def _handle_doc_request(self, phone_number):
         """Handle DOC command to send profile completion link"""
         from models import TransportProfile
@@ -758,6 +846,7 @@ class SMSService:
                        "JOIN [name] [location] [crop] - Register as farmer\n"
                        "JOIN BUYER [name] [loc] - Register as buyer\n"
                        "JOIN TRK [name] [loc] [type] - Register as transporter\n"
+                       "JOIN AGENT [name] [loc] - Become agent\n"
                        "LIST [crop] [qty] [price] - List produce\n"
                        "PRICE [crop] - Check prices\n")
         

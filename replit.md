@@ -129,7 +129,18 @@ Preferred communication style: Simple, everyday language.
   - SMS: JOIN TRK [name] [location] [type] or JOIN TRANSPORT [name] [location] [type]
   - Vehicle types: PICKUP, 10TON, 30TON, COLD
   - Instant transporter ID (TRK-XXXXX) issued on registration
-- **SMS Commands**: JOIN, JOIN TRK, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP, JOBS, BID, MYBIDS, START, DOC
+- **Agent LITE Registration**: 
+  - USSD: *712*55# > 8 (3-step: name → location → referral code/NYSC)
+  - SMS: JOIN AGENT [name] [location] or JOIN AGENT [name] NYSC-XX/XXX/XXXX
+  - NYSC state code format triggers auto-approval (e.g., NYSC-EN/24C/1234)
+  - Instant agent ID (AGT-XXXXX) issued on registration
+  - Agents earn ₦200 airtime per 10 farmers registered
+- **Agent Menu (USSD Option 9)**:
+  - Register Farmer: 3-step flow (name → location → crop)
+  - Register Buyer: 2-step flow (name → location)
+  - My Farmers: View list of registered farmers
+  - My Earnings: View pending and total earnings
+- **SMS Commands**: JOIN, JOIN TRK, JOIN BUYER, JOIN AGENT, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP, JOBS, BID, MYBIDS, START, DOC
 - **DOC Command**: Sends profile completion link for LITE-registered transporters
 - **Agent Portal**: /agent/dashboard for field registration
 - **Admin Dashboards**: /admin/ussd-dashboard, /admin/digital-inclusion, /admin/logistics-bidding for metrics
