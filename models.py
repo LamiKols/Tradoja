@@ -36,6 +36,13 @@ class User(UserMixin, db.Model):
     subscription_plan_code = db.Column(db.String(50))
     paystack_customer_code = db.Column(db.String(100))
     
+    # Scam detection fields (Layer 5)
+    last_ip = db.Column(db.String(45))  # IPv6 max length
+    last_location = db.Column(db.String(200))  # Last known location for hop detection
+    scam_score = db.Column(db.Integer, default=0)  # 0-100, higher = more suspicious
+    phone_verified = db.Column(db.Boolean, default=False)  # Phone verification status
+    agent_verified = db.Column(db.Boolean, default=False)  # Verified by field agent
+    
     # Relationship with produce
     produce_listings = db.relationship('Produce', foreign_keys='Produce.farmer_id', backref='farmer', lazy=True, cascade='all, delete-orphan')
     purchased_produce = db.relationship('Produce', foreign_keys='Produce.buyer_id', backref='buyer', lazy=True)
@@ -1350,3 +1357,50 @@ class AgentProfile(db.Model):
     
     def __repr__(self):
         return f'<AgentProfile {self.agent_id} - {self.user.name if self.user else "Unknown"}>'
+
+
+class ScamFlag(db.Model):
+    """Scam detection flags for admin review (Layer 5)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    action_type = db.Column(db.String(30), nullable=False)  # 'registration', 'produce_listing', 'logistics_bid', 'payout_request'
+    scam_score = db.Column(db.Integer, nullable=False)  # 0-100
+    reason = db.Column(db.Text, nullable=False)  # Detailed reason for flagging
+    
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'banned', 'agent_call_pending', 'verified'
+    detected_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reviewed_at = db.Column(db.DateTime)
+    admin_notes = db.Column(db.Text)
+    
+    user = db.relationship('User', foreign_keys=[user_id], backref='scam_flags')
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'approved': 'bg-success',
+            'banned': 'bg-danger',
+            'agent_call_pending': 'bg-info',
+            'verified': 'bg-primary'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def get_score_badge_class(self):
+        """Return Bootstrap badge class for scam score"""
+        if self.scam_score >= 70:
+            return 'bg-danger'
+        elif self.scam_score >= 50:
+            return 'bg-warning'
+        else:
+            return 'bg-success'
+    
+    def formatted_timestamp(self):
+        """Return formatted timestamp"""
+        return self.detected_at.strftime('%Y-%m-%d %H:%M')
+    
+    def __repr__(self):
+        return f'<ScamFlag {self.id}: {self.user.name if self.user else "Unknown"} - Score {self.scam_score}>'

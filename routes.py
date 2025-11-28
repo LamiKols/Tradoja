@@ -2,7 +2,7 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid, ScamFlag
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm, TransportRegistrationForm, TransportRouteForm, ColdChainDeviceForm, TransportBidForm, EnhancedLogisticsRequestForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
@@ -54,6 +54,13 @@ except Exception as e:
     app.logger.error(f"Payment service initialization failed: {e}")
     payment_service = None
 
+# Initialize scam detector service (Layer 5)
+try:
+    from services.scam_detector import scam_detector
+except Exception as e:
+    app.logger.error(f"Scam detector initialization failed: {e}")
+    scam_detector = None
+
 @app.route('/')
 def home():
     """Homepage route - redirect authenticated users to their dashboard"""
@@ -96,11 +103,37 @@ def register():
     
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Get client IP for scam detection
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if client_ip and ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+        
+        # Check for scam patterns before registration (Layer 5)
+        scam_reason = None
+        scam_score = 0
+        if scam_detector:
+            is_scam, reason, score = scam_detector.is_scam_likely(
+                user=None,
+                action_type='registration',
+                data={'name': form.name.data, 'email': form.email.data},
+                ip_address=client_ip
+            )
+            
+            if score >= 70:
+                app.logger.warning(f"Registration blocked - Scam score {score}: {reason}")
+                flash('Registration temporarily unavailable. Please try again later.', 'warning')
+                return render_template('register.html', title='Register', form=form)
+            elif score >= 50:
+                scam_reason = reason
+                scam_score = score
+        
         # Create new user
         user = User(
             name=form.name.data,
             email=form.email.data.lower(),
-            role=form.role.data
+            role=form.role.data,
+            last_ip=client_ip,
+            scam_score=scam_score if scam_score >= 50 else 0
         )
         
         # Set buyer_type if user is a buyer
@@ -112,6 +145,11 @@ def register():
         try:
             db.session.add(user)
             db.session.commit()
+            
+            # Flag medium-score users after creation (Layer 5 post-registration hook)
+            if scam_detector and scam_score >= 50:
+                scam_detector.flag_new_user(user, scam_reason, scam_score, client_ip)
+            
             flash(f'Registration successful! Welcome to AgroLink Lagos, {user.name}!', 'success')
             return redirect(url_for('login'))
         except Exception as e:
@@ -313,6 +351,32 @@ def add_produce():
     form.gi_label.choices = gi_service.get_gi_choices_for_form()
     
     if form.validate_on_submit():
+        # Check for scam patterns before listing (Layer 5)
+        listing_held = False
+        scam_reason = None
+        scam_score = 0
+        if scam_detector:
+            is_scam, reason, score = scam_detector.is_scam_likely(
+                user=current_user,
+                action_type='produce_listing',
+                data={
+                    'crop': form.name.data,
+                    'name': form.name.data,
+                    'price': form.price.data,
+                    'location': current_user.location
+                }
+            )
+            
+            if score >= 70:
+                app.logger.warning(f"Listing blocked - Scam score {score}: {reason}")
+                flash('Listing temporarily held for review. Our team will verify shortly.', 'warning')
+                return render_template('add_produce.html', title='Add Produce', form=form)
+            elif score >= 50:
+                listing_held = True
+                scam_reason = reason
+                scam_score = score
+                flash('Listing will be verified by an agent before going live.', 'info')
+        
         # Handle GI data
         gi_label = None
         gi_status = 'none'
@@ -348,6 +412,21 @@ def add_produce():
         try:
             db.session.add(produce)
             db.session.commit()
+            
+            if scam_detector and scam_score >= 50:
+                from models import ScamFlag
+                flag = ScamFlag(
+                    user_id=current_user.id,
+                    action_type='produce_listing',
+                    scam_score=scam_score,
+                    reason=scam_reason,
+                    status='pending',
+                    detected_at=datetime.utcnow()
+                )
+                db.session.add(flag)
+                current_user.scam_score = max(current_user.scam_score or 0, scam_score)
+                db.session.commit()
+            
             if produce.gi_status == 'pending':
                 flash(f'Produce "{produce.name}" added! GI certification "{produce.gi_label}" is pending admin review.', 'success')
             else:
@@ -2220,6 +2299,113 @@ def admin_digital_inclusion_dashboard():
         app.logger.error(f"Digital inclusion dashboard error: {e}")
         flash('Unable to load dashboard', 'error')
         return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/scams')
+@login_required
+def admin_scam_dashboard():
+    """Admin dashboard for scam detection and fraud management (Layer 5)"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('home'))
+    
+    from models import ScamFlag
+    
+    try:
+        # Get flagged users
+        flagged_users = ScamFlag.query.filter(
+            ScamFlag.status == 'pending'
+        ).order_by(
+            ScamFlag.scam_score.desc(),
+            ScamFlag.detected_at.desc()
+        ).limit(50).all()
+        
+        # Get statistics
+        total_flags = ScamFlag.query.count()
+        pending_flags = ScamFlag.query.filter_by(status='pending').count()
+        banned_count = ScamFlag.query.filter_by(status='banned').count()
+        approved_count = ScamFlag.query.filter_by(status='approved').count()
+        
+        # High risk users (score >= 70)
+        high_risk = User.query.filter(User.scam_score >= 70).count()
+        medium_risk = User.query.filter(User.scam_score >= 50, User.scam_score < 70).count()
+        
+        # Recent flags (last 24 hours)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_flags = ScamFlag.query.filter(ScamFlag.detected_at >= yesterday).count()
+        
+        stats = {
+            'total_flags': total_flags,
+            'pending_flags': pending_flags,
+            'banned_count': banned_count,
+            'approved_count': approved_count,
+            'high_risk': high_risk,
+            'medium_risk': medium_risk,
+            'recent_flags': recent_flags
+        }
+        
+        return render_template('admin/scam_dashboard.html',
+                             title='Scam Detection Dashboard',
+                             flagged_users=flagged_users,
+                             stats=stats)
+    except Exception as e:
+        app.logger.error(f"Scam dashboard error: {e}")
+        flash('Unable to load scam dashboard', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/scams/<int:flag_id>/approve', methods=['POST'])
+@login_required
+def approve_flagged_user(flag_id):
+    """Approve a flagged user (false positive)"""
+    if not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('home'))
+    
+    if scam_detector:
+        success = scam_detector.approve_user(flag_id, current_user.id)
+        if success:
+            flash('User approved and cleared.', 'success')
+        else:
+            flash('Failed to approve user.', 'danger')
+    
+    return redirect(url_for('admin_scam_dashboard'))
+
+
+@app.route('/admin/scams/<int:flag_id>/ban', methods=['POST'])
+@login_required
+def ban_flagged_user(flag_id):
+    """Ban a flagged user (confirmed scammer)"""
+    if not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('home'))
+    
+    if scam_detector:
+        success = scam_detector.ban_user(flag_id, current_user.id)
+        if success:
+            flash('User banned successfully.', 'success')
+        else:
+            flash('Failed to ban user.', 'danger')
+    
+    return redirect(url_for('admin_scam_dashboard'))
+
+
+@app.route('/admin/scams/<int:flag_id>/call', methods=['POST'])
+@login_required
+def request_agent_call(flag_id):
+    """Request agent to call user for verification"""
+    if not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('home'))
+    
+    if scam_detector:
+        success = scam_detector.request_agent_call(flag_id, current_user.id)
+        if success:
+            flash('Agent notified to call user for verification.', 'success')
+        else:
+            flash('Failed to request agent call.', 'danger')
+    
+    return redirect(url_for('admin_scam_dashboard'))
 
 
 # AI Matchmaking Routes
@@ -4408,6 +4594,39 @@ def submit_bid(request_id):
     form = TransportBidForm()
     
     if form.validate_on_submit():
+        # Check for scam patterns before bidding (Layer 5)
+        scam_score = 0
+        scam_reason = None
+        if scam_detector:
+            is_scam, reason, score = scam_detector.is_scam_likely(
+                user=current_user,
+                action_type='logistics_bid',
+                data={
+                    'bid_amount': form.bid_amount.data,
+                    'transport_profile': transport_profile
+                }
+            )
+            
+            if score >= 70:
+                app.logger.warning(f"Bid hidden - Scam score {score}: {reason}")
+                from models import ScamFlag
+                flag = ScamFlag(
+                    user_id=current_user.id,
+                    action_type='logistics_bid',
+                    scam_score=score,
+                    reason=reason,
+                    status='pending',
+                    detected_at=datetime.utcnow()
+                )
+                db.session.add(flag)
+                current_user.scam_score = max(current_user.scam_score or 0, score)
+                db.session.commit()
+                flash('Bid temporarily held for review.', 'warning')
+                return redirect(url_for('logistics_request_detail', request_id=request_id))
+            elif score >= 50:
+                scam_score = score
+                scam_reason = reason
+        
         if logistics_service:
             result = logistics_service.process_bid(
                 logistics_request_id=request_id,
@@ -4419,6 +4638,20 @@ def submit_bid(request_id):
             )
             
             if result['success']:
+                if scam_score >= 50:
+                    from models import ScamFlag
+                    flag = ScamFlag(
+                        user_id=current_user.id,
+                        action_type='logistics_bid',
+                        scam_score=scam_score,
+                        reason=scam_reason,
+                        status='pending',
+                        detected_at=datetime.utcnow()
+                    )
+                    db.session.add(flag)
+                    current_user.scam_score = max(current_user.scam_score or 0, scam_score)
+                    db.session.commit()
+                
                 if result.get('updated'):
                     flash('Your bid has been updated.', 'success')
                 else:
@@ -4454,6 +4687,21 @@ def submit_bid(request_id):
                     logistics_request.status = 'bidding'
                 
                 db.session.commit()
+                
+                if scam_score >= 50:
+                    from models import ScamFlag
+                    flag = ScamFlag(
+                        user_id=current_user.id,
+                        action_type='logistics_bid',
+                        scam_score=scam_score,
+                        reason=scam_reason,
+                        status='pending',
+                        detected_at=datetime.utcnow()
+                    )
+                    db.session.add(flag)
+                    current_user.scam_score = max(current_user.scam_score or 0, scam_score)
+                    db.session.commit()
+                
                 flash('Bid submitted successfully!', 'success')
             except Exception as e:
                 db.session.rollback()
