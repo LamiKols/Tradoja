@@ -1634,6 +1634,164 @@ def download_certificate(listing_id):
         return redirect(url_for('export_listing_detail', listing_id=listing_id))
 
 
+# USSD Integration Routes
+try:
+    from ussd_service import ussd_service
+except Exception as e:
+    app.logger.error(f"USSD service initialization failed: {e}")
+    ussd_service = None
+
+
+@app.route('/ussd', methods=['POST'])
+@csrf_exempt
+def ussd_webhook():
+    """Handle USSD requests from Africa's Talking"""
+    if not ussd_service:
+        app.logger.error("USSD service not available")
+        return "END Service unavailable. Please try again later.", 200
+    
+    try:
+        # Get USSD parameters from Africa's Talking
+        session_id = request.form.get('sessionId')
+        phone_number = request.form.get('phoneNumber')
+        service_code = request.form.get('serviceCode')
+        text = request.form.get('text', '')
+        
+        if not session_id or not phone_number:
+            app.logger.error("Missing session_id or phone_number in USSD request")
+            return "END Invalid request. Please dial again.", 200
+        
+        # Process the USSD request
+        response, should_continue = ussd_service.process_request(
+            session_id=session_id,
+            phone_number=phone_number,
+            text=text,
+            service_code=service_code,
+            provider='africastalking'
+        )
+        
+        # Format response for Africa's Talking
+        formatted_response = ussd_service.format_for_africastalking(response, should_continue)
+        
+        return formatted_response, 200
+        
+    except Exception as e:
+        app.logger.error(f"USSD webhook error: {e}")
+        return "END An error occurred. Please try again.", 200
+
+
+@app.route('/t2_ussd', methods=['POST'])
+@csrf_exempt
+def t2_ussd_webhook():
+    """Handle USSD requests from T2 (9mobile)"""
+    if not ussd_service:
+        app.logger.error("USSD service not available")
+        return "END Service unavailable. Please try again later.", 200
+    
+    try:
+        # Get USSD parameters from T2 - may have different field names
+        session_id = request.form.get('sessionId') or request.form.get('session_id')
+        phone_number = request.form.get('phoneNumber') or request.form.get('msisdn')
+        service_code = request.form.get('serviceCode') or request.form.get('ussd_code')
+        text = request.form.get('text') or request.form.get('input', '')
+        
+        if not session_id or not phone_number:
+            app.logger.error("Missing session_id or phone_number in T2 USSD request")
+            return "END Invalid request. Please dial again.", 200
+        
+        # Process the USSD request
+        response, should_continue = ussd_service.process_request(
+            session_id=session_id,
+            phone_number=phone_number,
+            text=text,
+            service_code=service_code,
+            provider='t2'
+        )
+        
+        # Format response for T2
+        formatted_response = ussd_service.format_for_t2(response, should_continue)
+        
+        return formatted_response, 200
+        
+    except Exception as e:
+        app.logger.error(f"T2 USSD webhook error: {e}")
+        return "END An error occurred. Please try again.", 200
+
+
+@app.route('/admin/ussd-dashboard')
+@login_required
+def admin_ussd_dashboard():
+    """Admin dashboard for USSD sessions and metrics"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    from models import USSDSession
+    
+    try:
+        # Get USSD metrics
+        metrics = ussd_service.get_session_metrics() if ussd_service else {}
+        
+        # Get recent USSD sessions
+        recent_sessions = USSDSession.query.order_by(
+            USSDSession.created_at.desc()
+        ).limit(50).all()
+        
+        # Get USSD registered users
+        ussd_users = User.query.filter(User.is_ussd_user == True).all()
+        
+        return render_template('admin/ussd_dashboard.html',
+                             title='USSD Dashboard',
+                             metrics=metrics,
+                             recent_sessions=recent_sessions,
+                             ussd_users=ussd_users)
+    except Exception as e:
+        app.logger.error(f"USSD dashboard error: {e}")
+        flash('Unable to load USSD dashboard', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/simulate-ussd', methods=['POST'])
+@login_required
+@csrf_exempt
+def simulate_ussd():
+    """Simulate USSD session for testing"""
+    if not current_user.is_admin():
+        return jsonify({'status': 'error', 'message': 'Access denied'}), 403
+    
+    if not ussd_service:
+        return jsonify({'status': 'error', 'message': 'USSD service unavailable'}), 500
+    
+    try:
+        import uuid
+        session_id = request.form.get('session_id') or f"test_{uuid.uuid4().hex[:8]}"
+        phone_number = request.form.get('phone_number')
+        text = request.form.get('text', '')
+        
+        if not phone_number:
+            return jsonify({'status': 'error', 'message': 'Phone number required'}), 400
+        
+        # Process simulated USSD
+        response, should_continue = ussd_service.process_request(
+            session_id=session_id,
+            phone_number=phone_number,
+            text=text,
+            service_code='*712*55#',
+            provider='simulation'
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'session_id': session_id,
+            'response': response,
+            'should_continue': should_continue
+        })
+        
+    except Exception as e:
+        app.logger.error(f"USSD simulation error: {e}")
+        return jsonify({'status': 'error', 'message': 'Simulation failed'}), 500
+
+
 # SMS Integration Routes
 @app.route('/sms', methods=['POST'])
 @csrf_exempt
