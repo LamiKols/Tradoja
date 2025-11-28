@@ -1,0 +1,60 @@
+You are extending AgroLink Lagos — the torch-phone-only agritech platform already live with USSD *712*55#, SMS/WhatsApp, T2 wallet, cold-chain, logistics, Agent LITE, anti-scam shield, multilingual.
+
+NOW ADD the complete “SabiBuy” zero-stock group-buy engine that turns any Nigerian with a phone into a millionaire trader.
+
+Implement exactly:
+
+1. Feature name everywhere: “SabiBuy”
+   Person who runs it: “SabiBuyer” (premium = “SabiBuyer Captain”)
+
+2. USSD Flow
+   *712*55# → new option 10. Start SabiBuy
+   4-step flow:
+   - Choose produce from active listings
+   - Set your selling price (auto-suggests +₦4k–₦15k margin)
+   - Confirm → get unique code e.g. NGOZI-SABIBUY-48K
+   - Final screen: “Forward NGOZI-SABIBUY-48K to your people!”
+
+3. Joining a SabiBuy
+   - SMS: “NGOZI-SABIBUY-48K 3 bags”
+   - USSD menu option 11. Join SabiBuy → enter code
+   - Auto-payment via T2 wallet / Paystack link
+   - Money locked in escrow
+
+4. Batch Management
+   - Auto-close when minimum (e.g. 50 bags) reached
+   - Auto-book farmer + logistics (your existing system)
+   - Delivery to one drop-off point (SabiBuyer chooses LGA/market)
+   - On delivery → auto-split bags + release funds
+
+5. SabiBuyer Earnings
+   - Profit = (their price – farm price) × total bags
+   - Paid instantly to wallet after delivery confirmed
+   - Example: ₦6k × 100 bags = ₦600k
+
+6. Tiers & Anti-Scam
+   - Free tier: max 3 active SabiBuys
+   - After 3 successful → ₦5,000 one-time → “SabiBuyer Captain” (unlimited + gold badge)
+   - Optional ₦10k/month premium → priority, higher limits
+
+7. Multilingual (5 languages)
+   - English: SabiBuy / SabiBuyer
+   - Pidgin: SabiBuy / SabiBuyer
+   - Yoruba: SabiRa / Oníṣòwò Sabi
+   - Hausa: SaniSaya / Mai Hankali
+   - Igbo: SabiBuy / Onye Sabi
+
+8. Notifications
+   - “Your SabiBuy is 68 % full!”
+   - “Batch closed! Truck coming Saturday”
+   - “₦720,000 profit paid to your wallet!”
+
+9. Admin dashboard
+   - Top 100 SabiBuyers leaderboard
+   - Total SabiBuy GMV this week
+
+100 % torch-phone compatible. Works with existing escrow, logistics, anti-scam, T2 wallet.
+
+This turns every market woman, NYSC member, and WhatsApp admin into a SabiBuyer earning ₦500k–₦5 million/month with zero stock.
+
+Build it now — Nigeria is waiting.
