@@ -1,0 +1,70 @@
+You are an expert full-stack Python/Flask developer building a hyper-inclusive agricultural marketplace for Nigeria called AgroLink Lagos.
+
+Start from this existing project structure (Flask + Flask-SQLAlchemy + Bootstrap 5 + PostgreSQL on Neon + Paystack + Africa's Talking SMS). Keep ALL existing 18 models (User, Produce, Transaction, ProduceLagosRegistration, etc.) and existing routes exactly as they are.
+
+Now add the full digital-inclusion layer so that 90% of rural farmers with only feature phones can use the platform with zero smartphone or literacy required.
+
+Add these new channels and features EXACTLY as specified:
+
+1. USSD Channel via Africa's Talking AND T2 (formerly 9mobile)
+   - Short code: *712*55#
+   - Menu: 1. List Produce 2. Check Prices 3. My Listings 4. Balance 5. Register
+   - Create new Flask routes /ussd and /t2_ussd that handle Africa's Talking and T2 USSD webhooks
+   - Use XML responses for Africa's Talking, plain text for T2 fallback
+
+2. WhatsApp Business Cloud API Bot
+   - Use Meta WhatsApp Cloud API (not third-party)
+   - Webhook route: /webhook (verify + receive)
+   - Support text + voice notes
+   - Voice notes → transcribe using OpenAI Whisper or ElevenLabs (Yoruba, Hausa, Pidgin, Igbo, English)
+   - After transcription → auto-create Produce listing
+   - Interactive templates in 5 languages
+
+3. SMS Commands (Africa's Talking)
+   - Keywords: LIST, PRICE, BUY, BALANCE, REGISTER, HELP
+   - Example: "LIST RICE 50 BAGS 45000 ONITSHA" → creates Produce entry
+   - Route: /sms/webhook
+
+4. T2 (9mobile) Wallet & Payment Integration
+   - Add 9PSB (T2 Payment Service Bank) integration
+   - Endpoints for wallet balance, payout, and receive money
+   - Allow farmers to receive payments directly to T2 wallet (no bank account needed)
+   - Add t2_customer_code and t2_wallet_balance to User model
+
+5. Multilingual & Voice-First
+   - Add preferred_language field to User (en, yo, ha, pcm, ig)
+   - Auto-detect language from WhatsApp/USSD/SMS
+   - All outgoing messages and menus in user's language
+   - Use Google Translate API or pre-defined templates
+
+6. Agent-Assisted Onboarding
+   - New role: agent
+   - Agents can register farmers via WhatsApp or USSD using "AGENT MODE"
+   - BulkOnboarding via CSV + WhatsApp forwarding
+
+7. Lite Flows for Feature Phones
+   - 3-step listing instead of 10-step web form
+   - Auto-fill location from cell tower (Africa's Talking location API or T2)
+
+8. Environment Variables to add
+   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, ELEVENLABS_API_KEY, T2_API_KEY, T2_USSD_SHORTCODE
+
+9. Database changes
+   - User: add whatsapp_id, t2_customer_code, preferred_language, is_ussd_user, t2_wallet_balance
+   - Produce: add source_channel (web/ussd/whatsapp/sms/agent)
+   - Transaction: add payment_method (paystack/t2_wallet/cash_on_delivery)
+
+10. Security & Deploy
+   - All webhooks must verify signature
+   - Deploy webhooks with public URL (use Replit's built-in hosting)
+   - Keep existing Paystack flow as fallback
+
+Generate the complete project with:
+- All new models and migrations
+- New routes/files: whatsapp/, ussd/, t2/, sms/, services/voice.py, services/t2_wallet.py
+- Updated templates for multilingual menus
+- Ready-to-run on Replit with one click
+- Include example .env file
+- Include instructions to connect WhatsApp, T2, Africa's Talking, and ElevenLabs
+
+This must be production-ready for rural Nigeria in 2025–2026. Prioritise inclusion over beauty.

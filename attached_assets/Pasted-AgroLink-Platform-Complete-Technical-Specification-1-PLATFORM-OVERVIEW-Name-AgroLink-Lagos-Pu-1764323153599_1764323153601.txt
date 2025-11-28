@@ -1,0 +1,514 @@
+AgroLink Platform - Complete Technical Specification
+1. PLATFORM OVERVIEW
+Name: AgroLink Lagos
+Purpose: Digital agricultural marketplace connecting farmers, buyers, and agro-processors across Nigeria
+Program Tag: LAFSINCO/Produce for Lagos Registration
+Target Market: Nigeria (Lagos food security initiative, expanding continent-wide)
+
+2. TECHNOLOGY STACK
+2.1 Backend Framework
+Component	Technology	Version
+Web Framework	Flask	Latest
+Database ORM	Flask-SQLAlchemy	>= 3.0
+Authentication	Flask-Login	Latest
+Form Handling	Flask-WTF, WTForms	Latest
+Password Security	Werkzeug	Latest
+WSGI Server	Gunicorn	Latest
+2.2 Database
+Component	Technology
+Primary Database	PostgreSQL (Neon-backed)
+Connection Pooling	pool_recycle: 300s, pool_pre_ping: True
+2.3 Frontend
+Component	Technology
+CSS Framework	Bootstrap 5 (Dark theme)
+Icons	Font Awesome 6
+Templating	Jinja2
+Design	Responsive, mobile-first
+2.4 External APIs
+Service	Provider	Purpose
+Weather Data	OpenWeatherMap	Climate-smart agriculture
+Payments	Paystack	Transaction processing
+SMS Gateway	Africa's Talking	Rural accessibility
+3. DATABASE SCHEMA (18 Models)
+3.1 User Model
+User
+├── id (Primary Key)
+├── name (String 100)
+├── email (String 120, unique)
+├── password_hash (String 256)
+├── role (String 30) - farmer/buyer/admin/aggregator/transport_company/bulk_trader/retailer/input_supplier/investor/government_agency/ngo_dev_partner
+├── buyer_type (String 30) - retail_buyer/bulk_trader/institutional_buyer/agro_processor
+├── registration_date (DateTime)
+├── phone_number (String 20)
+├── sms_enabled (Boolean)
+├── sms_registration_date (DateTime)
+├── is_premium (Boolean)
+├── subscription_start_date (DateTime)
+├── subscription_end_date (DateTime)
+├── subscription_plan_code (String 50)
+└── paystack_customer_code (String 100)
+
+3.2 ProduceLagosRegistration Model
+ProduceLagosRegistration
+├── id (Primary Key)
+├── user_id (Foreign Key -> User)
+├── role (String 30)
+├── program_tag (String 100)
+├── registration_status (in_progress/completed/pending_approval/approved/rejected)
+├── current_step (Integer 1-4)
+├── total_steps (Integer)
+├── completion_percentage (Integer 0-100)
+│
+├── Step 1: Personal Information
+│   ├── full_name, date_of_birth, gender, nationality
+│   ├── state_of_origin, lga_of_origin, marital_status
+│   ├── education_level, primary_phone, secondary_phone, email_address
+│   └── residential_address, city, state, postal_code, lga, ward
+│
+├── Step 2: Business Information
+│   ├── organization_name, business_registration_number
+│   ├── tax_identification_number, business_address
+│   ├── business_type, years_in_operation
+│   └── number_of_employees, annual_turnover
+│
+├── Step 3: Role-Specific Fields
+│   ├── Farmer: farm_size, crops_grown, season_calendar, avg_output, farming_experience, farming_methods, irrigation_methods, postharvest_facilities, coop_member, extension_service
+│   ├── Aggregator: aggregation_capacity, storage_capacity, transportation_fleet, catchment_areas
+│   ├── Transport: vehicle_types, fleet_size, routes_covered, insurance_details
+│   ├── Bulk Trader: trading_volume, target_markets, commodity_specialization
+│   ├── Retailer: store_type, retail_locations, customer_base
+│   └── Input Supplier: input_types, supplier_network, distribution_channels
+│
+├── Step 4: Financial/Documents
+│   ├── bank_name, account_number, account_name, bvn
+│   └── id_document_path, business_registration_path, tax_certificate_path, certifications_path
+│
+└── Admin Fields
+    ├── admin_comments, reviewed_by, reviewed_date
+
+3.3 Produce Model
+Produce
+├── id (Primary Key)
+├── name (String 100)
+├── quantity (String 50)
+├── price (Float)
+├── price_unit (String 20) - NGN/USD
+├── description (Text)
+├── date_listed (DateTime)
+├── is_available (Boolean)
+├── contact_method (web/sms/phone)
+├── farmer_id (Foreign Key -> User)
+│
+├── GI Fields
+│   ├── gi_label (String 200)
+│   ├── gi_certified (Boolean)
+│   ├── gi_status (none/pending/verified/rejected)
+│   ├── gi_certificate_number (String 100)
+│   └── gi_admin_comment (Text)
+│
+└── Sale Status
+    ├── is_sold (Boolean)
+    ├── sale_date (DateTime)
+    └── buyer_id (Foreign Key -> User)
+
+3.4 Message Model
+Message
+├── id (Primary Key)
+├── subject (String 200)
+├── message_body (Text)
+├── timestamp (DateTime)
+├── is_read (Boolean)
+├── sender_id (Foreign Key -> User)
+├── receiver_id (Foreign Key -> User)
+└── produce_id (Foreign Key -> Produce, optional)
+
+3.5 LogisticsRequest Model
+LogisticsRequest
+├── id (Primary Key)
+├── produce_id (Foreign Key -> Produce)
+├── requester_id (Foreign Key -> User)
+├── request_type (pickup/delivery)
+├── preferred_date (Date)
+├── preferred_time (Time)
+├── pickup_location (String 200)
+├── destination_address (String 200)
+├── status (pending/approved/fulfilled/cancelled)
+├── notes (Text)
+└── timestamp (DateTime)
+
+3.6 FundingApplication Model (Offtake Guarantee Fund)
+FundingApplication
+├── id (Primary Key)
+├── applicant_id (Foreign Key -> User)
+├── produce_id (Foreign Key -> Produce, optional)
+├── amount_requested (Float)
+├── application_reason (Text)
+├── supporting_document (String 255)
+├── status (pending/approved/declined)
+├── admin_comment (Text)
+└── timestamp (DateTime)
+
+3.7 CSAData Model (Climate-Smart Agriculture)
+CSAData
+├── id (Primary Key)
+├── farmer_id (Foreign Key -> User)
+├── city (String 100)
+├── latitude (Float)
+├── longitude (Float)
+├── weather_data (Text - JSON)
+├── soil_type (clay/sandy/loamy)
+├── soil_moisture (dry/moderate/wet)
+├── field_size (Float - hectares)
+├── fertilizer_type (organic/synthetic/none)
+├── fertilizer_amount (Float - kg/ha)
+├── estimated_yield (Float - tons/ha)
+├── carbon_footprint (Float - CO2 equivalent)
+├── crop_recommendations (Text - JSON)
+├── created_at (DateTime)
+└── updated_at (DateTime)
+
+3.8 ExportListing Model (Cross-Border Trade)
+ExportListing
+├── id (Primary Key)
+├── farmer_id (Foreign Key -> User)
+├── produce_name (String 100)
+├── quantity (String 50)
+├── price (Float)
+├── price_unit (USD/EUR/GBP)
+├── origin_state (String 50)
+├── target_market (EU/ECOWAS/US/UK)
+├── has_phytosanitary (Boolean)
+├── phytosanitary_file (String 255)
+├── compliance_standards (Text - JSON)
+├── description (Text)
+├── harvest_date (Date)
+├── shipment_window_start (Date)
+├── shipment_window_end (Date)
+├── status (pending/approved/rejected/shipped)
+├── admin_comment (Text)
+├── created_at (DateTime)
+└── updated_at (DateTime)
+
+3.9 PrecisionField Model (Precision Agriculture)
+PrecisionField
+├── id (Primary Key)
+├── farmer_id (Foreign Key -> User)
+├── field_name (String 100)
+├── crop_type (String 50)
+├── field_size_hectares (Float)
+├── coordinates (Text - JSON polygon)
+├── center_latitude (Float)
+├── center_longitude (Float)
+├── planting_date (Date)
+├── soil_type (String 50)
+├── irrigation_type (String 50)
+├── fertilizer_type (String 50)
+├── recommended_fertilizer_kg_ha (Float)
+├── recommended_irrigation_l_ha (Float)
+├── estimated_yield_tons_ha (Float)
+├── planting_season_fit (optimal/good/poor)
+├── risk_warnings (Text - JSON)
+├── date_created (DateTime)
+└── last_updated (DateTime)
+
+3.10 SMSInteraction Model
+SMSInteraction
+├── id (Primary Key)
+├── phone_number (String 20)
+├── message_type (incoming/outgoing)
+├── content (String 500)
+├── status (sent/received/failed)
+└── timestamp (DateTime)
+
+3.11 MatchRecommendation Model (AI Matchmaking)
+MatchRecommendation
+├── id (Primary Key)
+├── farmer_id (Foreign Key -> User)
+├── buyer_id (Foreign Key -> User)
+├── produce_id (Foreign Key -> Produce)
+├── match_score (Float 0.0-1.0)
+├── match_factors (Text - JSON)
+├── recommendation_reason (Text)
+├── delivery_method (web/sms/email)
+├── sent_at (DateTime)
+├── status (pending/accepted/declined/expired)
+├── response_at (DateTime)
+├── response_method (web/sms/message)
+├── outcome (contacted/deal_made/no_response/rejected)
+├── outcome_notes (Text)
+├── outcome_recorded_at (DateTime)
+├── created_at (DateTime)
+└── updated_at (DateTime)
+
+3.12 Transaction Model
+Transaction
+├── id (Primary Key)
+├── reference (String 100, unique)
+├── user_id (Foreign Key -> User)
+├── transaction_type (produce_sale/logistics/subscription)
+├── base_amount (Float)
+├── platform_fee (Float) - 1.5%
+├── logistics_fee (Float)
+├── total_amount (Float)
+├── status (pending/successful/failed/cancelled)
+├── paystack_reference (String 100)
+├── payment_date (DateTime)
+├── produce_id (Foreign Key -> Produce)
+├── logistics_request_id (Foreign Key -> LogisticsRequest)
+├── transaction_metadata (Text - JSON)
+└── created_at (DateTime)
+
+3.13 Subscription Model
+Subscription
+├── id (Primary Key)
+├── user_id (Foreign Key -> User)
+├── plan_name (String 50)
+├── plan_code (String 50)
+├── amount (Float)
+├── status (active/cancelled/expired)
+├── start_date (DateTime)
+├── end_date (DateTime)
+├── next_billing_date (DateTime)
+├── subscription_code (String 100)
+├── customer_code (String 100)
+├── created_at (DateTime)
+└── updated_at (DateTime)
+
+3.14 PaymentLog Model
+PaymentLog
+├── id (Primary Key)
+├── transaction_id (Foreign Key -> Transaction)
+├── event_type (initiated/verified/failed/webhook)
+├── paystack_response (Text)
+├── success (Boolean)
+├── error_message (Text)
+└── created_at (DateTime)
+
+3.15 BulkOnboarding Model
+BulkOnboarding
+├── id (Primary Key)
+├── batch_name (String 200)
+├── uploaded_by (Foreign Key -> User)
+├── upload_date (DateTime)
+├── file_path (String 500)
+├── total_records (Integer)
+├── processed_records (Integer)
+├── successful_registrations (Integer)
+├── failed_registrations (Integer)
+├── status (processing/completed/failed)
+└── error_log (Text)
+
+3.16 ProcessorProfile Model (Agro-Processors)
+ProcessorProfile
+├── id (Primary Key)
+├── user_id (Foreign Key -> User, unique)
+├── business_name (String 200)
+├── cac_number (String 100)
+├── processing_capacity_tpd (Float - tons/day)
+├── plant_location_state (String 50)
+├── plant_location_lga (String 100)
+├── products_processed (Text)
+├── employees_count (Integer)
+├── nafdac_permit_file (String 255)
+├── utility_docs_file (String 255)
+├── bank_name (String 100)
+├── account_number (String 20)
+├── contact_person (String 200)
+├── contact_phone (String 20)
+├── website (String 200)
+├── kyc_status (pending/verified/rejected)
+├── admin_comment (Text)
+├── created_at (DateTime)
+└── updated_at (DateTime)
+
+3.17 LoanApplication Model (BOI Loans)
+LoanApplication
+├── id (Primary Key)
+├── processor_id (Foreign Key -> ProcessorProfile)
+├── user_id (Foreign Key -> User)
+├── loan_amount_requested (Float) - ₦500,000 to ₦500,000,000
+├── purpose_of_loan (Text)
+├── tenor_months (Integer) - 12/18/24/36/48/60
+├── collateral_description (Text)
+├── financials_file (String 255)
+├── projections_file (String 255)
+├── supporting_docs_file (String 255)
+├── agrolink_data_snapshot_json (Text - JSON)
+├── status (draft/payment_pending/submitted/under_review/approved/declined)
+├── reviewer_comments (Text)
+├── platform_fee_amount (Float) - ₦5,000
+├── platform_fee_status (pending/paid/failed)
+├── payment_reference (String 100)
+├── payment_date (DateTime)
+├── created_at (DateTime)
+├── updated_at (DateTime)
+└── submitted_at (DateTime)
+
+4. SERVICES ARCHITECTURE
+4.1 Payment Service (payment_service.py)
+Paystack API integration
+Transaction initialization and verification
+1.5% platform fee calculation
+Subscription plan management
+Reference generation
+4.2 Weather Service (weather_service.py)
+OpenWeatherMap API integration
+Real-time weather data fetching
+Location-based weather queries
+4.3 SMS Service (sms_service.py)
+Africa's Talking SMS Gateway
+Incoming/outgoing SMS processing
+Webhook handling
+Command system (JOIN, LIST, PRICE, HELP)
+4.4 Matchmaking Service (matchmaking_service.py)
+AI-powered buyer-seller matching
+Rule-based scoring algorithm
+Match factors: crop type, location, quantity, price, reliability
+ML training data collection
+4.5 Analytics Service (analytics_service.py)
+Market insights and trends
+User engagement metrics
+Geographic distribution analysis
+Bottleneck identification
+CSV/PDF export capabilities
+4.6 GI Service (gi_service.py)
+Nigerian GI Registry management
+GI validation and verification
+Certification requirements
+Premium product designation
+4.7 Trade Data Service (trade_data_service.py)
+Nigerian agricultural export market trends
+Pricing information
+International market data
+4.8 Precision Service (precision_service.py)
+GPS-based field mapping
+Yield estimation
+Fertilizer/irrigation recommendations
+Risk assessment
+5. USER ROLES & ACCESS CONTROL
+5.1 Role Hierarchy
+├── Admin (Full platform access)
+│
+├── Buyer Roles
+│   ├── Retail Buyer (Standard marketplace access)
+│   ├── Bulk Trader (Large volume access)
+│   ├── Institutional Buyer (Corporate/government access)
+│   └── Agro Processor (Processing + BOI Loan access)
+│
+├── Farmer (Produce listing + funding access)
+│
+└── Extended Roles (Produce for Lagos)
+    ├── Aggregator
+    ├── Transport Company
+    ├── Input Supplier
+    ├── Investor
+    ├── Government Agency
+    └── NGO/Development Partner
+
+5.2 Role-Based Methods
+User.is_farmer()        # role == 'farmer'
+User.is_buyer()         # role == 'buyer'
+User.is_admin()         # role == 'admin'
+User.is_agro_processor() # role == 'buyer' AND buyer_type == 'agro_processor'
+User.has_premium_access() # is_premium AND subscription active
+
+6. PAYMENT & FEE STRUCTURE
+6.1 Transaction Fees
+Fee Type	Amount	Description
+Platform Fee	1.5%	On all marketplace transactions
+BOI Loan Processing	₦5,000	Non-refundable application fee
+Premium Subscription	Variable	Monthly premium membership
+Logistics Services	Variable	Delivery/pickup fees
+6.2 Payment Flow
+1. Transaction Initialization
+   └── generate_reference() -> unique reference
+   └── initialize_transaction() -> Paystack authorization URL
+2. User Payment
+   └── Redirect to Paystack payment page
+   └── Card/Bank payment processing
+3. Verification
+   └── Callback to platform
+   └── verify_transaction() -> status check
+   └── Update database records
+4. Logging
+   └── PaymentLog entry created
+   └── Transaction status updated
+
+7. API ENDPOINTS (Routes Summary)
+7.1 Authentication
+POST /register - User registration with buyer categorization
+POST /login - User authentication
+GET /logout - Session termination
+7.2 Dashboards
+GET / - Home (redirects authenticated users)
+GET /farmer/dashboard - Farmer dashboard
+GET /buyer/dashboard - Buyer dashboard (redirects agro-processors)
+GET /processor/dashboard - Agro-processor dashboard
+GET /admin/dashboard - Admin dashboard
+7.3 Marketplace
+GET /marketplace - Browse produce
+GET /produce/<id> - Produce details
+POST /produce/add - Add listing
+POST /produce/<id>/edit - Edit listing
+POST /produce/<id>/buy - Purchase produce
+7.4 Processor Onboarding
+GET /processor/onboarding - Start onboarding
+GET/POST /processor/onboarding/step/<1-5> - 5-step wizard
+7.5 BOI Loan Application
+GET /processor/boi-loan/apply - Loan intro + fee info
+POST /processor/boi-loan/payment - Initialize ₦5,000 payment
+GET /processor/boi-loan/payment/callback - Payment verification
+GET/POST /processor/boi-loan/application/<id> - Loan application form
+7.6 Additional Features
+/messaging/* - In-platform messaging
+/logistics/* - Delivery/pickup requests
+/funding/* - Offtake Guarantee Fund
+/csa/* - Climate-Smart Agriculture
+/export/* - Cross-border trade
+/gi/* - Geographical Indications
+/sms/* - SMS gateway management
+/analytics/* - Advanced analytics
+/onboarding/* - Produce for Lagos registration
+8. FILE UPLOAD STRUCTURE
+static/uploads/
+├── produce/           # Produce images
+├── funding/           # Funding application documents
+├── export/            # Export certificates
+├── onboarding/        # KYC documents
+│   ├── id_docs/
+│   ├── business_reg/
+│   ├── tax_certs/
+│   └── certifications/
+├── processor/         # Processor documents
+│   ├── nafdac/
+│   └── utility/
+├── loans/             # Loan application documents
+│   ├── financials/
+│   ├── projections/
+│   └── supporting/
+└── bulk_onboarding/   # Bulk CSV files
+
+9. SECURITY MEASURES
+Feature	Implementation
+Password Hashing	Werkzeug (default algorithm)
+Session Management	Flask-Login secure sessions
+CSRF Protection	Flask-WTF (configurable)
+Role-Based Access	Custom decorators + route guards
+API Key Management	Environment variables
+File Upload Security	secure_filename(), type validation
+10. ENVIRONMENT VARIABLES
+DATABASE_URL              # PostgreSQL connection string
+SESSION_SECRET            # Flask session key
+PAYSTACK_SECRET_KEY       # Paystack API secret
+PAYSTACK_PUBLIC_KEY       # Paystack public key
+OPENWEATHER_API_KEY       # OpenWeatherMap API key
+AFRICASTALKING_USERNAME   # Africa's Talking username
+AFRICASTALKING_API_KEY    # Africa's Talking API key
+
+11. DEPLOYMENT
+Component	Configuration
+Server	Gunicorn (0.0.0.0:5000)
+Worker Type	sync
+Hot Reload	Enabled (--reload flag)
+Port Reuse	Enabled (--reuse-port)
+Proxy Fix	Enabled for HTTPS
