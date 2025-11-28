@@ -43,6 +43,9 @@ class ScamDetector:
         self.LogisticsRequest = None
         self.TransportProfile = None
         self.ScamFlag = None
+        self.SabiBuy = None
+        self.SabiBuyOrder = None
+        self.SabiBuyerProfile = None
     
     def _lazy_load_models(self):
         """Lazy load database models to avoid circular imports"""
@@ -57,6 +60,15 @@ class ScamDetector:
             self.LogisticsRequest = LogisticsRequest
             self.TransportProfile = TransportProfile
             self.ScamFlag = ScamFlag
+        
+        if self.SabiBuy is None:
+            try:
+                from models import SabiBuy, SabiBuyOrder, SabiBuyerProfile
+                self.SabiBuy = SabiBuy
+                self.SabiBuyOrder = SabiBuyOrder
+                self.SabiBuyerProfile = SabiBuyerProfile
+            except ImportError:
+                pass
     
     def is_scam_likely(
         self, 
@@ -631,9 +643,12 @@ class ScamDetector:
         - Excessive profit margins (>300%) → suspicious pricing
         - Rapid campaign creation (>5 in 24h) → possible flood attack
         """
+        self._lazy_load_models()
+        
+        if not user or self.SabiBuy is None:
+            return 0, ""
+        
         try:
-            from models import SabiBuy, SabiBuyerProfile
-            
             score = 0
             reasons = []
             
@@ -651,18 +666,18 @@ class ScamDetector:
                     score += 35
                     reasons.append(f"Excessive profit margin ({margin_pct:.0f}%)")
             
-            failed_campaigns = SabiBuy.query.filter(
-                SabiBuy.organizer_id == user.id,
-                SabiBuy.status.in_(['cancelled', 'expired'])
+            failed_campaigns = self.SabiBuy.query.filter(
+                self.SabiBuy.organizer_id == user.id,
+                self.SabiBuy.status.in_(['cancelled', 'expired'])
             ).count()
             
             if failed_campaigns >= 3:
                 score += 25
                 reasons.append(f"{failed_campaigns} failed/cancelled campaigns")
             
-            recent_campaigns = SabiBuy.query.filter(
-                SabiBuy.organizer_id == user.id,
-                SabiBuy.created_at >= datetime.utcnow() - timedelta(hours=24)
+            recent_campaigns = self.SabiBuy.query.filter(
+                self.SabiBuy.organizer_id == user.id,
+                self.SabiBuy.created_at >= datetime.utcnow() - timedelta(hours=24)
             ).count()
             
             if recent_campaigns >= 5:
@@ -682,9 +697,12 @@ class ScamDetector:
         - Multiple failed payments from same buyer → possible card testing
         - Ordering from multiple campaigns simultaneously → unusual pattern
         """
+        self._lazy_load_models()
+        
+        if not user or self.SabiBuyOrder is None:
+            return 0, ""
+        
         try:
-            from models import SabiBuyOrder
-            
             score = 0
             reasons = []
             
@@ -695,20 +713,20 @@ class ScamDetector:
                 score += 35
                 reasons.append(f"New account ({account_age} days) with large order (₦{order_amount:,.0f})")
             
-            failed_payments = SabiBuyOrder.query.filter(
-                SabiBuyOrder.buyer_id == user.id,
-                SabiBuyOrder.payment_status == 'failed',
-                SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=24)
+            failed_payments = self.SabiBuyOrder.query.filter(
+                self.SabiBuyOrder.buyer_id == user.id,
+                self.SabiBuyOrder.payment_status == 'failed',
+                self.SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=24)
             ).count()
             
             if failed_payments >= 3:
                 score += 40
                 reasons.append(f"{failed_payments} failed payment attempts in 24h")
             
-            active_orders = SabiBuyOrder.query.filter(
-                SabiBuyOrder.buyer_id == user.id,
-                SabiBuyOrder.payment_status == 'pending',
-                SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=1)
+            active_orders = self.SabiBuyOrder.query.filter(
+                self.SabiBuyOrder.buyer_id == user.id,
+                self.SabiBuyOrder.payment_status == 'pending',
+                self.SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=1)
             ).count()
             
             if active_orders >= 5:
