@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h1><i class="fas fa-level-up-alt text-success me-2"></i>Upgrade Your SabiBuyer Tier</h1>
+        <p class="lead text-muted">Unlock more features and earn more!</p>
+        {% if profile %}
+        <span class="badge bg-info fs-5">
+            Current: {{ profile.tier|title }}
+            {% if profile.tier == 'captain' %}<i class="fas fa-crown text-warning ms-1"></i>{% endif %}
+            {% if profile.tier == 'premium' %}<i class="fas fa-gem text-primary ms-1"></i>{% endif %}
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 {% if profile and profile.tier == 'free' %}border-success{% endif %}">
+                <div class="card-header text-center bg-light">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Free</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-center text-success mb-4">₦0</h3>
+                    <ul class="list-unstyled">
+                        {% for feature in tiers.free.features %}
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer bg-white">
+                    {% if profile and profile.tier == 'free' %}
+                    <button class="btn btn-outline-success w-100" disabled>Current Plan</button>
+                    {% else %}
+                    <span class="text-muted">Basic tier</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-warning {% if profile and profile.tier == 'captain' %}border-3{% endif %}">
+                <div class="card-header text-center bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-crown me-2"></i>Captain</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-center mb-1">₦5,000</h3>
+                    <p class="text-center text-muted small mb-4">One-time payment</p>
+                    <ul class="list-unstyled">
+                        {% for feature in tiers.captain.features %}
+                        <li class="mb-2"><i class="fas fa-check text-warning me-2"></i>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer bg-white">
+                    {% if profile and profile.tier in ['captain', 'premium'] %}
+                    <button class="btn btn-outline-warning w-100" disabled>
+                        {% if profile.tier == 'captain' %}Current Plan{% else %}Already Included{% endif %}
+                    </button>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('process_tier_upgrade', tier='captain') }}">
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="fas fa-rocket me-2"></i>Upgrade to Captain
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-primary {% if profile and profile.tier == 'premium' %}border-3{% endif %}">
+                <div class="card-header text-center bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-gem me-2"></i>Premium</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-center mb-1">₦10,000</h3>
+                    <p class="text-center text-muted small mb-4">Monthly subscription</p>
+                    <ul class="list-unstyled">
+                        {% for feature in tiers.premium.features %}
+                        <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer bg-white">
+                    {% if profile and profile.tier == 'premium' %}
+                    <button class="btn btn-outline-primary w-100" disabled>Current Plan</button>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('process_tier_upgrade', tier='premium') }}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-gem me-2"></i>Go Premium
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h5><i class="fas fa-question-circle text-info me-2"></i>Why Upgrade?</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                            <p class="small">Higher profit margins allowed</p>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-infinity fa-2x text-primary mb-2"></i>
+                            <p class="small">Run unlimited campaigns</p>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-star fa-2x text-warning mb-2"></i>
+                            <p class="small">Stand out with badges</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

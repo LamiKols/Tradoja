@@ -5159,3 +5159,142 @@ def admin_sabibuy():
                          stats=stats,
                          top_sabibuyers=top_sabibuyers,
                          title='SabiBuy Admin Dashboard')
+
+@app.route('/sabibuy/upgrade')
+@login_required
+def sabibuy_upgrade():
+    """Tier upgrade page"""
+    profile = SabiBuyerProfile.query.filter_by(user_id=current_user.id).first()
+    
+    tiers = {
+        'free': {
+            'name': 'Free',
+            'price': 0,
+            'features': ['Up to 3 active campaigns', 'Standard support', 'Basic analytics']
+        },
+        'captain': {
+            'name': 'Captain',
+            'price': 5000,
+            'price_type': 'one_time',
+            'features': ['Unlimited campaigns', 'Gold badge on listings', 'Priority support', 'Advanced analytics']
+        },
+        'premium': {
+            'name': 'Premium',
+            'price': 10000,
+            'price_type': 'monthly',
+            'features': ['All Captain features', 'Featured listings', 'Highest profit limits', 'Dedicated account manager']
+        }
+    }
+    
+    return render_template('sabibuy/upgrade.html',
+                         profile=profile,
+                         tiers=tiers,
+                         title='Upgrade SabiBuyer Tier')
+
+@app.route('/sabibuy/upgrade/<tier>', methods=['POST'])
+@login_required
+def process_tier_upgrade(tier):
+    """Process tier upgrade payment"""
+    if tier not in ['captain', 'premium']:
+        flash('Invalid tier selected', 'error')
+        return redirect(url_for('sabibuy_upgrade'))
+    
+    profile = SabiBuyerProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        profile = SabiBuyerProfile(
+            user_id=current_user.id,
+            tier='free'
+        )
+        db.session.add(profile)
+        db.session.commit()
+    
+    if tier == 'captain' and profile.tier in ['captain', 'premium']:
+        flash('You already have Captain or higher tier', 'info')
+        return redirect(url_for('sabibuy_my_campaigns'))
+    
+    amount = 5000 if tier == 'captain' else 10000
+    
+    if payment_service:
+        try:
+            reference = payment_service.generate_reference(f"sabibuy_{tier}")
+            callback_url = url_for('sabibuy_upgrade_callback', _external=True)
+            
+            payment_response = payment_service.initialize_transaction(
+                email=current_user.email,
+                amount=amount,
+                reference=reference,
+                callback_url=callback_url,
+                metadata={
+                    'user_id': current_user.id,
+                    'tier': tier,
+                    'type': 'sabibuy_upgrade'
+                }
+            )
+            
+            if payment_response.get('status'):
+                transaction = Transaction(
+                    reference=reference,
+                    user_id=current_user.id,
+                    transaction_type=f'sabibuy_{tier}_upgrade',
+                    base_amount=amount,
+                    platform_fee=0,
+                    total_amount=amount
+                )
+                db.session.add(transaction)
+                db.session.commit()
+                
+                return redirect(payment_response['data']['authorization_url'])
+            else:
+                flash('Payment initialization failed', 'error')
+        except Exception as e:
+            app.logger.error(f"Tier upgrade payment error: {e}")
+            flash('Payment service error', 'error')
+    else:
+        flash('Payment service unavailable', 'error')
+    
+    return redirect(url_for('sabibuy_upgrade'))
+
+@app.route('/sabibuy/upgrade/callback')
+def sabibuy_upgrade_callback():
+    """Handle tier upgrade payment callback"""
+    reference = request.args.get('reference')
+    
+    if not reference:
+        flash('Invalid payment reference', 'error')
+        return redirect(url_for('sabibuy_upgrade'))
+    
+    if payment_service:
+        try:
+            verification = payment_service.verify_transaction(reference)
+            
+            if verification.get('status') and verification['data']['status'] == 'success':
+                transaction = Transaction.query.filter_by(reference=reference).first()
+                
+                if transaction:
+                    transaction.status = 'completed'
+                    transaction.paystack_reference = verification['data']['reference']
+                    
+                    tier = 'captain' if 'captain' in transaction.transaction_type else 'premium'
+                    
+                    profile = SabiBuyerProfile.query.filter_by(user_id=transaction.user_id).first()
+                    if profile:
+                        profile.tier = tier
+                        if tier == 'captain':
+                            profile.captain_since = datetime.utcnow()
+                        else:
+                            profile.premium_expires = datetime.utcnow() + timedelta(days=30)
+                    
+                    db.session.commit()
+                    flash(f'Successfully upgraded to {tier.title()}!', 'success')
+                    return redirect(url_for('sabibuy_my_campaigns'))
+                else:
+                    flash('Transaction not found', 'error')
+            else:
+                flash('Payment verification failed', 'error')
+        except Exception as e:
+            app.logger.error(f"Tier upgrade callback error: {e}")
+            flash('Verification error', 'error')
+    else:
+        flash('Payment service unavailable', 'error')
+    
+    return redirect(url_for('sabibuy_upgrade'))

@@ -30,7 +30,9 @@ class ScamDetector:
         'registration',
         'produce_listing',
         'logistics_bid',
-        'payout_request'
+        'payout_request',
+        'sabibuy_campaign',
+        'sabibuy_order'
     ]
     
     def __init__(self):
@@ -119,6 +121,20 @@ class ScamDetector:
                     reasons.append(reason)
                 
                 score, reason = self._check_escrow_abuse(user, data)
+                total_score += score
+                if reason:
+                    reasons.append(reason)
+        
+        elif action_type == 'sabibuy_campaign':
+            if user:
+                score, reason = self._check_sabibuy_campaign_fraud(user, data)
+                total_score += score
+                if reason:
+                    reasons.append(reason)
+        
+        elif action_type == 'sabibuy_order':
+            if user:
+                score, reason = self._check_sabibuy_order_fraud(user, data)
                 total_score += score
                 if reason:
                     reasons.append(reason)
@@ -606,6 +622,104 @@ class ScamDetector:
                 sms.send_sms(agent_profile.user.phone_number, message)
         except Exception as e:
             logger.error(f"Failed to notify agent: {e}")
+    
+    def _check_sabibuy_campaign_fraud(self, user, data: Dict) -> Tuple[int, str]:
+        """
+        SabiBuy Campaign Fraud Detection Rules:
+        - New account (<7 days) creating high-value campaigns → suspicious
+        - Multiple failed campaigns from same organizer → warning
+        - Excessive profit margins (>300%) → suspicious pricing
+        - Rapid campaign creation (>5 in 24h) → possible flood attack
+        """
+        try:
+            from models import SabiBuy, SabiBuyerProfile
+            
+            score = 0
+            reasons = []
+            
+            account_age = (datetime.utcnow() - user.registration_date).days if user.registration_date else 0
+            selling_price = data.get('selling_price', 0)
+            farm_price = data.get('farm_price', 0)
+            
+            if account_age < 7 and selling_price > 100000:
+                score += 40
+                reasons.append(f"New account ({account_age} days) creating high-value campaign (₦{selling_price:,.0f})")
+            
+            if farm_price > 0 and selling_price > 0:
+                margin_pct = ((selling_price - farm_price) / farm_price) * 100
+                if margin_pct > 300:
+                    score += 35
+                    reasons.append(f"Excessive profit margin ({margin_pct:.0f}%)")
+            
+            failed_campaigns = SabiBuy.query.filter(
+                SabiBuy.organizer_id == user.id,
+                SabiBuy.status.in_(['cancelled', 'expired'])
+            ).count()
+            
+            if failed_campaigns >= 3:
+                score += 25
+                reasons.append(f"{failed_campaigns} failed/cancelled campaigns")
+            
+            recent_campaigns = SabiBuy.query.filter(
+                SabiBuy.organizer_id == user.id,
+                SabiBuy.created_at >= datetime.utcnow() - timedelta(hours=24)
+            ).count()
+            
+            if recent_campaigns >= 5:
+                score += 40
+                reasons.append(f"{recent_campaigns} campaigns created in last 24 hours")
+            
+            return score, "; ".join(reasons)
+            
+        except Exception as e:
+            logger.error(f"SabiBuy campaign fraud check error: {e}")
+            return 0, ""
+    
+    def _check_sabibuy_order_fraud(self, user, data: Dict) -> Tuple[int, str]:
+        """
+        SabiBuy Order Fraud Detection Rules:
+        - Unusually large orders from new accounts → suspicious
+        - Multiple failed payments from same buyer → possible card testing
+        - Ordering from multiple campaigns simultaneously → unusual pattern
+        """
+        try:
+            from models import SabiBuyOrder
+            
+            score = 0
+            reasons = []
+            
+            account_age = (datetime.utcnow() - user.registration_date).days if user.registration_date else 0
+            order_amount = data.get('order_amount', 0)
+            
+            if account_age < 3 and order_amount > 200000:
+                score += 35
+                reasons.append(f"New account ({account_age} days) with large order (₦{order_amount:,.0f})")
+            
+            failed_payments = SabiBuyOrder.query.filter(
+                SabiBuyOrder.buyer_id == user.id,
+                SabiBuyOrder.payment_status == 'failed',
+                SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=24)
+            ).count()
+            
+            if failed_payments >= 3:
+                score += 40
+                reasons.append(f"{failed_payments} failed payment attempts in 24h")
+            
+            active_orders = SabiBuyOrder.query.filter(
+                SabiBuyOrder.buyer_id == user.id,
+                SabiBuyOrder.payment_status == 'pending',
+                SabiBuyOrder.created_at >= datetime.utcnow() - timedelta(hours=1)
+            ).count()
+            
+            if active_orders >= 5:
+                score += 30
+                reasons.append(f"{active_orders} pending orders in last hour")
+            
+            return score, "; ".join(reasons)
+            
+        except Exception as e:
+            logger.error(f"SabiBuy order fraud check error: {e}")
+            return 0, ""
 
 
 scam_detector = ScamDetector()
