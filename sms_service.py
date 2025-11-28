@@ -153,62 +153,78 @@ class SMSService:
                 "Registration failed. Please try again or contact support.")
     
     def _handle_produce_listing(self, phone_number, command_parts):
-        """Handle produce listing via SMS"""
+        """Handle produce listing via SMS
+        
+        Enhanced format: LIST [crop] [quantity] [price] [location (optional)]
+        Examples:
+        - LIST RICE 50BAGS 45000
+        - LIST TOMATOES 5T 150000 ONITSHA
+        - LIST YAM 100TUBERS 2500 LAGOS
+        """
         user = User.query.filter_by(phone_number=phone_number).first()
         if not user:
             return self.send_sms(phone_number, 
                 "Please register first. Send: JOIN [name] [location] [crop]")
         
         if len(command_parts) < 4:
-            message = ("Format: LIST [crop] [quantity] [price]\n"
-                      "Example: LIST TOMATOES 5T 150000\n"
-                      "Quantity: use T for tons, KG for kilograms")
+            message = ("Format: LIST [crop] [quantity] [price] [location]\n"
+                      "Example: LIST RICE 50BAGS 45000 ONITSHA\n"
+                      "Units: BAGS, KG, T(tons), TUBERS, BUNCHES")
             return self.send_sms(phone_number, message)
         
         try:
             crop_name = command_parts[1]
             quantity_str = command_parts[2]
             price_str = command_parts[3]
+            location = ' '.join(command_parts[4:]) if len(command_parts) > 4 else (user.location or 'Nigeria')
             
-            # Parse quantity (handle T for tons, KG for kilograms)
-            quantity_match = re.match(r'(\d+\.?\d*)(T|KG|TONS?|KILOS?)', quantity_str.upper())
+            # Enhanced quantity parsing (BAGS, KG, T, TUBERS, BUNCHES)
+            quantity_match = re.match(
+                r'(\d+\.?\d*)(BAGS?|KG|KILOS?|T|TONS?|TUBERS?|BUNCHES?)', 
+                quantity_str.upper()
+            )
             if not quantity_match:
                 return self.send_sms(phone_number, 
-                    "Invalid quantity format. Use: 5T (tons) or 100KG (kilograms)")
+                    "Invalid quantity. Use: 50BAGS, 5T, 100KG, 100TUBERS, 20BUNCHES")
             
             quantity_value = float(quantity_match.group(1))
             unit = quantity_match.group(2)
             
-            # Convert to standard unit (kg)
-            if unit in ['T', 'TON', 'TONS']:
-                quantity_kg = quantity_value * 1000
-                display_unit = 'tons'
-            else:
-                quantity_kg = quantity_value
-                display_unit = 'kg'
+            # Normalize unit for display
+            unit_display_map = {
+                'BAG': 'bags', 'BAGS': 'bags',
+                'KG': 'kg', 'KILO': 'kg', 'KILOS': 'kg',
+                'T': 'tons', 'TON': 'tons', 'TONS': 'tons',
+                'TUBER': 'tubers', 'TUBERS': 'tubers',
+                'BUNCH': 'bunches', 'BUNCHES': 'bunches'
+            }
+            display_unit = unit_display_map.get(unit, unit.lower())
+            quantity_display = f"{int(quantity_value) if quantity_value.is_integer() else quantity_value}{display_unit}"
             
-            # Parse price (remove currency symbols)
+            # Parse price (remove currency symbols and commas)
             price = float(re.sub(r'[^\d.]', '', price_str))
             
-            # Create produce listing
+            # Create produce listing with enhanced fields
             produce = Produce(
                 farmer_id=user.id,
                 name=crop_name.title(),
-                quantity_kg=quantity_kg,
-                price_per_kg=price / quantity_kg,  # Calculate price per kg
-                location=user.location,
+                quantity=quantity_display,
+                price=price,
+                price_unit='NGN',
+                listing_location=location.title(),
                 description=f"Listed via SMS by {user.name}",
                 contact_method='sms',
-                phone_number=phone_number
+                source_channel='sms',
+                is_available=True
             )
             
             db.session.add(produce)
             db.session.commit()
             
-            success_message = (f"✅ Listed: {quantity_value}{unit.lower()} {crop_name.title()}\n"
-                             f"Price: ₦{price:,.0f}\n"
-                             f"Per kg: ₦{price/quantity_kg:.0f}\n"
-                             f"Buyers can now see your produce!")
+            success_message = (f"Listed: {quantity_display} {crop_name.title()}\n"
+                             f"Price: N{price:,.0f}\n"
+                             f"Location: {location.title()}\n"
+                             f"Buyers can now find you!")
             
             return self.send_sms(phone_number, success_message)
             
@@ -260,6 +276,77 @@ class SMSService:
             current_app.logger.error(f"Price check error: {e}")
             return self.send_sms(phone_number, 
                 "Price check failed. Please try again.")
+    
+    def _handle_match_acceptance(self, phone_number, command_parts):
+        """Handle match acceptance via SMS"""
+        from models import MatchRecommendation
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number, "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        # Get the most recent pending recommendation for this user
+        recommendation = MatchRecommendation.query.filter(
+            ((MatchRecommendation.farmer_id == user.id) | (MatchRecommendation.buyer_id == user.id)),
+            MatchRecommendation.status == 'pending'
+        ).order_by(MatchRecommendation.recommended_at.desc()).first()
+        
+        if not recommendation:
+            return self.send_sms(phone_number, "No pending matches to accept. Check back later for new matches.")
+        
+        try:
+            recommendation.status = 'accepted'
+            recommendation.response_at = datetime.utcnow()
+            recommendation.response_method = 'sms'
+            db.session.commit()
+            
+            # Get the other party's details
+            if user.id == recommendation.farmer_id:
+                other_user = User.query.get(recommendation.buyer_id)
+                role = "Buyer"
+            else:
+                other_user = User.query.get(recommendation.farmer_id)
+                role = "Farmer"
+            
+            if other_user:
+                contact = other_user.phone_number or other_user.email
+                msg = f"Match accepted! {role}: {other_user.name}\nContact: {contact}"
+            else:
+                msg = "Match accepted! You'll receive contact details shortly."
+            
+            return self.send_sms(phone_number, msg)
+            
+        except Exception as e:
+            current_app.logger.error(f"Match acceptance error: {e}")
+            return self.send_sms(phone_number, "Error accepting match. Please try again.")
+    
+    def _handle_match_decline(self, phone_number, command_parts):
+        """Handle match decline via SMS"""
+        from models import MatchRecommendation
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number, "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        recommendation = MatchRecommendation.query.filter(
+            ((MatchRecommendation.farmer_id == user.id) | (MatchRecommendation.buyer_id == user.id)),
+            MatchRecommendation.status == 'pending'
+        ).order_by(MatchRecommendation.recommended_at.desc()).first()
+        
+        if not recommendation:
+            return self.send_sms(phone_number, "No pending matches to decline.")
+        
+        try:
+            recommendation.status = 'declined'
+            recommendation.response_at = datetime.utcnow()
+            recommendation.response_method = 'sms'
+            db.session.commit()
+            
+            return self.send_sms(phone_number, "Match declined. We'll keep looking for better matches!")
+            
+        except Exception as e:
+            current_app.logger.error(f"Match decline error: {e}")
+            return self.send_sms(phone_number, "Error declining match. Please try again.")
     
     def _handle_opt_out(self, phone_number):
         """Handle opt-out request"""
