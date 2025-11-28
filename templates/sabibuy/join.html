@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('sabibuy_home') }}">SabiBuy</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('sabibuy_campaign', code=campaign.code) }}">{{ campaign.code }}</a></li>
+            <li class="breadcrumb-item active">Join</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cart-plus me-2"></i>Join SabiBuy: {{ campaign.code }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <h5>{{ produce.crop_type if produce else 'Produce' }}</h5>
+                            <p class="text-muted">{{ produce.description if produce else '' }}</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <h3 class="text-success mb-0">₦{{ "{:,.0f}".format(campaign.selling_price) }}</h3>
+                            <span class="text-muted">per {{ campaign.price_unit }}</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Delivery:</strong> {{ campaign.delivery_market }}, {{ campaign.delivery_lga }}, {{ campaign.delivery_state }}
+                    </div>
+
+                    <form method="POST" action="{{ url_for('sabibuy_join', code=campaign.code) }}">
+                        <div class="mb-4">
+                            <label for="quantity" class="form-label fw-bold">Quantity ({{ campaign.price_unit }}s)</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="adjustQty(-1)">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" class="form-control text-center fs-4" id="quantity" name="quantity" 
+                                       value="1" min="1" max="{{ campaign.maximum_quantity - campaign.current_quantity }}" required
+                                       onchange="updateTotal()">
+                                <button type="button" class="btn btn-outline-secondary" onclick="adjustQty(1)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Available: {{ campaign.maximum_quantity - campaign.current_quantity }} {{ campaign.price_unit }}s</small>
+                        </div>
+
+                        {% if not current_user.is_authenticated %}
+                        <div class="mb-3">
+                            <label for="buyer_name" class="form-label">Your Name</label>
+                            <input type="text" class="form-control" id="buyer_name" name="buyer_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="buyer_phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="buyer_phone" name="buyer_phone" 
+                                   placeholder="+234..." required>
+                            <small class="text-muted">For order updates and delivery notification</small>
+                        </div>
+                        {% endif %}
+
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="h5 mb-0">Total Amount:</span>
+                                    <span class="h3 text-success mb-0" id="totalAmount">
+                                        ₦{{ "{:,.0f}".format(campaign.selling_price) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Place Order
+                            </button>
+                            <a href="{{ url_for('sabibuy_campaign', code=campaign.code) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const unitPrice = {{ campaign.selling_price }};
+
+function adjustQty(delta) {
+    const input = document.getElementById('quantity');
+    let value = parseInt(input.value) + delta;
+    const max = parseInt(input.max);
+    value = Math.max(1, Math.min(value, max));
+    input.value = value;
+    updateTotal();
+}
+
+function updateTotal() {
+    const qty = parseInt(document.getElementById('quantity').value) || 1;
+    const total = qty * unitPrice;
+    document.getElementById('totalAmount').textContent = '₦' + total.toLocaleString();
+}
+</script>
+{% endblock %}

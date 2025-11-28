@@ -4954,3 +4954,208 @@ def admin_logistics_bidding():
                          transporters=transporters,
                          stats=stats,
                          title='Logistics & Bidding Dashboard')
+
+
+# ==================== SABIBUY GROUP-BUY ROUTES ====================
+
+@app.route('/sabibuy')
+def sabibuy_home():
+    """SabiBuy home page - browse active campaigns"""
+    campaigns = SabiBuy.query.filter_by(status='active').order_by(SabiBuy.created_at.desc()).limit(20).all()
+    
+    return render_template('sabibuy/index.html',
+                         campaigns=campaigns,
+                         title='SabiBuy - Group Buy Marketplace')
+
+@app.route('/sabibuy/campaign/<code>')
+def sabibuy_campaign(code):
+    """View a specific SabiBuy campaign"""
+    campaign = SabiBuy.query.filter_by(code=code.upper()).first_or_404()
+    produce = Produce.query.get(campaign.produce_id)
+    organizer = User.query.get(campaign.organizer_id)
+    orders = SabiBuyOrder.query.filter_by(sabibuy_id=campaign.id, payment_status='paid').all()
+    
+    progress = int((campaign.current_quantity / campaign.minimum_quantity * 100)) if campaign.minimum_quantity > 0 else 0
+    
+    return render_template('sabibuy/campaign.html',
+                         campaign=campaign,
+                         produce=produce,
+                         organizer=organizer,
+                         orders=orders,
+                         progress=min(progress, 100),
+                         title=f'SabiBuy - {code}')
+
+@app.route('/sabibuy/join/<code>', methods=['GET', 'POST'])
+def sabibuy_join(code):
+    """Join a SabiBuy campaign"""
+    campaign = SabiBuy.query.filter_by(code=code.upper()).first_or_404()
+    
+    if campaign.status != 'active':
+        flash('This SabiBuy campaign is no longer accepting orders.', 'warning')
+        return redirect(url_for('sabibuy_campaign', code=code))
+    
+    produce = Produce.query.get(campaign.produce_id)
+    
+    if request.method == 'POST':
+        quantity = int(request.form.get('quantity', 1))
+        buyer_name = request.form.get('buyer_name', '')
+        buyer_phone = request.form.get('buyer_phone', '')
+        
+        if quantity < 1:
+            flash('Please enter a valid quantity.', 'error')
+            return render_template('sabibuy/join.html', campaign=campaign, produce=produce)
+        
+        remaining = campaign.maximum_quantity - campaign.current_quantity
+        if quantity > remaining:
+            flash(f'Only {remaining} units available.', 'error')
+            return render_template('sabibuy/join.html', campaign=campaign, produce=produce)
+        
+        from services.sabibuy_service import sabibuy_service
+        
+        buyer_id = current_user.id if current_user.is_authenticated else None
+        if not buyer_name and current_user.is_authenticated:
+            buyer_name = current_user.name
+        if not buyer_phone and current_user.is_authenticated:
+            buyer_phone = getattr(current_user, 'phone_number', '')
+        
+        result = sabibuy_service.join_campaign(
+            code=code,
+            buyer_phone=buyer_phone,
+            quantity=quantity,
+            buyer_name=buyer_name,
+            buyer_id=buyer_id,
+            payment_method='pending',
+            source_channel='web'
+        )
+        
+        if result.get('success'):
+            flash(f'Order placed! Total: ₦{result.get("total_amount", 0):,.0f}', 'success')
+            return redirect(url_for('sabibuy_payment', order_id=result.get('order_id')))
+        else:
+            flash(result.get('error', 'Failed to place order'), 'error')
+    
+    return render_template('sabibuy/join.html',
+                         campaign=campaign,
+                         produce=produce,
+                         title=f'Join SabiBuy - {code}')
+
+@app.route('/sabibuy/payment/<int:order_id>')
+def sabibuy_payment(order_id):
+    """Payment page for SabiBuy order"""
+    order = SabiBuyOrder.query.get_or_404(order_id)
+    campaign = SabiBuy.query.get(order.sabibuy_id)
+    produce = Produce.query.get(campaign.produce_id) if campaign else None
+    
+    return render_template('sabibuy/payment.html',
+                         order=order,
+                         campaign=campaign,
+                         produce=produce,
+                         title='Complete Payment')
+
+@app.route('/sabibuy/start', methods=['GET', 'POST'])
+@login_required
+def sabibuy_start():
+    """Start a new SabiBuy campaign"""
+    produce_list = Produce.query.filter_by(is_available=True).order_by(Produce.date_listed.desc()).limit(50).all()
+    
+    if request.method == 'POST':
+        produce_id = int(request.form.get('produce_id', 0))
+        selling_price = float(request.form.get('selling_price', 0))
+        delivery_lga = request.form.get('delivery_lga', '')
+        delivery_market = request.form.get('delivery_market', '')
+        delivery_state = request.form.get('delivery_state', 'Lagos')
+        minimum_quantity = int(request.form.get('minimum_quantity', 50))
+        
+        from services.sabibuy_service import sabibuy_service
+        
+        result = sabibuy_service.create_campaign(
+            organizer_id=current_user.id,
+            produce_id=produce_id,
+            selling_price=selling_price,
+            delivery_lga=delivery_lga,
+            delivery_market=delivery_market,
+            delivery_state=delivery_state,
+            minimum_quantity=minimum_quantity,
+            source_channel='web'
+        )
+        
+        if result.get('success'):
+            code = result.get('code', '')
+            flash(f'SabiBuy created! Share code: {code}', 'success')
+            return redirect(url_for('sabibuy_campaign', code=code))
+        else:
+            flash(result.get('error', 'Failed to create SabiBuy'), 'error')
+    
+    return render_template('sabibuy/start.html',
+                         produce_list=produce_list,
+                         title='Start SabiBuy')
+
+@app.route('/sabibuy/my-campaigns')
+@login_required
+def sabibuy_my_campaigns():
+    """View user's SabiBuy campaigns"""
+    campaigns = SabiBuy.query.filter_by(organizer_id=current_user.id).order_by(SabiBuy.created_at.desc()).all()
+    
+    profile = SabiBuyerProfile.query.filter_by(user_id=current_user.id).first()
+    
+    return render_template('sabibuy/my_campaigns.html',
+                         campaigns=campaigns,
+                         profile=profile,
+                         title='My SabiBuys')
+
+@app.route('/sabibuy/my-orders')
+@login_required
+def sabibuy_my_orders():
+    """View user's SabiBuy orders"""
+    orders = SabiBuyOrder.query.filter_by(buyer_id=current_user.id).order_by(SabiBuyOrder.created_at.desc()).all()
+    
+    return render_template('sabibuy/my_orders.html',
+                         orders=orders,
+                         title='My SabiBuy Orders')
+
+@app.route('/sabibuy/leaderboard')
+def sabibuy_leaderboard():
+    """SabiBuy leaderboard showing top SabiBuyers"""
+    top_sabibuyers = SabiBuyerProfile.query.order_by(SabiBuyerProfile.total_earnings.desc()).limit(20).all()
+    
+    return render_template('sabibuy/leaderboard.html',
+                         top_sabibuyers=top_sabibuyers,
+                         title='SabiBuyer Leaderboard')
+
+@app.route('/admin/sabibuy')
+@login_required
+def admin_sabibuy():
+    """Admin SabiBuy dashboard"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    all_campaigns = SabiBuy.query.order_by(SabiBuy.created_at.desc()).limit(50).all()
+    all_orders = SabiBuyOrder.query.order_by(SabiBuyOrder.created_at.desc()).limit(50).all()
+    
+    total_gmv = db.session.query(db.func.sum(SabiBuyOrder.total_amount)).filter_by(payment_status='paid').scalar() or 0
+    total_campaigns = SabiBuy.query.count()
+    active_campaigns = SabiBuy.query.filter_by(status='active').count()
+    total_orders = SabiBuyOrder.query.count()
+    paid_orders = SabiBuyOrder.query.filter_by(payment_status='paid').count()
+    total_sabibuyers = SabiBuyerProfile.query.count()
+    captains = SabiBuyerProfile.query.filter(SabiBuyerProfile.tier.in_(['captain', 'premium'])).count()
+    
+    stats = {
+        'total_gmv': total_gmv,
+        'total_campaigns': total_campaigns,
+        'active_campaigns': active_campaigns,
+        'total_orders': total_orders,
+        'paid_orders': paid_orders,
+        'conversion_rate': (paid_orders / total_orders * 100) if total_orders > 0 else 0,
+        'total_sabibuyers': total_sabibuyers,
+        'captains': captains
+    }
+    
+    top_sabibuyers = SabiBuyerProfile.query.order_by(SabiBuyerProfile.total_earnings.desc()).limit(10).all()
+    
+    return render_template('admin/sabibuy_dashboard.html',
+                         campaigns=all_campaigns,
+                         orders=all_orders,
+                         stats=stats,
+                         top_sabibuyers=top_sabibuyers,
+                         title='SabiBuy Admin Dashboard')

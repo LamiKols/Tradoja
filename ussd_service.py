@@ -32,7 +32,11 @@ class USSDService:
                 '6': 'transport_jobs',
                 '7': 'register_buyer',
                 '8': 'register_agent',
-                '9': 'agent_menu'
+                '9': 'agent_menu',
+                '10': 'sabibuy_start',
+                '11': 'sabibuy_join',
+                '12': 'sabibuy_my_campaigns',
+                '13': 'sabibuy_earnings'
             }
         },
         'list_produce': {
@@ -109,6 +113,22 @@ class USSDService:
         'transport_balance': {
             'steps': [],
             'next': 'transport_jobs'
+        },
+        'sabibuy_start': {
+            'steps': ['select_produce', 'set_price', 'set_location', 'confirm'],
+            'next': 'main'
+        },
+        'sabibuy_join': {
+            'steps': ['enter_code', 'enter_quantity', 'confirm_payment'],
+            'next': 'main'
+        },
+        'sabibuy_my_campaigns': {
+            'steps': [],
+            'next': 'main'
+        },
+        'sabibuy_earnings': {
+            'steps': [],
+            'next': 'main'
         }
     }
     
@@ -123,7 +143,7 @@ class USSDService:
         """Lazy load database models to avoid circular imports"""
         if self.db is None:
             from app import db
-            from models import User, USSDSession, Produce, TransportProfile, LogisticsRequest, LogisticsBid, AgentProfile
+            from models import User, USSDSession, Produce, TransportProfile, LogisticsRequest, LogisticsBid, AgentProfile, SabiBuy, SabiBuyOrder
             self.db = db
             self.User = User
             self.USSDSession = USSDSession
@@ -132,6 +152,8 @@ class USSDService:
             self.LogisticsRequest = LogisticsRequest
             self.LogisticsBid = LogisticsBid
             self.AgentProfile = AgentProfile
+            self.SabiBuy = SabiBuy
+            self.SabiBuyOrder = SabiBuyOrder
     
     def process_request(
         self, 
@@ -289,6 +311,18 @@ class USSDService:
         elif session.current_menu == 'transport_balance':
             return self._show_transport_balance(session, user, lang)
         
+        elif session.current_menu == 'sabibuy_start':
+            return self._handle_sabibuy_start(session, current_input, user, lang)
+        
+        elif session.current_menu == 'sabibuy_join':
+            return self._handle_sabibuy_join(session, current_input, user, lang)
+        
+        elif session.current_menu == 'sabibuy_my_campaigns':
+            return self._show_sabibuy_campaigns(session, user, lang)
+        
+        elif session.current_menu == 'sabibuy_earnings':
+            return self._show_sabibuy_earnings(session, user, lang)
+        
         else:
             return self._show_main_menu(lang, user), True
     
@@ -361,6 +395,30 @@ class USSDService:
                 if not profile:
                     return get_message('register_agent_first', lang), False
                 return self._show_agent_menu(session, user, lang)
+            
+            elif target_menu == 'sabibuy_start':
+                if not user:
+                    session.current_menu = 'register'
+                    return get_message('register_prompt', lang), True
+                return self._show_sabibuy_produce_selection(session, user, lang)
+            
+            elif target_menu == 'sabibuy_join':
+                if not user:
+                    session.current_menu = 'register'
+                    return get_message('register_prompt', lang), True
+                return get_message('sabibuy_join_prompt', lang), True
+            
+            elif target_menu == 'sabibuy_my_campaigns':
+                if not user:
+                    session.current_menu = 'register'
+                    return get_message('register_prompt', lang), True
+                return self._show_sabibuy_campaigns(session, user, lang)
+            
+            elif target_menu == 'sabibuy_earnings':
+                if not user:
+                    session.current_menu = 'register'
+                    return get_message('register_prompt', lang), True
+                return self._show_sabibuy_earnings(session, user, lang)
         
         return get_message('invalid_command', lang), True
     
@@ -1586,6 +1644,296 @@ class USSDService:
         except Exception as e:
             logger.error(f"Error getting USSD metrics: {e}")
             return {}
+    
+    def _show_sabibuy_produce_selection(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show available produce for SabiBuy campaign"""
+        produce_list = self.Produce.query.filter(
+            self.Produce.status == 'available'
+        ).limit(10).all()
+        
+        if not produce_list:
+            return "No produce available for SabiBuy. Check back later.", False
+        
+        produce_options = []
+        produce_ids = []
+        for i, p in enumerate(produce_list, 1):
+            produce_options.append(f"{i}. {p.crop_type} @ ₦{p.price:,.0f}/{p.quantity_unit}")
+            produce_ids.append(p.id)
+        
+        session.update_session_data('produce_ids', produce_ids)
+        session.current_step = 0
+        
+        return get_message('sabibuy_select_produce', lang, produce_list="\n".join(produce_options)), True
+    
+    def _handle_sabibuy_start(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle SabiBuy campaign creation flow"""
+        
+        if not user:
+            session.current_menu = 'register'
+            return get_message('register_prompt', lang), True
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            try:
+                produce_index = int(user_input) - 1
+                produce_ids = data.get('produce_ids', [])
+                
+                if 0 <= produce_index < len(produce_ids):
+                    produce_id = produce_ids[produce_index]
+                    produce = self.Produce.query.get(produce_id)
+                    
+                    if produce:
+                        session.update_session_data('produce_id', produce_id)
+                        session.update_session_data('produce_name', produce.crop_type)
+                        session.update_session_data('farm_price', produce.price)
+                        session.update_session_data('unit', produce.quantity_unit)
+                        
+                        suggested = int(produce.price * 1.15)
+                        margin = suggested - produce.price
+                        
+                        session.current_step = 1
+                        return get_message('sabibuy_set_price', lang, 
+                                         farm_price=f"{produce.price:,.0f}",
+                                         suggested=f"{suggested:,.0f}",
+                                         margin=f"{margin:,.0f}"), True
+                
+                return "Invalid selection. Enter number:", True
+                
+            except ValueError:
+                return "Enter a number:", True
+        
+        elif step == 1:
+            try:
+                price = float(re.sub(r'[^\d.]', '', user_input))
+                farm_price = data.get('farm_price', 0)
+                
+                if price <= farm_price:
+                    return f"Price must be higher than farm price ₦{farm_price:,.0f}:", True
+                
+                session.update_session_data('selling_price', price)
+                session.current_step = 2
+                return get_message('sabibuy_set_location', lang), True
+                
+            except ValueError:
+                return "Enter valid price:", True
+        
+        elif step == 2:
+            location = user_input.strip()
+            if len(location) < 2:
+                return "Enter valid location:", True
+            
+            session.update_session_data('delivery_location', location)
+            session.current_step = 3
+            
+            produce_name = data.get('produce_name', 'Produce')
+            price = data.get('selling_price', 0)
+            unit = data.get('unit', 'unit')
+            
+            return get_message('sabibuy_confirm', lang,
+                             produce=produce_name,
+                             price=f"{price:,.0f}",
+                             min_qty=50,
+                             unit=unit,
+                             location=location), True
+        
+        elif step == 3:
+            if user_input == '1':
+                try:
+                    from services.sabibuy_service import sabibuy_service
+                    
+                    delivery_location = data.get('delivery_location', '')
+                    
+                    result = sabibuy_service.create_campaign(
+                        organizer_id=user.id,
+                        produce_id=data.get('produce_id'),
+                        selling_price=data.get('selling_price'),
+                        delivery_lga=delivery_location,
+                        delivery_market=delivery_location,
+                        delivery_state='Lagos',
+                        minimum_quantity=50,
+                        maximum_quantity=500,
+                        source_channel='ussd'
+                    )
+                    
+                    if result.get('success'):
+                        code = result.get('code', 'N/A')
+                        session.current_menu = 'main'
+                        session.current_step = 0
+                        return get_message('sabibuy_created', lang, code=code, quantity=50), False
+                    else:
+                        return result.get('error', 'Campaign creation failed'), False
+                        
+                except Exception as e:
+                    logger.error(f"SabiBuy creation error: {e}")
+                    return get_message('error', lang), False
+            
+            elif user_input == '2':
+                session.current_menu = 'main'
+                return self._show_main_menu(lang, user), True
+        
+        return get_message('error', lang), False
+    
+    def _handle_sabibuy_join(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle joining a SabiBuy campaign"""
+        
+        if not user:
+            session.current_menu = 'register'
+            return get_message('register_prompt', lang), True
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            code = user_input.strip().upper()
+            campaign = self.SabiBuy.query.filter_by(code=code).first()
+            
+            if not campaign:
+                return get_message('sabibuy_invalid_code', lang), True
+            
+            if campaign.status != 'active':
+                return get_message('sabibuy_expired', lang), False
+            
+            session.update_session_data('campaign_id', campaign.id)
+            session.update_session_data('campaign_code', code)
+            session.current_step = 1
+            
+            produce = self.Produce.query.get(campaign.produce_id)
+            produce_name = produce.crop_type if produce else 'Produce'
+            
+            return get_message('sabibuy_join_quantity', lang,
+                             code=code,
+                             produce=produce_name,
+                             price=f"{campaign.selling_price:,.0f}",
+                             unit=produce.quantity_unit if produce else 'unit'), True
+        
+        elif step == 1:
+            try:
+                quantity = int(user_input)
+                if quantity < 1:
+                    return "Enter quantity (minimum 1):", True
+                
+                campaign_id = data.get('campaign_id')
+                campaign = self.SabiBuy.query.get(campaign_id)
+                
+                if not campaign:
+                    return get_message('sabibuy_invalid_code', lang), False
+                
+                total = quantity * campaign.selling_price
+                
+                session.update_session_data('quantity', quantity)
+                session.update_session_data('total', total)
+                session.current_step = 2
+                
+                produce = self.Produce.query.get(campaign.produce_id)
+                unit = produce.quantity_unit if produce else 'unit'
+                
+                return get_message('sabibuy_join_confirm', lang,
+                                 quantity=quantity,
+                                 unit=unit,
+                                 total=f"{total:,.0f}"), True
+                
+            except ValueError:
+                return "Enter valid quantity:", True
+        
+        elif step == 2:
+            if user_input == '1' or user_input == '2':
+                try:
+                    from services.sabibuy_service import sabibuy_service
+                    
+                    payment_method = 't2_wallet' if user_input == '1' else 'paystack'
+                    campaign_code = data.get('campaign_code', '')
+                    phone = getattr(user, 'phone_number', '')
+                    
+                    result = sabibuy_service.join_campaign(
+                        code=campaign_code,
+                        buyer_phone=phone,
+                        quantity=data.get('quantity'),
+                        buyer_name=user.name,
+                        buyer_id=user.id,
+                        payment_method=payment_method,
+                        source_channel='ussd',
+                        language=lang
+                    )
+                    
+                    if result.get('success'):
+                        session.current_menu = 'main'
+                        session.current_step = 0
+                        return get_message('sabibuy_order_placed', lang,
+                                         quantity=data.get('quantity'),
+                                         unit='units',
+                                         total=f"{data.get('total'):,.0f}"), False
+                    else:
+                        return result.get('error', 'Order failed'), False
+                        
+                except Exception as e:
+                    logger.error(f"SabiBuy order error: {e}")
+                    return get_message('error', lang), False
+            
+            elif user_input == '3':
+                session.current_menu = 'main'
+                return self._show_main_menu(lang, user), True
+        
+        return get_message('error', lang), False
+    
+    def _show_sabibuy_campaigns(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show user's SabiBuy campaigns"""
+        
+        if not user:
+            return get_message('register_prompt', lang), False
+        
+        campaigns = self.SabiBuy.query.filter_by(organizer_id=user.id).order_by(
+            self.SabiBuy.created_at.desc()
+        ).limit(5).all()
+        
+        if not campaigns:
+            return "You have no SabiBuy campaigns yet.\nDial 10 to start one!", False
+        
+        campaigns_list = []
+        for c in campaigns:
+            produce = self.Produce.query.get(c.produce_id)
+            produce_name = produce.crop_type if produce else 'Produce'
+            progress = int((c.current_quantity / c.minimum_quantity * 100)) if c.minimum_quantity > 0 else 0
+            campaigns_list.append(f"{c.campaign_code}: {produce_name} ({progress}%)")
+        
+        return get_message('sabibuy_my_campaigns', lang, campaigns_list="\n".join(campaigns_list)), False
+    
+    def _show_sabibuy_earnings(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show SabiBuy earnings summary"""
+        
+        if not user:
+            return get_message('register_prompt', lang), False
+        
+        total_profit = 0
+        pending_profit = 0
+        campaign_count = 0
+        
+        campaigns = self.SabiBuy.query.filter_by(organizer_id=user.id).all()
+        campaign_count = len(campaigns)
+        
+        for c in campaigns:
+            if c.status == 'delivered':
+                total_profit += c.organizer_profit or 0
+            elif c.status in ['active', 'closed', 'booked', 'in_transit']:
+                pending_profit += c.organizer_profit or 0
+        
+        return get_message('sabibuy_earnings', lang,
+                         pending=f"{pending_profit:,.0f}",
+                         total=f"{total_profit:,.0f}",
+                         campaigns=campaign_count), False
 
 
 # Singleton instance

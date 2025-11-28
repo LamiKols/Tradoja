@@ -1404,3 +1404,297 @@ class ScamFlag(db.Model):
     
     def __repr__(self):
         return f'<ScamFlag {self.id}: {self.user.name if self.user else "Unknown"} - Score {self.scam_score}>'
+
+
+class SabiBuy(db.Model):
+    """
+    SabiBuy Group-Buy Campaign Model
+    Zero-stock group-buying engine where anyone can become a trader
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Campaign identification
+    code = db.Column(db.String(30), unique=True, nullable=False)  # e.g., NGOZI-SABIBUY-48K
+    
+    # Organizer (SabiBuyer)
+    organizer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Linked produce listing from farmer
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=False)
+    
+    # Pricing
+    farm_price = db.Column(db.Float, nullable=False)  # Price from farmer per unit
+    selling_price = db.Column(db.Float, nullable=False)  # SabiBuyer's selling price per unit
+    price_unit = db.Column(db.String(20), default='bag')  # bag, kg, crate, etc.
+    profit_margin = db.Column(db.Float)  # Auto-calculated profit per unit
+    
+    # Batch configuration
+    minimum_quantity = db.Column(db.Integer, default=50)  # Min to close batch
+    maximum_quantity = db.Column(db.Integer, default=500)  # Max capacity
+    current_quantity = db.Column(db.Integer, default=0)  # Orders collected
+    
+    # Delivery
+    delivery_lga = db.Column(db.String(100))  # Drop-off LGA
+    delivery_market = db.Column(db.String(200))  # Specific market/location
+    delivery_state = db.Column(db.String(50))
+    estimated_delivery_date = db.Column(db.DateTime)
+    actual_delivery_date = db.Column(db.DateTime)
+    
+    # Campaign status
+    status = db.Column(db.String(20), default='active')  # active, closed, booked, in_transit, delivered, cancelled, expired
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    closed_at = db.Column(db.DateTime)  # When minimum reached
+    expires_at = db.Column(db.DateTime)  # Auto-expire if not filled
+    
+    # Escrow tracking
+    total_escrow = db.Column(db.Float, default=0.0)  # Total collected in escrow
+    escrow_released = db.Column(db.Boolean, default=False)
+    
+    # Logistics integration
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
+    
+    # Financial tracking
+    total_revenue = db.Column(db.Float, default=0.0)
+    organizer_profit = db.Column(db.Float, default=0.0)
+    profit_paid = db.Column(db.Boolean, default=False)
+    profit_paid_at = db.Column(db.DateTime)
+    
+    # Source channel
+    source_channel = db.Column(db.String(20), default='web')  # web, ussd, sms
+    
+    # Relationships
+    organizer = db.relationship('User', backref='sabibuy_campaigns')
+    produce = db.relationship('Produce', backref='sabibuy_campaigns')
+    logistics_request = db.relationship('LogisticsRequest', backref='sabibuy')
+    orders = db.relationship('SabiBuyOrder', backref='campaign', lazy='dynamic', cascade='all, delete-orphan')
+    
+    @staticmethod
+    def generate_code(organizer_name, price):
+        """Generate unique SabiBuy code like NGOZI-SABIBUY-48K"""
+        import random
+        import re
+        
+        # Clean name - take first name, uppercase, max 8 chars
+        first_name = organizer_name.split()[0].upper()[:8]
+        first_name = re.sub(r'[^A-Z]', '', first_name)
+        if not first_name:
+            first_name = 'SABI'
+        
+        # Format price (e.g., 48000 -> 48K, 150000 -> 150K)
+        if price >= 1000:
+            price_str = f"{int(price/1000)}K"
+        else:
+            price_str = str(int(price))
+        
+        # Generate unique code
+        while True:
+            suffix = random.randint(10, 99)
+            code = f"{first_name}-SABIBUY-{price_str}{suffix}"
+            existing = SabiBuy.query.filter_by(code=code).first()
+            if not existing:
+                return code
+    
+    def calculate_progress_percentage(self):
+        """Calculate batch fill percentage"""
+        if self.minimum_quantity == 0:
+            return 100
+        return min(100, int((self.current_quantity / self.minimum_quantity) * 100))
+    
+    def is_ready_to_close(self):
+        """Check if minimum quantity reached"""
+        return self.current_quantity >= self.minimum_quantity
+    
+    def calculate_organizer_profit(self):
+        """Calculate total profit for organizer"""
+        return (self.selling_price - self.farm_price) * self.current_quantity
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'active': 'bg-primary',
+            'closed': 'bg-info',
+            'booked': 'bg-warning',
+            'in_transit': 'bg-secondary',
+            'delivered': 'bg-success',
+            'cancelled': 'bg-danger',
+            'expired': 'bg-dark'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def get_localized_name(self, language='en'):
+        """Get localized SabiBuy name"""
+        names = {
+            'en': 'SabiBuy',
+            'pcm': 'SabiBuy',
+            'yo': 'SabiRa',
+            'ha': 'SaniSaya',
+            'ig': 'SabiBuy'
+        }
+        return names.get(language, 'SabiBuy')
+    
+    def __repr__(self):
+        return f'<SabiBuy {self.code}: {self.current_quantity}/{self.minimum_quantity} {self.status}>'
+
+
+class SabiBuyOrder(db.Model):
+    """
+    Individual orders/participations in a SabiBuy campaign
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Campaign link
+    sabibuy_id = db.Column(db.Integer, db.ForeignKey('sabi_buy.id'), nullable=False)
+    
+    # Buyer details
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # If registered user
+    buyer_phone = db.Column(db.String(20), nullable=False)  # Phone for all orders
+    buyer_name = db.Column(db.String(100))  # Name (optional for SMS orders)
+    
+    # Order details
+    quantity = db.Column(db.Integer, nullable=False)  # Number of bags/units
+    unit_price = db.Column(db.Float, nullable=False)  # Price per unit at time of order
+    total_amount = db.Column(db.Float, nullable=False)  # quantity * unit_price
+    
+    # Payment status
+    payment_status = db.Column(db.String(20), default='pending')  # pending, paid, refunded, released
+    payment_method = db.Column(db.String(20))  # t2_wallet, paystack, cash
+    payment_reference = db.Column(db.String(100))  # Transaction reference
+    paid_at = db.Column(db.DateTime)
+    
+    # Escrow
+    in_escrow = db.Column(db.Boolean, default=False)
+    escrow_released_at = db.Column(db.DateTime)
+    
+    # Delivery tracking
+    delivered = db.Column(db.Boolean, default=False)
+    delivered_at = db.Column(db.DateTime)
+    delivery_confirmed_by = db.Column(db.String(100))  # Phone/name of person who received
+    
+    # Order source
+    source_channel = db.Column(db.String(20), default='web')  # web, ussd, sms
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Language preference for notifications
+    preferred_language = db.Column(db.String(10), default='en')
+    
+    # Relationships
+    buyer = db.relationship('User', backref='sabibuy_orders')
+    
+    def get_status_display(self):
+        """Get human-readable status"""
+        statuses = {
+            'pending': 'Awaiting Payment',
+            'paid': 'Paid - In Escrow',
+            'refunded': 'Refunded',
+            'released': 'Completed'
+        }
+        return statuses.get(self.payment_status, 'Unknown')
+    
+    def __repr__(self):
+        return f'<SabiBuyOrder {self.id}: {self.quantity} units - {self.payment_status}>'
+
+
+class SabiBuyerProfile(db.Model):
+    """
+    SabiBuyer tier and profile management
+    Tracks earnings, tier upgrades, and subscription status
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Tier system
+    tier = db.Column(db.String(20), default='free')  # free, captain, premium
+    tier_upgraded_at = db.Column(db.DateTime)
+    captain_fee_paid = db.Column(db.Boolean, default=False)  # ₦5,000 one-time
+    captain_payment_ref = db.Column(db.String(100))
+    
+    # Premium subscription
+    is_premium = db.Column(db.Boolean, default=False)
+    premium_start_date = db.Column(db.DateTime)
+    premium_end_date = db.Column(db.DateTime)
+    premium_subscription_code = db.Column(db.String(100))  # Paystack subscription
+    
+    # Stats
+    total_campaigns = db.Column(db.Integer, default=0)
+    successful_campaigns = db.Column(db.Integer, default=0)
+    total_earnings = db.Column(db.Float, default=0.0)
+    pending_earnings = db.Column(db.Float, default=0.0)
+    total_gmv = db.Column(db.Float, default=0.0)  # Gross Merchandise Value
+    
+    # Active campaign tracking (free tier max 3)
+    active_campaigns_count = db.Column(db.Integer, default=0)
+    
+    # Badge display
+    has_gold_badge = db.Column(db.Boolean, default=False)
+    
+    # Registration
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='sabibuyer_profile', uselist=False)
+    
+    def can_create_campaign(self):
+        """Check if user can create a new SabiBuy campaign based on tier"""
+        if self.tier == 'premium' or self.tier == 'captain':
+            return True
+        # Free tier: max 3 active campaigns
+        return self.active_campaigns_count < 3
+    
+    def get_max_campaigns(self):
+        """Get maximum allowed active campaigns"""
+        if self.tier == 'premium' or self.tier == 'captain':
+            return 999  # Unlimited
+        return 3
+    
+    def get_tier_display(self):
+        """Get human-readable tier name"""
+        tiers = {
+            'free': 'Free Tier',
+            'captain': 'SabiBuyer Captain 🏆',
+            'premium': 'Premium Member ⭐'
+        }
+        return tiers.get(self.tier, 'Free Tier')
+    
+    def get_tier_badge_class(self):
+        """Return Bootstrap badge class for tier"""
+        tier_classes = {
+            'free': 'bg-secondary',
+            'captain': 'bg-warning text-dark',
+            'premium': 'bg-primary'
+        }
+        return tier_classes.get(self.tier, 'bg-secondary')
+    
+    def get_localized_tier(self, language='en'):
+        """Get localized tier name"""
+        tier_names = {
+            'en': {
+                'free': 'SabiBuyer',
+                'captain': 'SabiBuyer Captain',
+                'premium': 'Premium SabiBuyer'
+            },
+            'pcm': {
+                'free': 'SabiBuyer',
+                'captain': 'SabiBuyer Captain',
+                'premium': 'Premium SabiBuyer'
+            },
+            'yo': {
+                'free': 'Oníṣòwò Sabi',
+                'captain': 'Olórí Oníṣòwò Sabi',
+                'premium': 'Oníṣòwò Sabi Pataki'
+            },
+            'ha': {
+                'free': 'Mai Hankali',
+                'captain': 'Shugaban Mai Hankali',
+                'premium': 'Mai Hankali Na Musamman'
+            },
+            'ig': {
+                'free': 'Onye Sabi',
+                'captain': 'Onyeisi Sabi',
+                'premium': 'Onye Sabi Puru Iche'
+            }
+        }
+        lang_tiers = tier_names.get(language, tier_names['en'])
+        return lang_tiers.get(self.tier, lang_tiers['free'])
+    
+    def __repr__(self):
+        return f'<SabiBuyerProfile {self.user.name if self.user else "Unknown"}: {self.tier}>'

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('sabibuy_home') }}">SabiBuy</a></li>
+            <li class="breadcrumb-item active">{{ campaign.code }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-shopping-basket me-2"></i>{{ campaign.code }}
+                    </h4>
+                    <span class="badge bg-light text-dark fs-6">{{ campaign.status|upper }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>{{ produce.crop_type if produce else 'Produce' }}</h5>
+                            <p class="text-muted">{{ produce.description if produce else '' }}</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <h3 class="text-success mb-0">₦{{ "{:,.0f}".format(campaign.selling_price) }}</h3>
+                            <span class="text-muted">per {{ campaign.price_unit }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Progress</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ campaign.current_quantity }} / {{ campaign.minimum_quantity }} {{ campaign.price_unit }}s collected</span>
+                            <span class="fw-bold">{{ progress }}%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: {{ progress }}%">
+                                {% if progress >= 100 %}Ready!{% endif %}
+                            </div>
+                        </div>
+                        {% if progress < 100 %}
+                        <small class="text-muted">{{ campaign.minimum_quantity - campaign.current_quantity }} more {{ campaign.price_unit }}s needed to close batch</small>
+                        {% else %}
+                        <div class="alert alert-success mt-2 mb-0">
+                            <i class="fas fa-check-circle me-2"></i>Minimum quantity reached! Batch will close soon.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-map-marker-alt text-danger me-2"></i>Delivery Location</h6>
+                                    <p class="mb-0">{{ campaign.delivery_market }}, {{ campaign.delivery_lga }}<br>{{ campaign.delivery_state }} State</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-user text-primary me-2"></i>Organized By</h6>
+                                    <p class="mb-0">{{ organizer.name if organizer else 'Anonymous' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if campaign.expires_at %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock me-2"></i>
+                        Expires: {{ campaign.expires_at.strftime('%B %d, %Y at %H:%M') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    {% if campaign.status == 'active' %}
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('sabibuy_join', code=campaign.code) }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-cart-plus me-2"></i>Join This SabiBuy
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>This SabiBuy is {{ campaign.status }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if orders %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Recent Orders ({{ orders|length }})</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for order in orders[:10] %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ order.buyer_name or 'Anonymous' }}</strong>
+                            <br><small class="text-muted">{{ order.created_at.strftime('%b %d, %H:%M') }}</small>
+                        </div>
+                        <span class="badge bg-success rounded-pill">{{ order.quantity }} {{ campaign.price_unit }}s</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-share-alt me-2"></i>Share This SabiBuy</h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="shareCode" value="{{ campaign.code }}" readonly>
+                        <button class="btn btn-outline-primary" type="button" onclick="copyCode()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <p class="small text-muted mb-3">Share this code with friends to join the group buy!</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="https://wa.me/?text=Join%20my%20SabiBuy%20{{ campaign.code }}%20-%20{{ produce.crop_type if produce else 'Produce' }}%20at%20₦{{ campaign.selling_price|int }}%20per%20{{ campaign.price_unit }}!" 
+                           class="btn btn-success" target="_blank">
+                            <i class="fab fa-whatsapp me-2"></i>Share on WhatsApp
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="navigator.share && navigator.share({title: 'SabiBuy', text: 'Join my SabiBuy {{ campaign.code }}', url: window.location.href})">
+                            <i class="fas fa-share me-2"></i>Share Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body text-center">
+                    <h6>SMS/USSD Join</h6>
+                    <p class="small text-muted mb-2">Your buyers can also join via:</p>
+                    <code class="d-block mb-2">SABIBUY {{ campaign.code }} [qty]</code>
+                    <small class="text-muted">Send to AgroLink SMS number</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyCode() {
+    const input = document.getElementById('shareCode');
+    input.select();
+    document.execCommand('copy');
+    alert('Code copied: ' + input.value);
+}
+</script>
+{% endblock %}

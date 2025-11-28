@@ -105,6 +105,12 @@ class SMSService:
                 return self._handle_start_trip(phone_number, command_parts)
             elif command == 'DOC':
                 return self._handle_doc_request(phone_number)
+            elif command == 'SABIBUY' or command == 'SABI' or command == 'SB':
+                return self._handle_sabibuy_command(phone_number, command_parts)
+            elif command == 'MYSABIBUY' or command == 'MYSB':
+                return self._handle_my_sabibuy(phone_number)
+            elif '-SABIBUY-' in command or command.startswith('SB-'):
+                return self._handle_sabibuy_join_code(phone_number, command, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -943,6 +949,191 @@ class SMSService:
         except Exception as e:
             current_app.logger.error(f"Metrics error: {e}")
             return {}
+    
+    def _handle_sabibuy_command(self, phone_number, command_parts):
+        """Handle SabiBuy SMS commands
+        
+        Formats:
+        - SABIBUY CODE - join a campaign
+        - SABIBUY CODE QTY - join with quantity
+        - SABIBUY START - create new campaign (prompts for details)
+        """
+        from models import SabiBuy, SabiBuyOrder
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "SabiBuy Commands:\n"
+                "SABIBUY CODE - Join campaign\n"
+                "SABIBUY CODE QTY - Join with quantity\n"
+                "MYSABIBUY - Your campaigns\n"
+                "Example: SABIBUY OBI-SABIBUY-48K 10")
+        
+        action = command_parts[1].upper()
+        
+        if action == 'START':
+            return self.send_sms(phone_number,
+                "To start SabiBuy, dial *712*55# > 10\n"
+                "Or visit agrolink.ng/sabibuy")
+        
+        if action == 'EARNINGS':
+            campaigns = SabiBuy.query.filter_by(organizer_id=user.id).all()
+            total_profit = sum(c.organizer_profit or 0 for c in campaigns if c.status == 'delivered')
+            pending = sum(c.organizer_profit or 0 for c in campaigns if c.status in ['active', 'closed', 'booked', 'in_transit'])
+            return self.send_sms(phone_number,
+                f"SabiBuy Earnings:\n"
+                f"Pending: ₦{pending:,.0f}\n"
+                f"Total Paid: ₦{total_profit:,.0f}\n"
+                f"Campaigns: {len(campaigns)}")
+        
+        campaign_code = action
+        if '-SABIBUY-' not in campaign_code and not campaign_code.startswith('SB-'):
+            if len(command_parts) >= 3 and '-SABIBUY-' in command_parts[2].upper():
+                campaign_code = command_parts[2].upper()
+        
+        campaign = SabiBuy.query.filter_by(code=campaign_code).first()
+        
+        if not campaign:
+            return self.send_sms(phone_number,
+                f"Campaign code not found: {campaign_code}\n"
+                "Check the code and try again.")
+        
+        if campaign.status != 'active':
+            return self.send_sms(phone_number,
+                f"Campaign {campaign_code} is {campaign.status}.\n"
+                "It's no longer accepting orders.")
+        
+        quantity = 1
+        if len(command_parts) >= 3:
+            try:
+                qty_str = command_parts[-1] if not command_parts[-1].upper().startswith('SB') else command_parts[2]
+                quantity = int(re.sub(r'[^\d]', '', qty_str))
+                if quantity < 1:
+                    quantity = 1
+            except ValueError:
+                quantity = 1
+        
+        try:
+            from services.sabibuy_service import sabibuy_service
+            
+            result = sabibuy_service.join_campaign(
+                code=campaign_code,
+                buyer_phone=phone_number,
+                quantity=quantity,
+                buyer_name=user.name,
+                buyer_id=user.id,
+                payment_method='pending',
+                source_channel='sms',
+                language=user.preferred_language or 'en'
+            )
+            
+            if result.get('success'):
+                total = result.get('total_amount', quantity * campaign.selling_price)
+                produce = Produce.query.get(campaign.produce_id)
+                produce_name = produce.crop_type if produce else 'Produce'
+                
+                return self.send_sms(phone_number,
+                    f"Order placed!\n"
+                    f"{quantity} {produce_name} @ ₦{campaign.selling_price:,.0f}\n"
+                    f"Total: ₦{total:,.0f}\n"
+                    f"Pay to complete your order.")
+            else:
+                return self.send_sms(phone_number, result.get('error', 'Order failed'))
+                
+        except Exception as e:
+            current_app.logger.error(f"SabiBuy order error: {e}")
+            return self.send_sms(phone_number, "Order failed. Please try again.")
+    
+    def _handle_my_sabibuy(self, phone_number):
+        """Handle viewing user's SabiBuy campaigns"""
+        from models import SabiBuy
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
+        
+        campaigns = SabiBuy.query.filter_by(organizer_id=user.id).order_by(
+            SabiBuy.created_at.desc()
+        ).limit(5).all()
+        
+        if not campaigns:
+            return self.send_sms(phone_number,
+                "No SabiBuy campaigns yet.\n"
+                "Dial *712*55# > 10 to start one!")
+        
+        campaign_list = []
+        for c in campaigns:
+            produce = Produce.query.get(c.produce_id)
+            produce_name = produce.crop_type if produce else 'Produce'
+            progress = int((c.current_quantity / c.minimum_quantity * 100)) if c.minimum_quantity > 0 else 0
+            campaign_list.append(f"{c.campaign_code}: {produce_name} ({progress}%)")
+        
+        return self.send_sms(phone_number,
+            f"Your SabiBuys:\n" + "\n".join(campaign_list))
+    
+    def _handle_sabibuy_join_code(self, phone_number, code, command_parts):
+        """Handle direct SabiBuy code join (e.g., OBI-SABIBUY-48K 5)"""
+        from models import SabiBuy
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
+        
+        campaign_code = code.upper()
+        campaign = SabiBuy.query.filter_by(code=campaign_code).first()
+        
+        if not campaign:
+            return self.send_sms(phone_number,
+                f"Campaign not found: {campaign_code}")
+        
+        if campaign.status != 'active':
+            return self.send_sms(phone_number,
+                f"Campaign {campaign_code} is no longer accepting orders.")
+        
+        quantity = 1
+        if len(command_parts) >= 2:
+            try:
+                quantity = int(re.sub(r'[^\d]', '', command_parts[1]))
+                if quantity < 1:
+                    quantity = 1
+            except ValueError:
+                quantity = 1
+        
+        try:
+            from services.sabibuy_service import sabibuy_service
+            
+            result = sabibuy_service.join_campaign(
+                code=campaign_code,
+                buyer_phone=phone_number,
+                quantity=quantity,
+                buyer_name=user.name,
+                buyer_id=user.id,
+                payment_method='pending',
+                source_channel='sms',
+                language=user.preferred_language or 'en'
+            )
+            
+            if result.get('success'):
+                total = result.get('total_amount', quantity * campaign.selling_price)
+                produce = Produce.query.get(campaign.produce_id)
+                produce_name = produce.crop_type if produce else 'Produce'
+                
+                return self.send_sms(phone_number,
+                    f"Order placed for {campaign_code}!\n"
+                    f"{quantity} {produce_name}\n"
+                    f"Total: ₦{total:,.0f}")
+            else:
+                return self.send_sms(phone_number, result.get('error', 'Order failed'))
+                
+        except Exception as e:
+            current_app.logger.error(f"SabiBuy join error: {e}")
+            return self.send_sms(phone_number, "Order failed. Please try again.")
 
 
 # SMS Templates for future multilingual support

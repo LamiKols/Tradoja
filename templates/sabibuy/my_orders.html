@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4"><i class="fas fa-shopping-bag text-primary me-2"></i>My SabiBuy Orders</h2>
+
+    {% if orders %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Order #</th>
+                    <th>Campaign</th>
+                    <th>Quantity</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>
+                        {% set campaign = order.campaign %}
+                        {% if campaign %}
+                        <a href="{{ url_for('sabibuy_campaign', code=campaign.code) }}">
+                            {{ campaign.code }}
+                        </a>
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </td>
+                    <td>{{ order.quantity }}</td>
+                    <td>₦{{ "{:,.0f}".format(order.total_amount) }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if order.payment_status == 'paid' %}bg-success
+                            {% elif order.payment_status == 'pending' %}bg-warning
+                            {% elif order.payment_status == 'refunded' %}bg-info
+                            {% else %}bg-secondary{% endif %}">
+                            {{ order.payment_status }}
+                        </span>
+                        {% if order.delivered %}
+                        <span class="badge bg-primary ms-1">Delivered</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
+                    <td>
+                        {% if order.payment_status == 'pending' %}
+                        <a href="{{ url_for('sabibuy_payment', order_id=order.id) }}" class="btn btn-sm btn-success">
+                            Pay Now
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center py-5">
+        <i class="fas fa-shopping-cart fa-3x mb-3 text-muted"></i>
+        <h4>No Orders Yet</h4>
+        <p>Browse active SabiBuys and join a group buy!</p>
+        <a href="{{ url_for('sabibuy_home') }}" class="btn btn-success">
+            <i class="fas fa-search me-2"></i>Browse SabiBuys
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
