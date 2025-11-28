@@ -17,8 +17,9 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 - **New Database Models**: TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid for comprehensive logistics tracking
 - **Extended LogisticsRequest**: Added bidding support with quantity_tons, requires_cold_chain, winning_bid_id, escrow_amount, cold_chain_bonus_earned fields
 - **Digital Inclusion Layer**: Comprehensive multi-channel access system enabling 90% of rural Nigerian farmers with feature phones to use the platform:
-  - **USSD Access (*712*55#)**: 6-option menu system (List Produce, Check Prices, My Listings, Balance, Register, Transport Jobs) with Africa's Talking and T2 (9mobile) integration
-  - **Enhanced SMS Commands**: Extended commands including transport (JOBS, BID, MYBIDS, START) and produce (LIST, PRICE, JOIN, HELP)
+  - **USSD Access (*712*55#)**: 7-option menu system (List Produce, Check Prices, My Listings, Balance, Register, Transport Jobs, Register as Buyer) with Africa's Talking and T2 (9mobile) integration
+  - **Enhanced SMS Commands**: Extended commands including transport (JOBS, BID, MYBIDS, START), buyer (JOIN BUYER/BUY), and produce (LIST, PRICE, JOIN, HELP)
+  - **Buyer LITE Registration**: 3-step USSD flow (name → location → buyer type) and SMS command (JOIN BUYER [name] [location]) for quick buyer onboarding via feature phones
   - **Multilingual Support**: Full message templates in English, Yoruba, Hausa, Pidgin, and Igbo languages including transport/logistics messages
   - **Agent-Assisted Onboarding**: Field agent dashboard for registering farmers, single and bulk registration capabilities
   - **Digital Inclusion Dashboard**: Admin analytics showing channel distribution, language preferences, and registration metrics
