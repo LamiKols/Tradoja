@@ -29,7 +29,8 @@ class USSDService:
                 '3': 'my_listings',
                 '4': 'balance',
                 '5': 'register',
-                '6': 'transport_jobs'
+                '6': 'transport_jobs',
+                '7': 'register_buyer'
             }
         },
         'list_produce': {
@@ -50,6 +51,10 @@ class USSDService:
         },
         'register': {
             'steps': ['name', 'location', 'crop'],
+            'next': 'main'
+        },
+        'register_buyer': {
+            'steps': ['name', 'location', 'buyer_type'],
             'next': 'main'
         },
         'transport_jobs': {
@@ -236,6 +241,9 @@ class USSDService:
         elif session.current_menu == 'register_transporter':
             return self._handle_register_transporter(session, current_input, user, lang)
         
+        elif session.current_menu == 'register_buyer':
+            return self._handle_register_buyer(session, current_input, user, lang)
+        
         elif session.current_menu == 'transport_balance':
             return self._show_transport_balance(session, user, lang)
         
@@ -291,6 +299,11 @@ class USSDService:
             
             elif target_menu == 'transport_jobs':
                 return self._show_transport_menu(session, user, lang)
+            
+            elif target_menu == 'register_buyer':
+                if user and user.role == 'buyer':
+                    return get_message('already_buyer', lang), False
+                return get_message('register_buyer_name', lang), True
         
         return get_message('invalid_command', lang), True
     
@@ -749,6 +762,91 @@ class USSDService:
                 
             except Exception as e:
                 logger.error(f"USSD transport registration error: {e}")
+                self.db.session.rollback()
+                return get_message('error', lang), False
+        
+        return get_message('error', lang), False
+    
+    def _handle_register_buyer(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle 3-step buyer LITE registration via USSD"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            data['name'] = user_input.strip().title()
+            session.update_session_data('name', data['name'])
+            session.current_step = 1
+            return get_message('register_buyer_location', lang), True
+        
+        elif step == 1:
+            data['location'] = user_input.strip().title()
+            session.update_session_data('location', data['location'])
+            session.current_step = 2
+            return get_message('register_buyer_type', lang), True
+        
+        elif step == 2:
+            buyer_type_map = {
+                '1': 'retail_buyer',
+                '2': 'bulk_trader',
+                '3': 'institutional_buyer',
+                '4': 'agro_processor'
+            }
+            
+            if user_input not in buyer_type_map:
+                return get_message('register_buyer_type', lang), True
+            
+            buyer_type = buyer_type_map[user_input]
+            
+            name = data.get('name')
+            location = data.get('location')
+            
+            if not name or not location:
+                session.current_menu = 'main'
+                session.current_step = 0
+                return "Session expired. Please try again.\nDial *712*55# > 7", False
+            
+            try:
+                from werkzeug.security import generate_password_hash
+                
+                phone = session.phone_number
+                
+                if user:
+                    user.role = 'buyer'
+                    user.buyer_type = buyer_type
+                    user.location = location
+                    new_user = user
+                else:
+                    new_user = self.User(
+                        name=name,
+                        phone_number=phone,
+                        email=f"{phone.replace('+', '').replace('-', '')}@buyer.agrolink.ng",
+                        role='buyer',
+                        buyer_type=buyer_type,
+                        is_ussd_user=True,
+                        source_channel='ussd',
+                        preferred_language=lang,
+                        location=location
+                    )
+                    new_user.password_hash = generate_password_hash('ussd_buyer_temp')
+                    self.db.session.add(new_user)
+                
+                self.db.session.commit()
+                
+                session.current_menu = 'main'
+                session.current_step = 0
+                session.set_session_data({})
+                
+                return get_message('register_buyer_success', lang, name=name), False
+                
+            except Exception as e:
+                logger.error(f"USSD buyer registration error: {e}")
                 self.db.session.rollback()
                 return get_message('error', lang), False
         

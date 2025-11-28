@@ -78,6 +78,8 @@ class SMSService:
             if command == 'JOIN':
                 if len(command_parts) > 1 and command_parts[1] in ('TRK', 'TRANSPORT'):
                     return self._handle_transport_registration(phone_number, command_parts)
+                if len(command_parts) > 1 and command_parts[1] in ('BUYER', 'BUY'):
+                    return self._handle_buyer_registration(phone_number, command_parts)
                 return self._handle_registration(phone_number, command_parts)
             elif command == 'LIST':
                 return self._handle_produce_listing(phone_number, command_parts)
@@ -653,6 +655,69 @@ class SMSService:
             db.session.rollback()
             return self.send_sms(phone_number, "Registration failed. Please try again or dial *712*55#")
     
+    def _handle_buyer_registration(self, phone_number, command_parts):
+        """Handle buyer LITE registration via SMS
+        
+        Format: JOIN BUYER [name] [location]
+        or:     JOIN BUY [name] [location]
+        
+        Examples:
+            JOIN BUYER Mama Ngozi Lagos
+            JOIN BUY Chinedu Onitsha
+        """
+        from models import User
+        from werkzeug.security import generate_password_hash
+        from app import db
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if user:
+            if user.role == 'buyer':
+                return self.send_sms(phone_number,
+                    f"You're already registered as buyer.\nText PRICE [crop] to check prices.")
+        
+        if len(command_parts) < 4:
+            message = ("Register as buyer:\nJOIN BUYER [name] [location]\n\n"
+                      "Examples:\nJOIN BUYER Mama Lagos\n"
+                      "JOIN BUY Chinedu Onitsha")
+            return self.send_sms(phone_number, message)
+        
+        location = command_parts[-1].title()
+        name = ' '.join(command_parts[2:-1]).title() if len(command_parts) > 4 else command_parts[2].title()
+        
+        try:
+            if user:
+                user.role = 'buyer'
+                user.buyer_type = 'retail_buyer'
+                user.location = location
+                user.sms_enabled = True
+                user.source_channel = 'sms'
+            else:
+                user = User(
+                    name=name,
+                    phone_number=phone_number,
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@buyer.agrolink.ng",
+                    role='buyer',
+                    buyer_type='retail_buyer',
+                    sms_enabled=True,
+                    source_channel='sms',
+                    location=location
+                )
+                user.password_hash = generate_password_hash('sms_buyer_temp')
+                db.session.add(user)
+            
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"Welcome {name}!\nYou're registered as buyer.\n"
+                f"Location: {location}\n\n"
+                f"Commands:\nPRICE [crop] - Check prices\n"
+                f"Dial *712*55# for full menu")
+        
+        except Exception as e:
+            current_app.logger.error(f"SMS buyer registration error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number, "Registration failed. Please try again or dial *712*55#")
+    
     def _handle_doc_request(self, phone_number):
         """Handle DOC command to send profile completion link"""
         from models import TransportProfile
@@ -691,6 +756,7 @@ class SMSService:
         
         help_message = ("AgroLink SMS Commands:\n"
                        "JOIN [name] [location] [crop] - Register as farmer\n"
+                       "JOIN BUYER [name] [loc] - Register as buyer\n"
                        "JOIN TRK [name] [loc] [type] - Register as transporter\n"
                        "LIST [crop] [qty] [price] - List produce\n"
                        "PRICE [crop] - Check prices\n")

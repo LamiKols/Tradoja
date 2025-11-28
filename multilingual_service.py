@@ -26,7 +26,7 @@ class MultilingualService:
             'already_registered': "You're already registered. Send HELP for commands.",
             
             # USSD Main Menu
-            'ussd_main_menu': "AgroLink\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register\n6. Transport Jobs",
+            'ussd_main_menu': "AgroLink\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register\n6. Transport Jobs\n7. Register as Buyer",
             'ussd_welcome': "Welcome to AgroLink USSD",
             
             # Produce Listing
@@ -83,6 +83,14 @@ class MultilingualService:
             'already_transporter': "You are already registered as transporter.\nID: {transporter_id}",
             'transport_balance': "Transporter ID: {transporter_id}\nWallet Balance: ₦{balance}",
             'doc_response': "Complete your profile to get higher ranking and cold-chain bonus.\nVisit: agrolink.ng/transport/complete\nOr call agent: 08012345678",
+            
+            # Buyer LITE Registration
+            'register_buyer_first': "Please register as buyer first.\nDial *712*55# > 7 or text JOIN BUYER [name] [location]",
+            'register_buyer_name': "Enter your name or business name:",
+            'register_buyer_location': "Enter your location (state/city):",
+            'register_buyer_type': "What type of buyer are you?\n1. Retail Buyer\n2. Bulk Trader\n3. Restaurant/Hotel\n4. Agro-Processor",
+            'register_buyer_success': "Welcome {name}!\nYou are now registered as buyer.\nYou will receive produce alerts.\nText PRICE to check prices.",
+            'already_buyer': "You are already registered as a buyer.",
             'bid_rejected': "Your bid for Job #{job_id} was not selected. Try other jobs!",
             'trip_started': "Trip #{job_id} started. Track temperature at {tracking_url}",
             'delivery_complete': "Delivery complete! Final payment of {amount} released to your wallet.",
@@ -100,7 +108,7 @@ class MultilingualService:
             'registration_success': "O ti forukọsilẹ bi agbe! Awọn aṣẹ: LIST, PRICE, HELP",
             'already_registered': "O ti forukọsilẹ tẹlẹ. Fi HELP ranṣẹ fun awọn aṣẹ.",
             
-            'ussd_main_menu': "AgroLink\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ\n6. Awọn Iṣẹ Gbigbe",
+            'ussd_main_menu': "AgroLink\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ\n6. Awọn Iṣẹ Gbigbe\n7. Forukọsilẹ bi Olura",
             'ussd_welcome': "Kaabo si AgroLink USSD",
             
             'list_prompt': "Tẹ: [irugbin] [iye] [owo]\nApẹẹrẹ: IRESI 50BAGS 45000",
@@ -137,6 +145,14 @@ class MultilingualService:
             'already_transporter': "O ti forukọsilẹ bi awakọ.\nID: {transporter_id}",
             'transport_balance': "ID Awakọ: {transporter_id}\nIwontunwonsi: ₦{balance}",
             'doc_response': "Pari profaili rẹ lati ni ipo giga ati bonus firiji.\nṢabẹwo: agrolink.ng/transport/complete",
+            
+            # Buyer LITE Registration
+            'register_buyer_first': "Jọwọ forukọsilẹ bi olura.\nPe *712*55# > 7 tabi fi JOIN BUYER [orukọ] [ipo] ranṣẹ",
+            'register_buyer_name': "Tẹ orukọ tabi orukọ iṣowo rẹ:",
+            'register_buyer_location': "Tẹ ipo rẹ (ipinlẹ/ilu):",
+            'register_buyer_type': "Iru olura wo ni o jẹ?\n1. Olura Sọtọ\n2. Oniṣowo Pupo\n3. Ile Ounjẹ/Hoteli\n4. Oniṣẹ Ogbin",
+            'register_buyer_success': "Kaabo {name}!\nO ti forukọsilẹ bi olura.\nIwọ yoo gba ifiranṣẹ nipa irugbin.\nFi PRICE ranṣẹ lati ṣayẹwo owo.",
+            'already_buyer': "O ti forukọsilẹ tẹlẹ bi olura.",
             'delivery_complete': "Ifijiṣẹ ti pari! A ti tu owo ikẹhin ti ₦{amount} silẹ.",
         },
         
@@ -147,7 +163,7 @@ class MultilingualService:
             'registration_success': "An yi rajista a matsayin manomi! Umarni: LIST, PRICE, HELP",
             'already_registered': "An riga an yi maka rajista. Aika HELP don umarni.",
             
-            'ussd_main_menu': "AgroLink\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista\n6. Aikin Mota",
+            'ussd_main_menu': "AgroLink\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista\n6. Aikin Mota\n7. Rajista a matsayin Mai Saya",
             'ussd_welcome': "Barka da zuwa AgroLink USSD",
             
             'list_prompt': "Shigar: [amfani] [adadi] [farashi]\nMisali: SHINKAFA 50BAGS 45000",
@@ -184,6 +200,14 @@ class MultilingualService:
             'already_transporter': "An riga an yi muku rajista a matsayin direba.\nID: {transporter_id}",
             'transport_balance': "ID Direba: {transporter_id}\nMa'auni: ₦{balance}",
             'doc_response': "Kammala bayananku don samun matsayi mafi girma da bonus firiji.\nZiyarci: agrolink.ng/transport/complete",
+            
+            # Buyer LITE Registration
+            'register_buyer_first': "Da fatan za a yi rajista a matsayin mai saya.\nKira *712*55# > 7 ko aika JOIN BUYER [suna] [wuri]",
+            'register_buyer_name': "Shigar da sunan ku ko sunan kasuwanci:",
+            'register_buyer_location': "Shigar da wurin ku (jiha/gari):",
+            'register_buyer_type': "Wane irin mai saya ne ku?\n1. Mai Saye Daki-Daki\n2. Mai Cinikin Girma\n3. Gidan Abinci/Otal\n4. Mai Sarrafa Noma",
+            'register_buyer_success': "Barka da zuwa {name}!\nAn yi muku rajista a matsayin mai saya.\nZa ku sami saƙon kayan amfanin gona.\nAika PRICE don duba farashi.",
+            'already_buyer': "An riga an yi muku rajista a matsayin mai saya.",
             'delivery_complete': "Bayarwa ta kammala! An saki ₦{amount} na ƙarshe.",
             'cold_chain_bonus': "An tabbatar da sanyi! An ƙara ₦{amount}.",
         },
@@ -195,7 +219,7 @@ class MultilingualService:
             'registration_success': "E don register you as farmer! Commands: LIST, PRICE, HELP",
             'already_registered': "You don already register. Send HELP for commands.",
             
-            'ussd_main_menu': "AgroLink\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register\n6. Transport Work",
+            'ussd_main_menu': "AgroLink\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register\n6. Transport Work\n7. Register as Buyer",
             'ussd_welcome': "Welcome to AgroLink USSD",
             
             'list_prompt': "Type: [produce] [how many] [price]\nExample: RICE 50BAGS 45000",
@@ -232,6 +256,14 @@ class MultilingualService:
             'already_transporter': "You don already register as driver.\nID: {transporter_id}",
             'transport_balance': "Driver ID: {transporter_id}\nBalance: ₦{balance}",
             'doc_response': "Finish your profile to get better ranking and cold-chain bonus.\nGo: agrolink.ng/transport/complete",
+            
+            # Buyer LITE Registration
+            'register_buyer_first': "Abeg register as buyer first.\nDial *712*55# > 7 or text JOIN BUYER [name] [location]",
+            'register_buyer_name': "Type your name or business name:",
+            'register_buyer_location': "Type your location (state/city):",
+            'register_buyer_type': "Wetin kind buyer you be?\n1. Small Small Buyer\n2. Big Trader\n3. Restaurant/Hotel\n4. Agro-Processor",
+            'register_buyer_success': "Welcome {name}!\nE don register you as buyer.\nYou go dey receive produce alert.\nText PRICE to check price.",
+            'already_buyer': "You don already register as buyer.",
             'delivery_complete': "Delivery don complete! ₦{amount} final payment don enter.",
             'cold_chain_bonus': "Cold chain verified! Bonus of ₦{amount} don add.",
         },
@@ -243,7 +275,7 @@ class MultilingualService:
             'registration_success': "E debanyela gị dị ka onye ọrụ ugbo! Iwu: LIST, PRICE, HELP",
             'already_registered': "E debanyela aha gị. Zipu HELP maka iwu.",
             
-            'ussd_main_menu': "AgroLink\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha\n6. Ọrụ Njem",
+            'ussd_main_menu': "AgroLink\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha\n6. Ọrụ Njem\n7. Debanye Aha dị ka Onye Ọzụzụ",
             'ussd_welcome': "Nno na AgroLink USSD",
             
             'list_prompt': "Tinye: [ihe ọkụkụ] [ole] [ọnụ ahịa]\nỌmụmaatụ: RICE 50BAGS 45000",
@@ -280,6 +312,14 @@ class MultilingualService:
             'already_transporter': "E debanyela aha gị dị ka onye ọkwọ ụgbọ.\nID: {transporter_id}",
             'transport_balance': "ID Onye Ọkwọ: {transporter_id}\nEgo: ₦{balance}",
             'doc_response': "Mezue profaịlụ gị iji nweta ọkwa dị elu na bonus oyi.\nGaa: agrolink.ng/transport/complete",
+            
+            # Buyer LITE Registration
+            'register_buyer_first': "Biko debanye aha dị ka onye ọzụzụ.\nKpọọ *712*55# > 7 ma ọ bụ zipu JOIN BUYER [aha] [ebe]",
+            'register_buyer_name': "Tinye aha gị ma ọ bụ aha azụmaahịa:",
+            'register_buyer_location': "Tinye ebe gị (steeti/obodo):",
+            'register_buyer_type': "Kedu ụdị onye ọzụzụ ị bụ?\n1. Onye Ọzụzụ Ntakịrị\n2. Onye Ahịa Ukwu\n3. Ụlọ Nri/Hotelu\n4. Onye Na-arụ Ọrụ Ugbo",
+            'register_buyer_success': "Nno {name}!\nE debanyela aha gị dị ka onye ọzụzụ.\nỊ ga-anata ozi banyere ihe ọkụkụ.\nZipu PRICE iji lee ọnụ ahịa.",
+            'already_buyer': "E debanyela aha gị dị ka onye ọzụzụ.",
             'delivery_complete': "Nnyefe zuru ezu! A tọhapụla ₦{amount} ikpeazụ.",
             'cold_chain_bonus': "A gosipụtara oyi! A gbakwunyere ₦{amount}.",
         }
