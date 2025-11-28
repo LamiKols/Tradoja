@@ -25,6 +25,7 @@ class User(UserMixin, db.Model):
     t2_wallet_balance = db.Column(db.Float, default=0.0)  # T2 wallet balance in Naira
     preferred_language = db.Column(db.String(10), default='en')  # en, yo, ha, pcm, ig
     is_ussd_user = db.Column(db.Boolean, default=False)  # Registered via USSD
+    source_channel = db.Column(db.String(20), default='web')  # 'web', 'ussd', 'sms', 'whatsapp', 'agent', 'agent_bulk'
     location = db.Column(db.String(200))  # Auto-filled from cell tower or manual
     registered_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # If agent-assisted
     

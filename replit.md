@@ -4,7 +4,19 @@
 
 AgroLink is a comprehensive digital agricultural marketplace platform that connects farmers and buyers across Africa, starting with Lagos' food security initiative and expanding continent-wide. The platform enables farmers to list their produce, buyers to browse and search for fresh products, and administrators to oversee platform operations. Built as a Flask web application, it provides role-based access control with distinct user experiences for farmers, buyers, and admins.
 
-## Recent Changes (August 2025)
+## Recent Changes (November 2025)
+
+- **Digital Inclusion Layer**: Comprehensive multi-channel access system enabling 90% of rural Nigerian farmers with feature phones to use the platform:
+  - **USSD Access (*712*55#)**: 5-option menu system (List Produce, Check Prices, My Listings, Balance, Register) with Africa's Talking and T2 (9mobile) integration
+  - **Enhanced SMS Commands**: Extended LIST command supporting location (LIST RICE 50BAGS 45000 ONITSHA), match acceptance/decline via SMS
+  - **Multilingual Support**: Full message templates in English, Yoruba, Hausa, Pidgin, and Igbo languages
+  - **Agent-Assisted Onboarding**: Field agent dashboard for registering farmers, single and bulk registration capabilities
+  - **Digital Inclusion Dashboard**: Admin analytics showing channel distribution, language preferences, and registration metrics
+- **USSD Session Management**: USSDSession model with session state tracking, menu navigation, and 5-minute timeout handling
+- **WhatsApp Integration Foundation**: WhatsAppInteraction model ready for Meta WhatsApp Cloud API with voice note transcription support
+- **T2 Wallet Integration Foundation**: User fields for T2/9mobile wallet (t2_customer_code, t2_wallet_balance) for unbanked farmer payments
+
+## Previous Changes (August 2025)
 
 - **Dashboard Navigation**: Home button correctly redirects authenticated users to their appropriate dashboards (farmer/buyer/admin) instead of landing page. Navigation logic ensures role-based redirection for seamless user experience. Buyer dashboard completely redesigned with proper overview layout instead of marketplace view
 - **UI Improvements**: Fixed text and container fitting issues in marketplace cards with proper text truncation, consistent card heights, and improved responsive layout
@@ -42,11 +54,13 @@ Preferred communication style: Simple, everyday language.
 - **CSAData Model**: Climate-Smart Agriculture data storage for weather, soil, and carbon footprint analysis
 - **ExportListing Model**: Cross-border trade listings with certification tracking, compliance standards, and international market targeting
 - **Enhanced Produce Model**: Extended with comprehensive GI fields (gi_label, gi_certified, gi_status, gi_certificate_number, gi_admin_comment) for geographical indication certification management
-- **Enhanced User Model**: Added SMS integration fields (phone_number, sms_enabled, sms_registration_date) for rural farmer accessibility
+- **Enhanced User Model**: Added SMS integration fields (phone_number, sms_enabled, sms_registration_date) plus digital inclusion fields (whatsapp_id, t2_customer_code, preferred_language, is_ussd_user, t2_wallet_balance, source_channel, registered_by_agent_id) for comprehensive multi-channel accessibility
 - **SMSInteraction Model**: Complete SMS communication logging and metrics tracking system
+- **USSDSession Model**: USSD session tracking with menu state, step progression, session data JSON storage, and automatic expiry handling
+- **WhatsAppInteraction Model**: WhatsApp message tracking with voice note transcription support and language detection
 - **ProduceLagosRegistration Model**: Comprehensive universal onboarding system with multi-step registration, role-specific fields, document upload paths, progress tracking, and admin review workflow
 - **BulkOnboarding Model**: Bulk registration processing system for admin management of large-scale onboarding operations
-- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations including SMS integration and universal onboarding workflow
+- **Database relationships**: Complex relationships supporting comprehensive agricultural marketplace operations including SMS, USSD, WhatsApp integration and universal onboarding workflow
 
 ### Authentication & Security
 - **Password Security**: Werkzeug-based password hashing with secure storage
@@ -88,9 +102,17 @@ Preferred communication style: Simple, everyday language.
 - **Trade Data Service**: Mock trade data service providing Nigerian agricultural export market trends and pricing information
 - **GI Service**: Comprehensive geographical indications service managing Nigerian GI registry, validation, search functionality, and certification requirements for premium agricultural products
 - **Africa's Talking SMS API**: SMS gateway integration for rural farmer accessibility with webhook processing, command system, and admin management tools
+- **Africa's Talking USSD API**: USSD gateway for feature phone access with session management and menu navigation
+- **Multilingual Service**: Language detection and message templating for English, Yoruba, Hausa, Pidgin, and Igbo
 - **Environment Variables**: Secure API key management through Replit Secrets
 
 ### Infrastructure
-- **SQLite Database**: File-based database storage
+- **PostgreSQL Database**: Scalable production-ready database storage
 - **Environment Variables**: Configuration management for secrets and database URLs
 - **Replit Hosting**: Cloud-based development and deployment platform
+
+### Digital Inclusion Channels
+- **USSD Shortcode**: *712*55# for feature phone access
+- **SMS Commands**: JOIN, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP
+- **Agent Portal**: /agent/dashboard for field registration
+- **Admin Dashboards**: /admin/ussd-dashboard, /admin/digital-inclusion for metrics
