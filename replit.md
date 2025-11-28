@@ -123,7 +123,13 @@ Preferred communication style: Simple, everyday language.
 
 ### Digital Inclusion Channels
 - **USSD Shortcode**: *712*55# for feature phone access (6 menu options including Transport Jobs)
-- **SMS Commands**: JOIN, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP, JOBS, BID, MYBIDS, START
+- **Transport LITE Registration**: 
+  - USSD: *712*55# > 6 > 2 (3-step: name → location → vehicle type)
+  - SMS: JOIN TRK [name] [location] [type] or JOIN TRANSPORT [name] [location] [type]
+  - Vehicle types: PICKUP, 10TON, 30TON, COLD
+  - Instant transporter ID (TRK-XXXXX) issued on registration
+- **SMS Commands**: JOIN, JOIN TRK, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP, JOBS, BID, MYBIDS, START, DOC
+- **DOC Command**: Sends profile completion link for LITE-registered transporters
 - **Agent Portal**: /agent/dashboard for field registration
 - **Admin Dashboards**: /admin/ussd-dashboard, /admin/digital-inclusion, /admin/logistics-bidding for metrics
 

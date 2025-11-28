@@ -1155,8 +1155,24 @@ class TransportProfile(db.Model):
     # T2 wallet balance for transport payments
     wallet_balance = db.Column(db.Float, default=0.0)
     
+    # LITE registration fields for USSD/SMS transporters
+    profile_complete = db.Column(db.Boolean, default=False)  # True when full profile submitted
+    main_location = db.Column(db.String(100))  # Primary operating location/state
+    registration_channel = db.Column(db.String(50), default='web')  # ussd_lite, sms_lite, web, agent
+    transporter_id = db.Column(db.String(20), unique=True)  # TRK-XXXXX unique ID
+    
     # Relationship
     user = db.relationship('User', backref='transport_profile')
+    
+    @staticmethod
+    def generate_transporter_id():
+        """Generate unique transporter ID like TRK-12345"""
+        import random
+        while True:
+            new_id = f"TRK-{random.randint(10000, 99999)}"
+            existing = TransportProfile.query.filter_by(transporter_id=new_id).first()
+            if not existing:
+                return new_id
     
     def get_vehicle_types_list(self):
         """Parse vehicle types from JSON"""

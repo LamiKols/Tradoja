@@ -76,6 +76,8 @@ class SMSService:
             
             # Route to appropriate handler
             if command == 'JOIN':
+                if len(command_parts) > 1 and command_parts[1] in ('TRK', 'TRANSPORT'):
+                    return self._handle_transport_registration(phone_number, command_parts)
                 return self._handle_registration(phone_number, command_parts)
             elif command == 'LIST':
                 return self._handle_produce_listing(phone_number, command_parts)
@@ -97,6 +99,8 @@ class SMSService:
                 return self._handle_view_my_bids(phone_number)
             elif command == 'START':
                 return self._handle_start_trip(phone_number, command_parts)
+            elif command == 'DOC':
+                return self._handle_doc_request(phone_number)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -551,6 +555,133 @@ class SMSService:
             current_app.logger.error(f"Start trip error: {e}")
             return self.send_sms(phone_number, "Error starting trip. Please try again.")
     
+    def _handle_transport_registration(self, phone_number, command_parts):
+        """Handle transport company LITE registration via SMS
+        
+        Format: JOIN TRK [name] [location] [vehicle_type]
+        or:     JOIN TRANSPORT [name] [location] [vehicle_type]
+        
+        Examples:
+            JOIN TRK Chinedu Onitsha Cold
+            JOIN TRANSPORT Mama Ngozi Kano 10ton
+        """
+        from models import TransportProfile
+        from werkzeug.security import generate_password_hash
+        import json
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        
+        if user:
+            profile = TransportProfile.query.filter_by(user_id=user.id).first()
+            if profile:
+                return self.send_sms(phone_number,
+                    f"You're already registered as transporter.\nID: {profile.transporter_id or 'TRK-XXXXX'}\nText JOBS to see available jobs.")
+        
+        if len(command_parts) < 5:
+            message = ("Register as transporter:\nJOIN TRK [name] [location] [type]\n\n"
+                      "Types: PICKUP, 10TON, 30TON, COLD\n\n"
+                      "Examples:\nJOIN TRK Chinedu Onitsha COLD\n"
+                      "JOIN TRK Ade Lagos 10TON")
+            return self.send_sms(phone_number, message)
+        
+        vehicle_input = command_parts[-1].upper()
+        location = command_parts[-2].title()
+        name = ' '.join(command_parts[2:-2]).title() if len(command_parts) > 5 else command_parts[2].title()
+        
+        vehicle_map = {
+            'PICKUP': ('pickup', False),
+            'OKADA': ('pickup', False),
+            'MOTORCYCLE': ('pickup', False),
+            '5TON': ('medium_truck', False),
+            '10TON': ('medium_truck', False),
+            '15TON': ('large_truck', False),
+            '30TON': ('large_truck', False),
+            'COLD': ('refrigerated', True),
+            'FRIDGE': ('refrigerated', True),
+            'REFRIGERATED': ('refrigerated', True)
+        }
+        
+        if vehicle_input not in vehicle_map:
+            return self.send_sms(phone_number,
+                "Invalid vehicle type.\nUse: PICKUP, 10TON, 30TON, or COLD\n\nExample: JOIN TRK Chinedu Lagos 10TON")
+        
+        vehicle_type, is_cold_chain = vehicle_map[vehicle_input]
+        
+        try:
+            if not user:
+                user = User(
+                    name=name,
+                    phone_number=phone_number,
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@transport.agrolink.ng",
+                    role='transport_company',
+                    sms_enabled=True,
+                    sms_registration_date=datetime.utcnow(),
+                    source_channel='sms',
+                    location=location
+                )
+                user.password_hash = generate_password_hash('sms_transporter_temp')
+                db.session.add(user)
+                db.session.flush()
+            
+            transporter_id = TransportProfile.generate_transporter_id()
+            
+            profile = TransportProfile(
+                user_id=user.id,
+                company_name=name,
+                main_location=location,
+                vehicle_types=json.dumps([vehicle_type]),
+                cold_chain_capable=is_cold_chain,
+                profile_complete=False,
+                registration_channel='sms_lite',
+                transporter_id=transporter_id,
+                routes_covered=json.dumps([[location]])
+            )
+            
+            db.session.add(profile)
+            db.session.commit()
+            
+            success_message = (f"Thank you {name}!\n"
+                              f"You're registered as transporter.\n"
+                              f"ID: {transporter_id}\n"
+                              f"You'll receive jobs immediately.\n"
+                              f"Send DOC to complete profile.")
+            
+            return self.send_sms(phone_number, success_message)
+            
+        except Exception as e:
+            current_app.logger.error(f"SMS transport registration error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number, "Registration failed. Please try again or dial *712*55#")
+    
+    def _handle_doc_request(self, phone_number):
+        """Handle DOC command to send profile completion link"""
+        from models import TransportProfile
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Please register first.\nFarmers: JOIN [name] [location] [crop]\nTransporters: JOIN TRK [name] [location] [type]")
+        
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not registered as a transporter.\nTo register: JOIN TRK [name] [location] [type]")
+        
+        if profile.profile_complete:
+            return self.send_sms(phone_number,
+                f"Your profile is already complete!\nID: {profile.transporter_id}\nRating: {profile.rating}/5\nText JOBS to see available jobs.")
+        
+        completion_message = (f"Complete your profile to:\n"
+                            f"- Get higher job ranking\n"
+                            f"- Earn cold-chain bonus (15%)\n"
+                            f"- Upload documents\n\n"
+                            f"Visit: agrolink.ng/transport/complete\n"
+                            f"Or call agent: 08012345678\n"
+                            f"Your ID: {profile.transporter_id}")
+        
+        return self.send_sms(phone_number, completion_message)
+    
     def _send_help_message(self, phone_number):
         """Send help message with available commands"""
         from models import TransportProfile
@@ -559,7 +690,8 @@ class SMSService:
         profile = TransportProfile.query.filter_by(user_id=user.id).first() if user else None
         
         help_message = ("AgroLink SMS Commands:\n"
-                       "JOIN [name] [location] [crop] - Register\n"
+                       "JOIN [name] [location] [crop] - Register as farmer\n"
+                       "JOIN TRK [name] [loc] [type] - Register as transporter\n"
                        "LIST [crop] [qty] [price] - List produce\n"
                        "PRICE [crop] - Check prices\n")
         
@@ -567,7 +699,8 @@ class SMSService:
             help_message += ("JOBS - View transport jobs\n"
                             "BID [job_id] [amt] - Place bid\n"
                             "MYBIDS - View your bids\n"
-                            "START [job_id] - Start trip\n")
+                            "START [job_id] - Start trip\n"
+                            "DOC - Complete profile\n")
         
         help_message += "HELP - This message\nSTOP - Unsubscribe"
         

@@ -55,10 +55,16 @@ class USSDService:
         'transport_jobs': {
             'options': {
                 '1': 'new_jobs',
-                '2': 'my_bids',
-                '3': 'active_trips'
+                '2': 'register_transporter',
+                '3': 'my_bids',
+                '4': 'active_trips',
+                '5': 'transport_balance'
             },
             'next': 'main'
+        },
+        'register_transporter': {
+            'steps': ['company_name', 'location', 'vehicle_type'],
+            'next': 'transport_jobs'
         },
         'new_jobs': {
             'steps': ['view_job', 'bid_amount', 'confirm_bid'],
@@ -70,6 +76,10 @@ class USSDService:
         },
         'active_trips': {
             'steps': ['view_trip', 'start_trip'],
+            'next': 'transport_jobs'
+        },
+        'transport_balance': {
+            'steps': [],
             'next': 'transport_jobs'
         }
     }
@@ -222,6 +232,12 @@ class USSDService:
         
         elif session.current_menu == 'active_trips':
             return self._handle_active_trips(session, current_input, user, lang)
+        
+        elif session.current_menu == 'register_transporter':
+            return self._handle_register_transporter(session, current_input, user, lang)
+        
+        elif session.current_menu == 'transport_balance':
+            return self._show_transport_balance(session, user, lang)
         
         else:
             return self._show_main_menu(lang, user), True
@@ -565,20 +581,12 @@ class USSDService:
     ) -> Tuple[str, bool]:
         """Show transport jobs menu"""
         
-        if not user:
-            session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
-        
         # Check if user is a transporter
-        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
-        if not profile:
-            return "You are not registered as a transporter.\nVisit agrolink.ng/transport to register.", False
+        profile = None
+        if user:
+            profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
         
-        menu = "TRANSPORT JOBS\n"
-        menu += "1. New Jobs\n"
-        menu += "2. My Bids\n"
-        menu += "3. Active Trips\n"
-        menu += "0. Back"
+        menu = get_message('transport_menu', lang)
         
         return menu, True
     
@@ -605,13 +613,146 @@ class USSDService:
             session.set_session_data({})
             
             if target == 'new_jobs':
+                if not user or not self.TransportProfile.query.filter_by(user_id=user.id).first():
+                    return get_message('register_transporter_first', lang), True
                 return self._show_available_jobs(session, user, lang)
+            elif target == 'register_transporter':
+                if user:
+                    profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+                    if profile:
+                        return get_message('already_transporter', lang, transporter_id=profile.transporter_id or 'TRK-XXXXX'), False
+                return get_message('register_transporter_name', lang), True
             elif target == 'my_bids':
+                if not user or not self.TransportProfile.query.filter_by(user_id=user.id).first():
+                    return get_message('register_transporter_first', lang), True
                 return self._show_my_bids(session, user, lang)
             elif target == 'active_trips':
+                if not user or not self.TransportProfile.query.filter_by(user_id=user.id).first():
+                    return get_message('register_transporter_first', lang), True
                 return self._show_active_trips(session, user, lang)
+            elif target == 'transport_balance':
+                if not user or not self.TransportProfile.query.filter_by(user_id=user.id).first():
+                    return get_message('register_transporter_first', lang), True
+                return self._show_transport_balance(session, user, lang)
         
         return get_message('invalid_command', lang), True
+    
+    def _show_transport_balance(
+        self,
+        session,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Show transporter wallet balance"""
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return get_message('register_transporter_first', lang), True
+        
+        balance = profile.wallet_balance or 0.0
+        msg = get_message('transport_balance', lang, balance=f"{balance:,.0f}", transporter_id=profile.transporter_id or 'N/A')
+        session.current_menu = 'transport_jobs'
+        return msg, False
+    
+    def _handle_register_transporter(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle 3-step transporter LITE registration via USSD"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            data['company_name'] = user_input.strip().title()
+            session.update_session_data('company_name', data['company_name'])
+            session.current_step = 1
+            return get_message('register_transporter_location', lang), True
+        
+        elif step == 1:
+            data['location'] = user_input.strip().title()
+            session.update_session_data('location', data['location'])
+            session.current_step = 2
+            return get_message('register_transporter_vehicle', lang), True
+        
+        elif step == 2:
+            vehicle_map = {
+                '1': ('pickup', 'Pickup/Motorcycle', False),
+                '2': ('medium_truck', '5-10 Ton Truck', False),
+                '3': ('large_truck', '15-30 Ton Truck', False),
+                '4': ('refrigerated', 'Refrigerated/Cold Truck', True)
+            }
+            
+            if user_input not in vehicle_map:
+                return get_message('register_transporter_vehicle', lang), True
+            
+            vehicle_type, vehicle_display, is_cold_chain = vehicle_map[user_input]
+            
+            company_name = data.get('company_name')
+            location = data.get('location')
+            
+            if not company_name or not location:
+                session.current_menu = 'transport_jobs'
+                session.current_step = 0
+                return "Session expired. Please try again.\nDial *712*55# > 6 > 2", False
+            
+            try:
+                from werkzeug.security import generate_password_hash
+                
+                phone = session.phone_number
+                
+                if user:
+                    new_user = user
+                    if new_user.role != 'transport_company':
+                        new_user.role = 'transport_company'
+                else:
+                    new_user = self.User(
+                        name=company_name,
+                        phone_number=phone,
+                        email=f"{phone.replace('+', '').replace('-', '')}@transport.agrolink.ng",
+                        role='transport_company',
+                        is_ussd_user=True,
+                        source_channel='ussd',
+                        preferred_language=lang,
+                        location=location
+                    )
+                    new_user.password_hash = generate_password_hash('ussd_transporter_temp')
+                    self.db.session.add(new_user)
+                    self.db.session.flush()
+                
+                transporter_id = self.TransportProfile.generate_transporter_id()
+                
+                profile = self.TransportProfile(
+                    user_id=new_user.id,
+                    company_name=company_name,
+                    main_location=location,
+                    vehicle_types=json.dumps([vehicle_type]),
+                    cold_chain_capable=is_cold_chain,
+                    profile_complete=False,
+                    registration_channel='ussd_lite',
+                    transporter_id=transporter_id,
+                    routes_covered=json.dumps([[location]])
+                )
+                
+                self.db.session.add(profile)
+                self.db.session.commit()
+                
+                session.current_menu = 'transport_jobs'
+                session.current_step = 0
+                session.set_session_data({})
+                
+                return get_message('register_transporter_success', lang, 
+                                  transporter_id=transporter_id, 
+                                  name=company_name), False
+                
+            except Exception as e:
+                logger.error(f"USSD transport registration error: {e}")
+                self.db.session.rollback()
+                return get_message('error', lang), False
+        
+        return get_message('error', lang), False
     
     def _show_available_jobs(
         self,

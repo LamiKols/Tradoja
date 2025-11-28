@@ -70,10 +70,19 @@ class MultilingualService:
             'wa_transcription': "I heard: \"{text}\"\nCreating listing from your voice message...",
             
             # Transport/Logistics
-            'transport_menu': "Transport Jobs\n1. New Jobs\n2. My Bids\n3. Active Trips",
+            'transport_menu': "TRANSPORT JOBS\n1. New Jobs\n2. Register as Transporter\n3. My Bids\n4. Active Trips\n5. Balance\n0. Back",
             'new_transport_job': "New Job #{job_id}: Transport {produce} from {from_location} to {to_location}. Weight: {weight}T. Est. {price}. Reply: BID {job_id} [amount]",
             'bid_placed': "Bid of {amount} placed on Job #{job_id}. You'll be notified if accepted.",
             'bid_accepted': "Your bid of {amount} for Job #{job_id} has been accepted! 50% payment released to wallet.",
+            # Transport LITE Registration
+            'register_transporter_first': "Please register as transporter first.\nDial *712*55# > 6 > 2 or text JOIN TRK [name] [location] [type]",
+            'register_transporter_name': "Enter your name or company name:",
+            'register_transporter_location': "Enter your main location (state/city):",
+            'register_transporter_vehicle': "Choose vehicle type:\n1. Pickup/Motorcycle\n2. 5-10 Ton Truck\n3. 15-30 Ton Truck\n4. Refrigerated/Cold Truck",
+            'register_transporter_success': "Thank you {name}!\nYou are now registered as transporter.\nID: {transporter_id}\nYou will receive jobs immediately.\nSend DOC to complete profile later.",
+            'already_transporter': "You are already registered as transporter.\nID: {transporter_id}",
+            'transport_balance': "Transporter ID: {transporter_id}\nWallet Balance: ₦{balance}",
+            'doc_response': "Complete your profile to get higher ranking and cold-chain bonus.\nVisit: agrolink.ng/transport/complete\nOr call agent: 08012345678",
             'bid_rejected': "Your bid for Job #{job_id} was not selected. Try other jobs!",
             'trip_started': "Trip #{job_id} started. Track temperature at {tracking_url}",
             'delivery_complete': "Delivery complete! Final payment of {amount} released to your wallet.",
@@ -115,10 +124,19 @@ class MultilingualService:
             'match_found': "Olura titun fun {crop}!\nOlura: {buyer}\nIye: {quantity}\nOwo: ₦{price}\nDahun ACCEPT tabi DECLINE",
             
             # Transport/Logistics
-            'transport_menu': "Awọn Iṣẹ Gbigbe\n1. Iṣẹ Titun\n2. Awọn Ifiranṣẹ Mi\n3. Irin-ajo Ti N Ṣiṣẹ",
+            'transport_menu': "AWỌN IṢẸ GBIGBE\n1. Iṣẹ Titun\n2. Forukọsilẹ bi Awakọ\n3. Awọn Ifiranṣẹ Mi\n4. Irin-ajo Ti N Ṣiṣẹ\n5. Iwontunwonsi\n0. Pada",
             'new_transport_job': "Iṣẹ #{job_id}: Gbe {produce} lati {from_location} si {to_location}. Iwuwo: {weight}T. Idiyele: {price}. Dahun: BID {job_id} [iye]",
             'bid_placed': "A ti fi ₦{amount} silẹ fun Iṣẹ #{job_id}.",
             'bid_accepted': "A ti gba ifiranṣẹ rẹ ti ₦{amount} fun Iṣẹ #{job_id}! A ti tu 50% silẹ.",
+            # Transport LITE Registration
+            'register_transporter_first': "Jọwọ forukọsilẹ bi awakọ.\nPe *712*55# > 6 > 2 tabi fi JOIN TRK [orukọ] [ipo] [iru] ranṣẹ",
+            'register_transporter_name': "Tẹ orukọ tabi orukọ ile-iṣẹ rẹ:",
+            'register_transporter_location': "Tẹ ipo akọkọ rẹ (ipinlẹ/ilu):",
+            'register_transporter_vehicle': "Yan iru ọkọ:\n1. Kẹkẹ\n2. Mọto Tọọnu 5-10\n3. Mọto Tọọnu 15-30\n4. Mọto Tutu/Firiji",
+            'register_transporter_success': "O ṣeun {name}!\nO ti forukọsilẹ bi awakọ.\nID: {transporter_id}\nIwọ yoo gba iṣẹ lẹsẹkẹsẹ.\nFi DOC ranṣẹ lati pari profaili rẹ.",
+            'already_transporter': "O ti forukọsilẹ bi awakọ.\nID: {transporter_id}",
+            'transport_balance': "ID Awakọ: {transporter_id}\nIwontunwonsi: ₦{balance}",
+            'doc_response': "Pari profaili rẹ lati ni ipo giga ati bonus firiji.\nṢabẹwo: agrolink.ng/transport/complete",
             'delivery_complete': "Ifijiṣẹ ti pari! A ti tu owo ikẹhin ti ₦{amount} silẹ.",
         },
         
@@ -153,10 +171,19 @@ class MultilingualService:
             'match_found': "Sabon mai siya don {crop}!\nMai Siya: {buyer}\nAdadi: {quantity}\nFarashi: ₦{price}\nAmsa ACCEPT ko DECLINE",
             
             # Transport/Logistics
-            'transport_menu': "Aikin Mota\n1. Sabbin Aiyuka\n2. Ƙimar Nawa\n3. Tafiye-tafiye masu aiki",
+            'transport_menu': "AIKIN MOTA\n1. Sabbin Aiyuka\n2. Yi Rajista a matsayin Direba\n3. Ƙimar Nawa\n4. Tafiye-tafiye masu aiki\n5. Ma'auni\n0. Koma",
             'new_transport_job': "Aiki #{job_id}: Kai {produce} daga {from_location} zuwa {to_location}. Nauyi: {weight}T. Kuɗi: {price}. Amsa: BID {job_id} [adadi]",
             'bid_placed': "An ajiye ₦{amount} don Aiki #{job_id}.",
             'bid_accepted': "An karɓi ₦{amount} don Aiki #{job_id}! An saki 50%.",
+            # Transport LITE Registration
+            'register_transporter_first': "Da fatan za a yi rajista a matsayin direba.\nKira *712*55# > 6 > 2 ko aika JOIN TRK [suna] [wuri] [iri]",
+            'register_transporter_name': "Shigar da sunan ku ko sunan kamfani:",
+            'register_transporter_location': "Shigar da wurin ku (jiha/gari):",
+            'register_transporter_vehicle': "Zaɓi irin mota:\n1. Keke/Babur\n2. Mota Ton 5-10\n3. Mota Ton 15-30\n4. Mota Mai Sanyi/Firiji",
+            'register_transporter_success': "Na gode {name}!\nAn yi muku rajista a matsayin direba.\nID: {transporter_id}\nZa ku sami aiyuka nan da nan.\nAika DOC don kammala bayananku.",
+            'already_transporter': "An riga an yi muku rajista a matsayin direba.\nID: {transporter_id}",
+            'transport_balance': "ID Direba: {transporter_id}\nMa'auni: ₦{balance}",
+            'doc_response': "Kammala bayananku don samun matsayi mafi girma da bonus firiji.\nZiyarci: agrolink.ng/transport/complete",
             'delivery_complete': "Bayarwa ta kammala! An saki ₦{amount} na ƙarshe.",
             'cold_chain_bonus': "An tabbatar da sanyi! An ƙara ₦{amount}.",
         },
@@ -192,10 +219,19 @@ class MultilingualService:
             'match_found': "New buyer dey for your {crop}!\nBuyer: {buyer}\nHow Many: {quantity}\nPrice: ₦{price}\nReply ACCEPT or DECLINE",
             
             # Transport/Logistics
-            'transport_menu': "Transport Work\n1. New Job\n2. My Bids\n3. Active Trips",
+            'transport_menu': "TRANSPORT WORK\n1. New Job\n2. Register as Driver\n3. My Bids\n4. Active Trips\n5. Balance\n0. Go Back",
             'new_transport_job': "Job #{job_id}: Carry {produce} from {from_location} go {to_location}. Weight: {weight}T. Price: {price}. Reply: BID {job_id} [amount]",
             'bid_placed': "E don put your ₦{amount} for Job #{job_id}.",
             'bid_accepted': "Dem don accept your ₦{amount} for Job #{job_id}! 50% don enter your pocket.",
+            # Transport LITE Registration
+            'register_transporter_first': "Abeg register as driver first.\nDial *712*55# > 6 > 2 or text JOIN TRK [name] [location] [type]",
+            'register_transporter_name': "Type your name or company name:",
+            'register_transporter_location': "Type your main location (state/city):",
+            'register_transporter_vehicle': "Choose your motor type:\n1. Okada/Pickup\n2. 5-10 Ton Motor\n3. 15-30 Ton Trailer\n4. Cold Chain/Fridge Motor",
+            'register_transporter_success': "Thank you {name}!\nE don register you as driver.\nID: {transporter_id}\nYou go start dey receive job now now.\nText DOC to finish your profile later.",
+            'already_transporter': "You don already register as driver.\nID: {transporter_id}",
+            'transport_balance': "Driver ID: {transporter_id}\nBalance: ₦{balance}",
+            'doc_response': "Finish your profile to get better ranking and cold-chain bonus.\nGo: agrolink.ng/transport/complete",
             'delivery_complete': "Delivery don complete! ₦{amount} final payment don enter.",
             'cold_chain_bonus': "Cold chain verified! Bonus of ₦{amount} don add.",
         },
@@ -231,10 +267,19 @@ class MultilingualService:
             'match_found': "Onye ọzụzụ ọhụrụ maka {crop}!\nOnye Ọzụzụ: {buyer}\nOle: {quantity}\nỌnụ Ahịa: ₦{price}\nZaa ACCEPT ma ọ bụ DECLINE",
             
             # Transport/Logistics
-            'transport_menu': "Ọrụ Njem\n1. Ọrụ Ọhụrụ\n2. Ego M Kwụrụ\n3. Njem Na-arụ Ọrụ",
+            'transport_menu': "ỌRỤ NJEM\n1. Ọrụ Ọhụrụ\n2. Debanye Aha dị ka Onye Ọkwọ Ụgbọ\n3. Ego M Kwụrụ\n4. Njem Na-arụ Ọrụ\n5. Ego M\n0. Laghachi",
             'new_transport_job': "Ọrụ #{job_id}: Buru {produce} si {from_location} gaa {to_location}. Ọnụ ọgụgụ: {weight}T. Ọnụ ahịa: {price}. Zaa: BID {job_id} [ego]",
             'bid_placed': "E tinyela ₦{amount} maka Ọrụ #{job_id}.",
             'bid_accepted': "A nabatara ₦{amount} maka Ọrụ #{job_id}! A tọhapụla 50%.",
+            # Transport LITE Registration
+            'register_transporter_first': "Biko debanye aha dị ka onye ọkwọ ụgbọ.\nKpọọ *712*55# > 6 > 2 ma ọ bụ zipu JOIN TRK [aha] [ebe] [ụdị]",
+            'register_transporter_name': "Tinye aha gị ma ọ bụ aha ụlọ ọrụ:",
+            'register_transporter_location': "Tinye ebe gị (steeti/obodo):",
+            'register_transporter_vehicle': "Họrọ ụdị ụgbọ:\n1. Okada/Pickup\n2. Ụgbọ Ton 5-10\n3. Ụgbọ Ton 15-30\n4. Ụgbọ Oyi/Fridge",
+            'register_transporter_success': "Daalụ {name}!\nE debanyela aha gị dị ka onye ọkwọ ụgbọ.\nID: {transporter_id}\nỊ ga-amalite inweta ọrụ ugbu a.\nZipu DOC iji mezue profaịlụ gị.",
+            'already_transporter': "E debanyela aha gị dị ka onye ọkwọ ụgbọ.\nID: {transporter_id}",
+            'transport_balance': "ID Onye Ọkwọ: {transporter_id}\nEgo: ₦{balance}",
+            'doc_response': "Mezue profaịlụ gị iji nweta ọkwa dị elu na bonus oyi.\nGaa: agrolink.ng/transport/complete",
             'delivery_complete': "Nnyefe zuru ezu! A tọhapụla ₦{amount} ikpeazụ.",
             'cold_chain_bonus': "A gosipụtara oyi! A gbakwunyere ₦{amount}.",
         }
