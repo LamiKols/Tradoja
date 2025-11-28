@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-truck me-2"></i>Request Transport</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle fa-2x me-3"></i>
+                            <div>
+                                <strong>{{ produce.name }}</strong>
+                                <br>
+                                <small>{{ produce.quantity }} - ₦{{ "{:,.0f}".format(produce.price) }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        {{ form.produce_id }}
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Request Type *</label>
+                                {{ form.request_type(class="form-select") }}
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label class="form-label">Preferred Date *</label>
+                                {{ form.preferred_date(class="form-control", type="date") }}
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label class="form-label">Preferred Time *</label>
+                                {{ form.preferred_time(class="form-control", type="time") }}
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr>
+                                <h5><i class="fas fa-map-marker-alt text-success me-2"></i>Pickup</h5>
+                            </div>
+                            
+                            <div class="col-md-8">
+                                <label class="form-label">Pickup Address *</label>
+                                {{ form.pickup_location(class="form-control", placeholder="Enter full pickup address") }}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Pickup State *</label>
+                                {{ form.pickup_state(class="form-select") }}
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr>
+                                <h5><i class="fas fa-map-marker-alt text-danger me-2"></i>Destination</h5>
+                            </div>
+                            
+                            <div class="col-md-8">
+                                <label class="form-label">Destination Address *</label>
+                                {{ form.destination_address(class="form-control", placeholder="Enter full destination address") }}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Destination State *</label>
+                                {{ form.destination_state(class="form-select") }}
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr>
+                                <h5><i class="fas fa-box me-2"></i>Cargo Details</h5>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Weight (Tons) *</label>
+                                {{ form.quantity_tons(class="form-control") }}
+                            </div>
+                            
+                            <div class="col-md-8">
+                                <div class="form-check mt-4">
+                                    {{ form.requires_cold_chain(class="form-check-input") }}
+                                    <label class="form-check-label">
+                                        <i class="fas fa-snowflake text-info me-1"></i>
+                                        Requires Cold Chain (Refrigerated Transport)
+                                    </label>
+                                    <br>
+                                    <small class="text-muted">For perishable goods like tomatoes, fish, meat</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Special Instructions</label>
+                                {{ form.notes(class="form-control", placeholder="Any special handling requirements, timing preferences, etc.") }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Request & Notify Transporters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5><i class="fas fa-question-circle text-info me-2"></i>How It Works</h5>
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3 text-center">
+                            <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width:40px;height:40px;">1</div>
+                            <p class="small mt-2 mb-0">Submit your request</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width:40px;height:40px;">2</div>
+                            <p class="small mt-2 mb-0">Transporters bid</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width:40px;height:40px;">3</div>
+                            <p class="small mt-2 mb-0">Accept best bid</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width:40px;height:40px;">4</div>
+                            <p class="small mt-2 mb-0">Track delivery</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

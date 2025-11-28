@@ -26,7 +26,7 @@ class MultilingualService:
             'already_registered': "You're already registered. Send HELP for commands.",
             
             # USSD Main Menu
-            'ussd_main_menu': "AgroLink\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register",
+            'ussd_main_menu': "AgroLink\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register\n6. Transport Jobs",
             'ussd_welcome': "Welcome to AgroLink USSD",
             
             # Produce Listing
@@ -68,6 +68,20 @@ class MultilingualService:
             # WhatsApp specific
             'wa_voice_received': "Voice note received. Processing...",
             'wa_transcription': "I heard: \"{text}\"\nCreating listing from your voice message...",
+            
+            # Transport/Logistics
+            'transport_menu': "Transport Jobs\n1. New Jobs\n2. My Bids\n3. Active Trips",
+            'new_transport_job': "New Job #{job_id}: Transport {produce} from {from_location} to {to_location}. Weight: {weight}T. Est. {price}. Reply: BID {job_id} [amount]",
+            'bid_placed': "Bid of {amount} placed on Job #{job_id}. You'll be notified if accepted.",
+            'bid_accepted': "Your bid of {amount} for Job #{job_id} has been accepted! 50% payment released to wallet.",
+            'bid_rejected': "Your bid for Job #{job_id} was not selected. Try other jobs!",
+            'trip_started': "Trip #{job_id} started. Track temperature at {tracking_url}",
+            'delivery_complete': "Delivery complete! Final payment of {amount} released to your wallet.",
+            'cold_chain_bonus': "Cold chain verified! Bonus of {amount} added.",
+            'cold_chain_alert': "ALERT: Temperature out of range! Current: {temp}°C. Please check.",
+            'no_available_jobs': "No jobs available in your area. We'll notify you when new jobs arrive.",
+            'your_bids': "Your Bids:\n{bids_list}",
+            'active_trips': "Active Trips:\n{trips_list}",
         },
         
         'yo': {  # Yoruba
@@ -77,7 +91,7 @@ class MultilingualService:
             'registration_success': "O ti forukọsilẹ bi agbe! Awọn aṣẹ: LIST, PRICE, HELP",
             'already_registered': "O ti forukọsilẹ tẹlẹ. Fi HELP ranṣẹ fun awọn aṣẹ.",
             
-            'ussd_main_menu': "AgroLink\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ",
+            'ussd_main_menu': "AgroLink\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ\n6. Awọn Iṣẹ Gbigbe",
             'ussd_welcome': "Kaabo si AgroLink USSD",
             
             'list_prompt': "Tẹ: [irugbin] [iye] [owo]\nApẹẹrẹ: IRESI 50BAGS 45000",
@@ -99,6 +113,13 @@ class MultilingualService:
             'help': "Awọn Aṣẹ:\nJOIN - Forukọsilẹ\nLIST - Fi irugbin silẹ\nPRICE - Ṣayẹwo owo\nHELP - Ifiranṣẹ yii\nSTOP - Yọkuro",
             
             'match_found': "Olura titun fun {crop}!\nOlura: {buyer}\nIye: {quantity}\nOwo: ₦{price}\nDahun ACCEPT tabi DECLINE",
+            
+            # Transport/Logistics
+            'transport_menu': "Awọn Iṣẹ Gbigbe\n1. Iṣẹ Titun\n2. Awọn Ifiranṣẹ Mi\n3. Irin-ajo Ti N Ṣiṣẹ",
+            'new_transport_job': "Iṣẹ #{job_id}: Gbe {produce} lati {from_location} si {to_location}. Iwuwo: {weight}T. Idiyele: {price}. Dahun: BID {job_id} [iye]",
+            'bid_placed': "A ti fi ₦{amount} silẹ fun Iṣẹ #{job_id}.",
+            'bid_accepted': "A ti gba ifiranṣẹ rẹ ti ₦{amount} fun Iṣẹ #{job_id}! A ti tu 50% silẹ.",
+            'delivery_complete': "Ifijiṣẹ ti pari! A ti tu owo ikẹhin ti ₦{amount} silẹ.",
         },
         
         'ha': {  # Hausa
@@ -108,7 +129,7 @@ class MultilingualService:
             'registration_success': "An yi rajista a matsayin manomi! Umarni: LIST, PRICE, HELP",
             'already_registered': "An riga an yi maka rajista. Aika HELP don umarni.",
             
-            'ussd_main_menu': "AgroLink\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista",
+            'ussd_main_menu': "AgroLink\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista\n6. Aikin Mota",
             'ussd_welcome': "Barka da zuwa AgroLink USSD",
             
             'list_prompt': "Shigar: [amfani] [adadi] [farashi]\nMisali: SHINKAFA 50BAGS 45000",
@@ -130,6 +151,14 @@ class MultilingualService:
             'help': "Umarni:\nJOIN - Rajista\nLIST - Jera amfani\nPRICE - Duba farashi\nHELP - Wannan saƙo\nSTOP - Daina",
             
             'match_found': "Sabon mai siya don {crop}!\nMai Siya: {buyer}\nAdadi: {quantity}\nFarashi: ₦{price}\nAmsa ACCEPT ko DECLINE",
+            
+            # Transport/Logistics
+            'transport_menu': "Aikin Mota\n1. Sabbin Aiyuka\n2. Ƙimar Nawa\n3. Tafiye-tafiye masu aiki",
+            'new_transport_job': "Aiki #{job_id}: Kai {produce} daga {from_location} zuwa {to_location}. Nauyi: {weight}T. Kuɗi: {price}. Amsa: BID {job_id} [adadi]",
+            'bid_placed': "An ajiye ₦{amount} don Aiki #{job_id}.",
+            'bid_accepted': "An karɓi ₦{amount} don Aiki #{job_id}! An saki 50%.",
+            'delivery_complete': "Bayarwa ta kammala! An saki ₦{amount} na ƙarshe.",
+            'cold_chain_bonus': "An tabbatar da sanyi! An ƙara ₦{amount}.",
         },
         
         'pcm': {  # Nigerian Pidgin
@@ -139,7 +168,7 @@ class MultilingualService:
             'registration_success': "E don register you as farmer! Commands: LIST, PRICE, HELP",
             'already_registered': "You don already register. Send HELP for commands.",
             
-            'ussd_main_menu': "AgroLink\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register",
+            'ussd_main_menu': "AgroLink\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register\n6. Transport Work",
             'ussd_welcome': "Welcome to AgroLink USSD",
             
             'list_prompt': "Type: [produce] [how many] [price]\nExample: RICE 50BAGS 45000",
@@ -161,6 +190,14 @@ class MultilingualService:
             'help': "Commands:\nJOIN - Register\nLIST - Put produce\nPRICE - Check price\nHELP - This message\nSTOP - Comot",
             
             'match_found': "New buyer dey for your {crop}!\nBuyer: {buyer}\nHow Many: {quantity}\nPrice: ₦{price}\nReply ACCEPT or DECLINE",
+            
+            # Transport/Logistics
+            'transport_menu': "Transport Work\n1. New Job\n2. My Bids\n3. Active Trips",
+            'new_transport_job': "Job #{job_id}: Carry {produce} from {from_location} go {to_location}. Weight: {weight}T. Price: {price}. Reply: BID {job_id} [amount]",
+            'bid_placed': "E don put your ₦{amount} for Job #{job_id}.",
+            'bid_accepted': "Dem don accept your ₦{amount} for Job #{job_id}! 50% don enter your pocket.",
+            'delivery_complete': "Delivery don complete! ₦{amount} final payment don enter.",
+            'cold_chain_bonus': "Cold chain verified! Bonus of ₦{amount} don add.",
         },
         
         'ig': {  # Igbo
@@ -170,7 +207,7 @@ class MultilingualService:
             'registration_success': "E debanyela gị dị ka onye ọrụ ugbo! Iwu: LIST, PRICE, HELP",
             'already_registered': "E debanyela aha gị. Zipu HELP maka iwu.",
             
-            'ussd_main_menu': "AgroLink\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha",
+            'ussd_main_menu': "AgroLink\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha\n6. Ọrụ Njem",
             'ussd_welcome': "Nno na AgroLink USSD",
             
             'list_prompt': "Tinye: [ihe ọkụkụ] [ole] [ọnụ ahịa]\nỌmụmaatụ: RICE 50BAGS 45000",
@@ -192,6 +229,14 @@ class MultilingualService:
             'help': "Iwu:\nJOIN - Debanye aha\nLIST - Dee ihe ubi\nPRICE - Lee ọnụ ahịa\nHELP - Ozi a\nSTOP - Kwụsị",
             
             'match_found': "Onye ọzụzụ ọhụrụ maka {crop}!\nOnye Ọzụzụ: {buyer}\nOle: {quantity}\nỌnụ Ahịa: ₦{price}\nZaa ACCEPT ma ọ bụ DECLINE",
+            
+            # Transport/Logistics
+            'transport_menu': "Ọrụ Njem\n1. Ọrụ Ọhụrụ\n2. Ego M Kwụrụ\n3. Njem Na-arụ Ọrụ",
+            'new_transport_job': "Ọrụ #{job_id}: Buru {produce} si {from_location} gaa {to_location}. Ọnụ ọgụgụ: {weight}T. Ọnụ ahịa: {price}. Zaa: BID {job_id} [ego]",
+            'bid_placed': "E tinyela ₦{amount} maka Ọrụ #{job_id}.",
+            'bid_accepted': "A nabatara ₦{amount} maka Ọrụ #{job_id}! A tọhapụla 50%.",
+            'delivery_complete': "Nnyefe zuru ezu! A tọhapụla ₦{amount} ikpeazụ.",
+            'cold_chain_bonus': "A gosipụtara oyi! A gbakwunyere ₦{amount}.",
         }
     }
     

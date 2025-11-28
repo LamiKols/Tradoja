@@ -849,3 +849,159 @@ class BOILoanApplicationForm(FlaskForm):
         Optional(),
         FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
     ])
+
+
+# Transport Company Forms
+NIGERIAN_STATES = [
+    ('', 'Select State'),
+    ('Lagos', 'Lagos'),
+    ('Oyo', 'Oyo'),
+    ('Ogun', 'Ogun'),
+    ('Osun', 'Osun'),
+    ('Ondo', 'Ondo'),
+    ('Ekiti', 'Ekiti'),
+    ('Kwara', 'Kwara'),
+    ('Kogi', 'Kogi'),
+    ('Edo', 'Edo'),
+    ('Delta', 'Delta'),
+    ('Rivers', 'Rivers'),
+    ('Bayelsa', 'Bayelsa'),
+    ('Akwa Ibom', 'Akwa Ibom'),
+    ('Cross River', 'Cross River'),
+    ('Abia', 'Abia'),
+    ('Imo', 'Imo'),
+    ('Anambra', 'Anambra'),
+    ('Enugu', 'Enugu'),
+    ('Ebonyi', 'Ebonyi'),
+    ('Benue', 'Benue'),
+    ('Plateau', 'Plateau'),
+    ('Nasarawa', 'Nasarawa'),
+    ('Taraba', 'Taraba'),
+    ('Adamawa', 'Adamawa'),
+    ('Gombe', 'Gombe'),
+    ('Bauchi', 'Bauchi'),
+    ('Borno', 'Borno'),
+    ('Yobe', 'Yobe'),
+    ('Jigawa', 'Jigawa'),
+    ('Kano', 'Kano'),
+    ('Kaduna', 'Kaduna'),
+    ('Katsina', 'Katsina'),
+    ('Zamfara', 'Zamfara'),
+    ('Sokoto', 'Sokoto'),
+    ('Kebbi', 'Kebbi'),
+    ('Niger', 'Niger'),
+    ('FCT', 'FCT (Abuja)')
+]
+
+
+class TransportRegistrationForm(FlaskForm):
+    """Transport Company Registration Form"""
+    company_name = StringField('Company Name', validators=[
+        DataRequired(), 
+        Length(min=2, max=200, message="Company name must be between 2 and 200 characters")
+    ])
+    cac_number = StringField('CAC Registration Number', validators=[
+        Optional(),
+        Length(max=50, message="CAC number cannot exceed 50 characters")
+    ], render_kw={'placeholder': 'e.g., RC123456'})
+    fleet_size = IntegerField('Number of Vehicles', validators=[
+        DataRequired(),
+        NumberRange(min=1, max=1000, message="Fleet size must be between 1 and 1000")
+    ], default=1)
+    vehicle_types = SelectField('Primary Vehicle Type', choices=[
+        ('pickup', 'Pickup Truck'),
+        ('van', 'Van'),
+        ('truck', 'Truck (5-10 tons)'),
+        ('trailer', 'Trailer (10+ tons)'),
+        ('refrigerated', 'Refrigerated Truck'),
+        ('motorcycle', 'Motorcycle/Okada')
+    ], validators=[DataRequired()])
+    has_cold_chain = BooleanField('Cold Chain Capable (Refrigerated)', default=False)
+    price_per_ton_km = FloatField('Price per Ton-Km (₦)', validators=[
+        DataRequired(),
+        NumberRange(min=10, max=5000, message="Price must be between ₦10 and ₦5000 per ton-km")
+    ], default=100)
+    phone_number = StringField('Phone Number', validators=[
+        DataRequired(),
+        Length(min=10, max=15, message="Enter a valid Nigerian phone number")
+    ], render_kw={'placeholder': '+234...'})
+    cac_file = FileField('CAC Certificate (Optional)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+    insurance_file = FileField('Insurance Certificate (Optional)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF, JPG, JPEG, and PNG files allowed')
+    ])
+
+
+class TransportRouteForm(FlaskForm):
+    """Form for adding transport routes"""
+    from_state = SelectField('From State', choices=NIGERIAN_STATES, validators=[DataRequired()])
+    to_state = SelectField('To State', choices=NIGERIAN_STATES, validators=[DataRequired()])
+
+
+class ColdChainDeviceForm(FlaskForm):
+    """Form for registering cold chain devices"""
+    device_id = StringField('Device ID/Serial Number', validators=[
+        DataRequired(),
+        Length(min=5, max=100, message="Device ID must be between 5 and 100 characters")
+    ])
+    vehicle_registration = StringField('Vehicle Registration Number', validators=[
+        DataRequired(),
+        Length(min=5, max=50, message="Vehicle registration must be between 5 and 50 characters")
+    ], render_kw={'placeholder': 'e.g., LAG-123-XY'})
+    max_temp_allowed = FloatField('Maximum Temperature (°C)', validators=[
+        DataRequired(),
+        NumberRange(min=-20, max=20, message="Max temp must be between -20°C and 20°C")
+    ], default=4.0)
+    min_temp_allowed = FloatField('Minimum Temperature (°C)', validators=[
+        DataRequired(),
+        NumberRange(min=-40, max=10, message="Min temp must be between -40°C and 10°C")
+    ], default=-2.0)
+
+
+class TransportBidForm(FlaskForm):
+    """Form for submitting transport bids"""
+    bid_amount = FloatField('Bid Amount (₦)', validators=[
+        DataRequired(),
+        NumberRange(min=1000, max=50000000, message="Bid must be between ₦1,000 and ₦50,000,000")
+    ])
+    eta_hours = IntegerField('Estimated Time of Arrival (Hours)', validators=[
+        DataRequired(),
+        NumberRange(min=1, max=168, message="ETA must be between 1 and 168 hours (1 week)")
+    ], default=24)
+    notes = TextAreaField('Additional Notes', validators=[
+        Optional(),
+        Length(max=500, message="Notes cannot exceed 500 characters")
+    ], render_kw={'rows': 3, 'placeholder': 'Vehicle details, special requirements, etc.'})
+
+
+class EnhancedLogisticsRequestForm(FlaskForm):
+    """Enhanced logistics request form with bidding fields"""
+    produce_id = HiddenField('Produce ID', validators=[DataRequired()])
+    request_type = SelectField('Request Type', choices=[
+        ('delivery', 'Delivery'),
+        ('pickup', 'Pickup')
+    ], validators=[DataRequired()])
+    preferred_date = DateField('Preferred Date', validators=[DataRequired()])
+    preferred_time = TimeField('Preferred Time', validators=[DataRequired()], default=time(9, 0))
+    pickup_location = StringField('Pickup Address', validators=[
+        DataRequired(),
+        Length(max=200, message="Address cannot exceed 200 characters")
+    ])
+    pickup_state = SelectField('Pickup State', choices=NIGERIAN_STATES, validators=[DataRequired()])
+    destination_address = StringField('Destination Address', validators=[
+        DataRequired(),
+        Length(max=200, message="Address cannot exceed 200 characters")
+    ])
+    destination_state = SelectField('Destination State', choices=NIGERIAN_STATES, validators=[DataRequired()])
+    quantity_tons = FloatField('Weight (Tons)', validators=[
+        DataRequired(),
+        NumberRange(min=0.1, max=1000, message="Weight must be between 0.1 and 1000 tons")
+    ], default=1.0)
+    requires_cold_chain = BooleanField('Requires Cold Chain (Refrigerated)', default=False)
+    notes = TextAreaField('Special Instructions', validators=[
+        Optional(),
+        Length(max=500, message="Notes cannot exceed 500 characters")
+    ], render_kw={'rows': 3})

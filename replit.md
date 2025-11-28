@@ -6,10 +6,20 @@ AgroLink is a comprehensive digital agricultural marketplace platform that conne
 
 ## Recent Changes (November 2025)
 
+- **Full Logistics & Transport Layer**: Comprehensive transport and cold chain management system:
+  - **Transport Company Registration**: Fleet management, CAC verification, vehicle types, cold chain capability tracking
+  - **Intelligent Matching Algorithm**: Weighted scoring system (distance 30%, price 25%, rating 20%, cold chain 15%, on-time 10%) for optimal transporter selection
+  - **Bidding System**: Web, USSD, and SMS bidding on logistics jobs with real-time bid tracking and acceptance
+  - **Cold Chain IoT Tracking**: Real-time temperature monitoring with webhooks, live Chart.js graphs, automatic verification, and out-of-range alerts
+  - **Payment Escrow**: 50% on bid acceptance, 50% on delivery completion, plus 15% cold chain verification bonus
+  - **Multi-Channel Access**: Transport jobs accessible via web dashboard, USSD option 6, and SMS commands (JOBS, BID, MYBIDS, START)
+  - **Admin Logistics Dashboard**: Analytics showing active requests, cold chain verification rate, average cost per ton, top transporters
+- **New Database Models**: TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid for comprehensive logistics tracking
+- **Extended LogisticsRequest**: Added bidding support with quantity_tons, requires_cold_chain, winning_bid_id, escrow_amount, cold_chain_bonus_earned fields
 - **Digital Inclusion Layer**: Comprehensive multi-channel access system enabling 90% of rural Nigerian farmers with feature phones to use the platform:
-  - **USSD Access (*712*55#)**: 5-option menu system (List Produce, Check Prices, My Listings, Balance, Register) with Africa's Talking and T2 (9mobile) integration
-  - **Enhanced SMS Commands**: Extended LIST command supporting location (LIST RICE 50BAGS 45000 ONITSHA), match acceptance/decline via SMS
-  - **Multilingual Support**: Full message templates in English, Yoruba, Hausa, Pidgin, and Igbo languages
+  - **USSD Access (*712*55#)**: 6-option menu system (List Produce, Check Prices, My Listings, Balance, Register, Transport Jobs) with Africa's Talking and T2 (9mobile) integration
+  - **Enhanced SMS Commands**: Extended commands including transport (JOBS, BID, MYBIDS, START) and produce (LIST, PRICE, JOIN, HELP)
+  - **Multilingual Support**: Full message templates in English, Yoruba, Hausa, Pidgin, and Igbo languages including transport/logistics messages
   - **Agent-Assisted Onboarding**: Field agent dashboard for registering farmers, single and bulk registration capabilities
   - **Digital Inclusion Dashboard**: Admin analytics showing channel distribution, language preferences, and registration metrics
 - **USSD Session Management**: USSDSession model with session state tracking, menu navigation, and 5-minute timeout handling
@@ -112,7 +122,17 @@ Preferred communication style: Simple, everyday language.
 - **Replit Hosting**: Cloud-based development and deployment platform
 
 ### Digital Inclusion Channels
-- **USSD Shortcode**: *712*55# for feature phone access
-- **SMS Commands**: JOIN, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP
+- **USSD Shortcode**: *712*55# for feature phone access (6 menu options including Transport Jobs)
+- **SMS Commands**: JOIN, LIST, PRICE, HELP, ACCEPT, DECLINE, STOP, JOBS, BID, MYBIDS, START
 - **Agent Portal**: /agent/dashboard for field registration
-- **Admin Dashboards**: /admin/ussd-dashboard, /admin/digital-inclusion for metrics
+- **Admin Dashboards**: /admin/ussd-dashboard, /admin/digital-inclusion, /admin/logistics-bidding for metrics
+
+### Logistics & Transport Routes
+- **Transport Registration**: /transport/register for company onboarding
+- **Transport Dashboard**: /transport/dashboard for job management and stats
+- **Route Management**: /transport/routes for setting covered routes
+- **Cold Chain Devices**: /transport/cold-chain for IoT device registration
+- **Logistics Request**: /logistics/request/<produce_id> for booking transport
+- **Job Details**: /logistics/<id> for bid submission and tracking
+- **Cold Chain Webhook**: /coldchain/webhook for IoT temperature data
+- **Temperature API**: /logistics/<id>/temperature for Chart.js data

@@ -89,6 +89,14 @@ class SMSService:
                 return self._handle_match_acceptance(phone_number, command_parts)
             elif command.startswith('DECLINE'):
                 return self._handle_match_decline(phone_number, command_parts)
+            elif command == 'BID':
+                return self._handle_transport_bid(phone_number, command_parts)
+            elif command == 'JOBS':
+                return self._handle_view_jobs(phone_number)
+            elif command == 'MYBIDS':
+                return self._handle_view_my_bids(phone_number)
+            elif command == 'START':
+                return self._handle_start_trip(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -358,14 +366,210 @@ class SMSService:
         return self.send_sms(phone_number, 
             "You've been unsubscribed from AgroLink SMS. Send JOIN to re-register.")
     
+    def _handle_transport_bid(self, phone_number, command_parts):
+        """Handle transport bid via SMS
+        
+        Format: BID [job_id] [amount]
+        Example: BID 123 50000
+        """
+        from models import TransportProfile, LogisticsRequest, LogisticsBid
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        # Check if user is a transporter
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not registered as a transporter. Visit agrolink.ng/transport to register.")
+        
+        if len(command_parts) < 3:
+            return self.send_sms(phone_number,
+                "Format: BID [job_id] [amount]\nExample: BID 123 50000")
+        
+        try:
+            job_id = int(command_parts[1])
+            bid_amount = float(re.sub(r'[^\d.]', '', command_parts[2]))
+            
+            if bid_amount < 1000:
+                return self.send_sms(phone_number, "Minimum bid is ₦1,000")
+            
+            # Get the job
+            job = LogisticsRequest.query.get(job_id)
+            if not job:
+                return self.send_sms(phone_number, f"Job #{job_id} not found.")
+            
+            if job.status not in ['pending', 'bidding']:
+                return self.send_sms(phone_number, f"Job #{job_id} is no longer accepting bids.")
+            
+            # Check for existing bid
+            existing = LogisticsBid.query.filter_by(
+                logistics_request_id=job_id,
+                transporter_id=profile.id
+            ).first()
+            
+            if existing:
+                existing.bid_amount = bid_amount
+                existing.source_channel = 'sms'
+            else:
+                bid = LogisticsBid(
+                    logistics_request_id=job_id,
+                    transporter_id=profile.id,
+                    bid_amount=bid_amount,
+                    eta_hours=24,
+                    source_channel='sms'
+                )
+                db.session.add(bid)
+            
+            # Update job status
+            if job.status == 'pending':
+                job.status = 'bidding'
+            
+            db.session.commit()
+            
+            route = f"{job.pickup_state or 'N/A'} -> {job.destination_state or 'N/A'}"
+            return self.send_sms(phone_number,
+                f"Bid of ₦{bid_amount:,.0f} placed on Job #{job_id}!\n{route}\nYou'll be notified if accepted.")
+            
+        except ValueError:
+            return self.send_sms(phone_number, "Invalid bid. Use numbers: BID 123 50000")
+        except Exception as e:
+            current_app.logger.error(f"Transport bid error: {e}")
+            return self.send_sms(phone_number, "Error placing bid. Please try again.")
+    
+    def _handle_view_jobs(self, phone_number):
+        """View available transport jobs via SMS"""
+        from models import TransportProfile, LogisticsRequest
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not registered as a transporter. Visit agrolink.ng/transport to register.")
+        
+        # Get available jobs
+        jobs = LogisticsRequest.query.filter(
+            LogisticsRequest.status.in_(['pending', 'bidding'])
+        ).order_by(LogisticsRequest.timestamp.desc()).limit(5).all()
+        
+        if not jobs:
+            return self.send_sms(phone_number, "No jobs available now. Check back later!")
+        
+        message = "AVAILABLE JOBS:\n"
+        for job in jobs:
+            cc = "[CC]" if job.requires_cold_chain else ""
+            route = f"{job.pickup_state or 'N/A'}->{job.destination_state or 'N/A'}"
+            message += f"#{job.id}: {route} {job.quantity_tons or 'N/A'}T {cc}\n"
+        
+        message += "\nTo bid: BID [job_id] [amount]"
+        
+        return self.send_sms(phone_number, message)
+    
+    def _handle_view_my_bids(self, phone_number):
+        """View user's transport bids via SMS"""
+        from models import TransportProfile, LogisticsBid
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not registered as a transporter.")
+        
+        bids = LogisticsBid.query.filter_by(
+            transporter_id=profile.id
+        ).order_by(LogisticsBid.created_at.desc()).limit(5).all()
+        
+        if not bids:
+            return self.send_sms(phone_number, "No bids yet. Send JOBS to see available transport jobs.")
+        
+        message = "YOUR BIDS:\n"
+        for bid in bids:
+            status = bid.status.upper()
+            message += f"#{bid.logistics_request_id}: ₦{bid.bid_amount:,.0f} [{status}]\n"
+        
+        return self.send_sms(phone_number, message)
+    
+    def _handle_start_trip(self, phone_number, command_parts):
+        """Start a trip via SMS
+        
+        Format: START [job_id]
+        """
+        from models import TransportProfile, LogisticsRequest, LogisticsBid
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Please register first. Send: JOIN [name] [location] [crop]")
+        
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not registered as a transporter.")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number, "Format: START [job_id]\nExample: START 123")
+        
+        try:
+            job_id = int(command_parts[1])
+            job = LogisticsRequest.query.get(job_id)
+            
+            if not job:
+                return self.send_sms(phone_number, f"Job #{job_id} not found.")
+            
+            # Verify this transporter won the bid
+            winning_bid = LogisticsBid.query.filter_by(
+                logistics_request_id=job_id,
+                transporter_id=profile.id,
+                status='accepted'
+            ).first()
+            
+            if not winning_bid:
+                return self.send_sms(phone_number, f"You don't have an accepted bid for Job #{job_id}.")
+            
+            if job.status != 'assigned':
+                return self.send_sms(phone_number, f"Job #{job_id} is not ready to start or already in transit.")
+            
+            job.status = 'in_transit'
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"Trip #{job_id} started!\nSafe travels. Deliver on time for best rating.")
+            
+        except ValueError:
+            return self.send_sms(phone_number, "Invalid job ID. Use: START 123")
+        except Exception as e:
+            current_app.logger.error(f"Start trip error: {e}")
+            return self.send_sms(phone_number, "Error starting trip. Please try again.")
+    
     def _send_help_message(self, phone_number):
         """Send help message with available commands"""
+        from models import TransportProfile
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        profile = TransportProfile.query.filter_by(user_id=user.id).first() if user else None
+        
         help_message = ("AgroLink SMS Commands:\n"
                        "JOIN [name] [location] [crop] - Register\n"
-                       "LIST [crop] [quantity] [price] - List produce\n"
-                       "PRICE [crop] - Check market prices\n"
-                       "HELP - Show this message\n"
-                       "STOP - Unsubscribe")
+                       "LIST [crop] [qty] [price] - List produce\n"
+                       "PRICE [crop] - Check prices\n")
+        
+        if profile:
+            help_message += ("JOBS - View transport jobs\n"
+                            "BID [job_id] [amt] - Place bid\n"
+                            "MYBIDS - View your bids\n"
+                            "START [job_id] - Start trip\n")
+        
+        help_message += "HELP - This message\nSTOP - Unsubscribe"
         
         return self.send_sms(phone_number, help_message)
     

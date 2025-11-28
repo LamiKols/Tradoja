@@ -2,8 +2,8 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication
-from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid
+from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm, TransportRegistrationForm, TransportRouteForm, ColdChainDeviceForm, TransportBidForm, EnhancedLogisticsRequestForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
 from gi_service import GIService
@@ -4047,3 +4047,662 @@ def generate_agrolink_data_snapshot(user_id):
                 'snapshot_requested': True
             }
         }
+
+
+# ===== TRANSPORT & LOGISTICS ROUTES =====
+
+# Initialize logistics service
+try:
+    from logistics_service import logistics_service
+except Exception as e:
+    app.logger.error(f"Logistics service initialization failed: {e}")
+    logistics_service = None
+
+
+@app.route('/transport/register', methods=['GET', 'POST'])
+@login_required
+def transport_register():
+    """Transport company registration"""
+    # Check if already has a transport profile
+    existing_profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    if existing_profile:
+        flash('You already have a transport company profile.', 'info')
+        return redirect(url_for('transport_dashboard'))
+    
+    form = TransportRegistrationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Create transport profile
+            profile = TransportProfile(
+                user_id=current_user.id,
+                company_name=form.company_name.data,
+                cac_number=form.cac_number.data,
+                fleet_size=form.fleet_size.data,
+                price_per_ton_km=form.price_per_ton_km.data,
+                cold_chain_capable=form.has_cold_chain.data
+            )
+            
+            # Set vehicle types as JSON list
+            profile.set_vehicle_types_list([form.vehicle_types.data])
+            
+            # Handle file uploads
+            if form.cac_file.data:
+                filename = secure_filename(f"cac_{current_user.id}_{form.cac_file.data.filename}")
+                filepath = os.path.join('uploads', 'transport', filename)
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                form.cac_file.data.save(filepath)
+                profile.cac_file = filepath
+            
+            if form.insurance_file.data:
+                filename = secure_filename(f"insurance_{current_user.id}_{form.insurance_file.data.filename}")
+                filepath = os.path.join('uploads', 'transport', filename)
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                form.insurance_file.data.save(filepath)
+                profile.insurance_file = filepath
+            
+            # Update user phone
+            current_user.phone_number = form.phone_number.data
+            current_user.role = 'transport_company'
+            
+            db.session.add(profile)
+            db.session.commit()
+            
+            flash('Transport company registered successfully! Add your routes to start receiving job notifications.', 'success')
+            return redirect(url_for('transport_dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Transport registration error: {e}")
+            flash('Registration failed. Please try again.', 'danger')
+    
+    return render_template('transport/register.html',
+                         form=form,
+                         title='Register Transport Company')
+
+
+@app.route('/transport/dashboard')
+@login_required
+def transport_dashboard():
+    """Transport company dashboard"""
+    # Get or create transport profile
+    profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    
+    if not profile:
+        flash('Please register your transport company first.', 'warning')
+        return redirect(url_for('transport_register'))
+    
+    # Get available jobs matching this transporter
+    available_jobs = []
+    if logistics_service:
+        matched_jobs = logistics_service.get_available_jobs(profile.id, limit=10)
+        available_jobs = [m['job'] for m in matched_jobs]
+    else:
+        available_jobs = LogisticsRequest.query.filter(
+            LogisticsRequest.status.in_(['pending', 'bidding'])
+        ).order_by(LogisticsRequest.timestamp.desc()).limit(10).all()
+    
+    # Get transporter's bids
+    my_bids = LogisticsBid.query.filter_by(transporter_id=profile.id)\
+                                .order_by(LogisticsBid.created_at.desc()).limit(10).all()
+    
+    # Get active trips (accepted bids)
+    active_trips = []
+    accepted_bids = LogisticsBid.query.filter_by(
+        transporter_id=profile.id,
+        status='accepted'
+    ).all()
+    
+    for bid in accepted_bids:
+        if bid.logistics_request and bid.logistics_request.status in ['assigned', 'in_transit']:
+            active_trips.append(bid.logistics_request)
+    
+    # Get cold chain devices
+    cold_chain_devices = ColdChainDevice.query.filter_by(transporter_id=profile.id).all()
+    
+    # Calculate stats
+    stats = {
+        'total_trips': profile.total_trips,
+        'successful_trips': profile.successful_trips,
+        'on_time_rate': profile.on_time_percentage(),
+        'rating': profile.rating,
+        'wallet_balance': profile.wallet_balance,
+        'pending_bids': LogisticsBid.query.filter_by(transporter_id=profile.id, status='pending').count(),
+        'active_jobs': len(active_trips)
+    }
+    
+    return render_template('transport/dashboard.html',
+                         profile=profile,
+                         available_jobs=available_jobs,
+                         my_bids=my_bids,
+                         active_trips=active_trips,
+                         cold_chain_devices=cold_chain_devices,
+                         stats=stats,
+                         title='Transport Dashboard')
+
+
+@app.route('/transport/routes', methods=['GET', 'POST'])
+@login_required
+def transport_routes():
+    """Manage transport routes"""
+    profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        return redirect(url_for('transport_register'))
+    
+    form = TransportRouteForm()
+    
+    if form.validate_on_submit():
+        # Get existing routes
+        routes = profile.get_routes_covered_list()
+        
+        # Add new route
+        new_route = [form.from_state.data, form.to_state.data]
+        if new_route not in routes:
+            routes.append(new_route)
+            profile.set_routes_covered_list(routes)
+            db.session.commit()
+            flash(f'Route {form.from_state.data} → {form.to_state.data} added successfully!', 'success')
+        else:
+            flash('This route already exists.', 'info')
+        
+        return redirect(url_for('transport_routes'))
+    
+    return render_template('transport/routes.html',
+                         form=form,
+                         profile=profile,
+                         routes=profile.get_routes_covered_list(),
+                         title='Manage Routes')
+
+
+@app.route('/transport/routes/<int:index>/delete', methods=['POST'])
+@login_required
+def delete_transport_route(index):
+    """Delete a transport route"""
+    profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        return redirect(url_for('transport_register'))
+    
+    routes = profile.get_routes_covered_list()
+    if 0 <= index < len(routes):
+        deleted_route = routes.pop(index)
+        profile.set_routes_covered_list(routes)
+        db.session.commit()
+        flash(f'Route {deleted_route[0]} → {deleted_route[1]} removed.', 'success')
+    
+    return redirect(url_for('transport_routes'))
+
+
+@app.route('/transport/cold-chain', methods=['GET', 'POST'])
+@login_required
+def transport_cold_chain():
+    """Manage cold chain devices"""
+    profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    if not profile:
+        return redirect(url_for('transport_register'))
+    
+    form = ColdChainDeviceForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Check for duplicate device ID
+            existing = ColdChainDevice.query.filter_by(device_id=form.device_id.data).first()
+            if existing:
+                flash('Device ID already registered.', 'warning')
+            else:
+                device = ColdChainDevice(
+                    transporter_id=profile.id,
+                    device_id=form.device_id.data,
+                    vehicle_registration=form.vehicle_registration.data,
+                    max_temp_allowed=form.max_temp_allowed.data,
+                    min_temp_allowed=form.min_temp_allowed.data
+                )
+                db.session.add(device)
+                
+                # Update profile to indicate cold chain capability
+                profile.cold_chain_capable = True
+                
+                db.session.commit()
+                flash('Cold chain device registered successfully!', 'success')
+                return redirect(url_for('transport_cold_chain'))
+                
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Cold chain device registration error: {e}")
+            flash('Failed to register device. Please try again.', 'danger')
+    
+    devices = ColdChainDevice.query.filter_by(transporter_id=profile.id).all()
+    
+    return render_template('transport/cold_chain.html',
+                         form=form,
+                         devices=devices,
+                         profile=profile,
+                         title='Cold Chain Devices')
+
+
+@app.route('/transport/device/<int:device_id>/toggle', methods=['POST'])
+@login_required
+def toggle_cold_chain_device(device_id):
+    """Toggle cold chain device active status"""
+    device = ColdChainDevice.query.get_or_404(device_id)
+    profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    
+    if not profile or device.transporter_id != profile.id:
+        abort(403)
+    
+    device.is_active = not device.is_active
+    db.session.commit()
+    
+    status = 'activated' if device.is_active else 'deactivated'
+    flash(f'Device {device.device_id} {status}.', 'success')
+    
+    return redirect(url_for('transport_cold_chain'))
+
+
+@app.route('/logistics/request/<int:produce_id>', methods=['GET', 'POST'])
+@login_required
+def logistics_request_enhanced(produce_id):
+    """Enhanced logistics request with bidding"""
+    produce = Produce.query.get_or_404(produce_id)
+    form = EnhancedLogisticsRequestForm()
+    form.produce_id.data = produce_id
+    
+    if form.validate_on_submit():
+        try:
+            logistics_request = LogisticsRequest(
+                produce_id=produce_id,
+                requester_id=current_user.id,
+                request_type=form.request_type.data,
+                preferred_date=form.preferred_date.data,
+                preferred_time=form.preferred_time.data,
+                pickup_location=form.pickup_location.data,
+                pickup_state=form.pickup_state.data,
+                destination_address=form.destination_address.data,
+                destination_state=form.destination_state.data,
+                quantity_tons=form.quantity_tons.data,
+                requires_cold_chain=form.requires_cold_chain.data,
+                notes=form.notes.data,
+                status='pending'
+            )
+            
+            db.session.add(logistics_request)
+            db.session.commit()
+            
+            # Auto-match and notify transporters
+            if logistics_service:
+                matching_transporters = logistics_service.find_matching_transporters(logistics_request)
+                if matching_transporters:
+                    logistics_service.notify_transporters(logistics_request, matching_transporters)
+                    flash(f'Transport request created! {len(matching_transporters)} transporters notified.', 'success')
+                else:
+                    flash('Transport request created! Waiting for transporter bids.', 'success')
+            else:
+                flash('Transport request created successfully!', 'success')
+            
+            return redirect(url_for('logistics_request_detail', request_id=logistics_request.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Logistics request error: {e}")
+            flash('Failed to create transport request. Please try again.', 'danger')
+    
+    return render_template('transport/logistics_request.html',
+                         form=form,
+                         produce=produce,
+                         title='Request Transport')
+
+
+@app.route('/logistics/<int:request_id>')
+@login_required
+def logistics_request_detail(request_id):
+    """View logistics request details and bids"""
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    
+    # Check access permissions
+    is_requester = logistics_request.requester_id == current_user.id
+    transport_profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    is_transporter = transport_profile is not None
+    is_admin = current_user.is_admin()
+    
+    if not (is_requester or is_transporter or is_admin):
+        abort(403)
+    
+    # Get all bids for this request
+    bids = LogisticsBid.query.filter_by(logistics_request_id=request_id)\
+                             .order_by(LogisticsBid.created_at.desc()).all()
+    
+    # Check if current transporter has bid
+    my_bid = None
+    if transport_profile:
+        my_bid = LogisticsBid.query.filter_by(
+            logistics_request_id=request_id,
+            transporter_id=transport_profile.id
+        ).first()
+    
+    # Get cold chain logs if any
+    cold_chain_logs = ColdChainLog.query.filter_by(logistics_request_id=request_id)\
+                                        .order_by(ColdChainLog.timestamp.desc()).all()
+    
+    bid_form = TransportBidForm()
+    
+    return render_template('transport/logistics_detail.html',
+                         logistics_request=logistics_request,
+                         bids=bids,
+                         my_bid=my_bid,
+                         bid_form=bid_form,
+                         cold_chain_logs=cold_chain_logs,
+                         is_requester=is_requester,
+                         is_transporter=is_transporter,
+                         transport_profile=transport_profile,
+                         title=f'Transport Job #{request_id}')
+
+
+@app.route('/logistics/<int:request_id>/bid', methods=['POST'])
+@login_required
+def submit_bid(request_id):
+    """Submit a bid on a logistics request"""
+    transport_profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    if not transport_profile:
+        flash('You need a transport company profile to bid.', 'warning')
+        return redirect(url_for('transport_register'))
+    
+    form = TransportBidForm()
+    
+    if form.validate_on_submit():
+        if logistics_service:
+            result = logistics_service.process_bid(
+                logistics_request_id=request_id,
+                transporter_id=transport_profile.id,
+                bid_amount=form.bid_amount.data,
+                eta_hours=form.eta_hours.data,
+                notes=form.notes.data,
+                source_channel='web'
+            )
+            
+            if result['success']:
+                if result.get('updated'):
+                    flash('Your bid has been updated.', 'success')
+                else:
+                    flash(f'Bid of ₦{form.bid_amount.data:,.0f} submitted successfully!', 'success')
+            else:
+                flash(result.get('error', 'Failed to submit bid.'), 'danger')
+        else:
+            # Fallback without service
+            try:
+                existing_bid = LogisticsBid.query.filter_by(
+                    logistics_request_id=request_id,
+                    transporter_id=transport_profile.id
+                ).first()
+                
+                if existing_bid:
+                    existing_bid.bid_amount = form.bid_amount.data
+                    existing_bid.eta_hours = form.eta_hours.data
+                    existing_bid.notes = form.notes.data
+                else:
+                    bid = LogisticsBid(
+                        logistics_request_id=request_id,
+                        transporter_id=transport_profile.id,
+                        bid_amount=form.bid_amount.data,
+                        eta_hours=form.eta_hours.data,
+                        notes=form.notes.data,
+                        source_channel='web'
+                    )
+                    db.session.add(bid)
+                
+                # Update request status
+                logistics_request = LogisticsRequest.query.get(request_id)
+                if logistics_request and logistics_request.status == 'pending':
+                    logistics_request.status = 'bidding'
+                
+                db.session.commit()
+                flash('Bid submitted successfully!', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash('Failed to submit bid.', 'danger')
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{field}: {error}', 'danger')
+    
+    return redirect(url_for('logistics_request_detail', request_id=request_id))
+
+
+@app.route('/logistics/<int:request_id>/accept-bid/<int:bid_id>', methods=['POST'])
+@login_required
+def accept_bid(request_id, bid_id):
+    """Accept a winning bid"""
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    
+    if logistics_request.requester_id != current_user.id:
+        abort(403)
+    
+    if logistics_service:
+        result = logistics_service.accept_bid(request_id, bid_id, current_user.id)
+        
+        if result['success']:
+            flash(result.get('message', 'Bid accepted! 50% payment released to transporter.'), 'success')
+        else:
+            flash(result.get('error', 'Failed to accept bid.'), 'danger')
+    else:
+        # Fallback
+        try:
+            bid = LogisticsBid.query.get_or_404(bid_id)
+            
+            bid.status = 'accepted'
+            logistics_request.status = 'assigned'
+            logistics_request.winning_bid_id = bid.id
+            
+            # Reject other bids
+            LogisticsBid.query.filter(
+                LogisticsBid.logistics_request_id == request_id,
+                LogisticsBid.id != bid_id
+            ).update({'status': 'rejected'})
+            
+            db.session.commit()
+            flash('Bid accepted! Transporter assigned.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash('Failed to accept bid.', 'danger')
+    
+    return redirect(url_for('logistics_request_detail', request_id=request_id))
+
+
+@app.route('/logistics/<int:request_id>/start-trip', methods=['POST'])
+@login_required
+def start_trip(request_id):
+    """Mark trip as started (in transit)"""
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    transport_profile = TransportProfile.query.filter_by(user_id=current_user.id).first()
+    
+    if not transport_profile:
+        abort(403)
+    
+    # Verify this transporter won the bid
+    winning_bid = logistics_request.winning_bid
+    if not winning_bid or winning_bid.transporter_id != transport_profile.id:
+        abort(403)
+    
+    logistics_request.status = 'in_transit'
+    db.session.commit()
+    
+    flash('Trip started! Safe travels.', 'success')
+    return redirect(url_for('logistics_request_detail', request_id=request_id))
+
+
+@app.route('/logistics/<int:request_id>/complete', methods=['POST'])
+@login_required
+def complete_delivery(request_id):
+    """Mark delivery as complete"""
+    logistics_request = LogisticsRequest.query.get_or_404(request_id)
+    
+    if logistics_request.requester_id != current_user.id:
+        abort(403)
+    
+    if logistics_service:
+        result = logistics_service.complete_delivery(request_id, current_user.id)
+        
+        if result['success']:
+            msg = f"Delivery completed! Final payment of ₦{result['final_payment']:,.0f} released."
+            if result.get('cold_chain_bonus', 0) > 0:
+                msg += f" Cold chain bonus: ₦{result['cold_chain_bonus']:,.0f}"
+            flash(msg, 'success')
+        else:
+            flash(result.get('error', 'Failed to complete delivery.'), 'danger')
+    else:
+        logistics_request.status = 'delivered'
+        db.session.commit()
+        flash('Delivery marked as complete!', 'success')
+    
+    return redirect(url_for('logistics_request_detail', request_id=request_id))
+
+
+@app.route('/coldchain/webhook', methods=['POST'])
+@csrf_exempt
+def coldchain_webhook():
+    """Receive temperature data from cold chain devices"""
+    import hmac
+    import hashlib
+    
+    # Verify webhook signature
+    webhook_secret = os.environ.get('COLDCHAIN_WEBHOOK_SECRET', '')
+    if webhook_secret:
+        signature = request.headers.get('X-Webhook-Signature', '')
+        expected = hmac.new(
+            webhook_secret.encode(),
+            request.data,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(signature, expected):
+            return jsonify({'error': 'Invalid signature'}), 401
+    
+    try:
+        data = request.get_json()
+        
+        device_id = data.get('device_id')
+        job_id = data.get('job_id') or data.get('logistics_request_id')
+        temperature = data.get('temperature')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        
+        if not all([device_id, job_id, temperature is not None]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Verify device exists
+        device = ColdChainDevice.query.filter_by(device_id=device_id).first()
+        if not device:
+            return jsonify({'error': 'Unknown device'}), 404
+        
+        # Create log entry
+        log = ColdChainLog(
+            device_id=device_id,
+            logistics_request_id=int(job_id),
+            temperature_celsius=float(temperature),
+            latitude=float(latitude) if latitude else None,
+            longitude=float(longitude) if longitude else None
+        )
+        
+        db.session.add(log)
+        
+        # Update device last reading
+        device.last_reading_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Check for temperature alerts
+        alert = None
+        if not log.is_within_range(device.max_temp_allowed, device.min_temp_allowed):
+            alert = f"Temperature {temperature}°C out of range ({device.min_temp_allowed}°C - {device.max_temp_allowed}°C)"
+            app.logger.warning(f"Cold chain alert for job {job_id}: {alert}")
+        
+        return jsonify({
+            'status': 'recorded',
+            'log_id': log.id,
+            'alert': alert
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Cold chain webhook error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/logistics/<int:request_id>/temperature')
+@login_required
+def temperature_chart_data(request_id):
+    """Get temperature data for Chart.js"""
+    logs = ColdChainLog.query.filter_by(logistics_request_id=request_id)\
+                             .order_by(ColdChainLog.timestamp.asc()).all()
+    
+    data = {
+        'labels': [log.timestamp.strftime('%H:%M') for log in logs],
+        'temperatures': [log.temperature_celsius for log in logs],
+        'locations': [
+            {'lat': log.latitude, 'lng': log.longitude}
+            for log in logs if log.latitude and log.longitude
+        ]
+    }
+    
+    # Get device limits
+    if logs:
+        device = ColdChainDevice.query.filter_by(device_id=logs[0].device_id).first()
+        if device:
+            data['max_temp'] = device.max_temp_allowed
+            data['min_temp'] = device.min_temp_allowed
+    
+    return jsonify(data)
+
+
+@app.route('/admin/logistics-bidding')
+@login_required
+def admin_logistics_bidding():
+    """Admin logistics dashboard with bidding analytics"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    # Get all logistics requests with stats
+    all_requests = LogisticsRequest.query.order_by(LogisticsRequest.timestamp.desc()).all()
+    
+    # Calculate statistics
+    total_requests = len(all_requests)
+    active_requests = sum(1 for r in all_requests if r.status in ['pending', 'bidding', 'assigned', 'in_transit'])
+    completed_requests = sum(1 for r in all_requests if r.status == 'delivered')
+    cold_chain_requests = sum(1 for r in all_requests if r.requires_cold_chain)
+    
+    # Cold chain verification stats
+    cold_chain_verified = sum(1 for r in all_requests if r.cold_chain_bonus_earned)
+    cold_chain_rate = (cold_chain_verified / cold_chain_requests * 100) if cold_chain_requests > 0 else 0
+    
+    # Get all bids
+    all_bids = LogisticsBid.query.all()
+    total_bids = len(all_bids)
+    accepted_bids = sum(1 for b in all_bids if b.status == 'accepted')
+    
+    # Calculate average cost per ton
+    completed_with_bids = [r for r in all_requests if r.status == 'delivered' and r.winning_bid]
+    if completed_with_bids:
+        total_cost = sum(r.winning_bid.bid_amount for r in completed_with_bids)
+        total_tons = sum(r.quantity_tons or 1 for r in completed_with_bids)
+        avg_cost_per_ton = total_cost / total_tons
+    else:
+        avg_cost_per_ton = 0
+    
+    # Get top transporters
+    transporters = TransportProfile.query.order_by(TransportProfile.total_trips.desc()).limit(10).all()
+    
+    stats = {
+        'total_requests': total_requests,
+        'active_requests': active_requests,
+        'completed_requests': completed_requests,
+        'total_bids': total_bids,
+        'accepted_bids': accepted_bids,
+        'cold_chain_requests': cold_chain_requests,
+        'cold_chain_verified': cold_chain_verified,
+        'cold_chain_rate': cold_chain_rate,
+        'avg_cost_per_ton': avg_cost_per_ton,
+        'total_transporters': TransportProfile.query.count()
+    }
+    
+    return render_template('admin/logistics_bidding.html',
+                         requests=all_requests[:50],
+                         transporters=transporters,
+                         stats=stats,
+                         title='Logistics & Bidding Dashboard')

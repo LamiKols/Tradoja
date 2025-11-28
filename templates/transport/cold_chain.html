@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-snowflake text-info me-2"></i>Cold Chain Devices</h2>
+            <p class="text-muted">Register and manage your temperature monitoring devices</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('transport_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Register New Device</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Device ID/Serial Number *</label>
+                            {{ form.device_id(class="form-control", placeholder="e.g., TC-001-2024") }}
+                            {% for error in form.device_id.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle Registration *</label>
+                            {{ form.vehicle_registration(class="form-control") }}
+                            {% for error in form.vehicle_registration.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label">Min Temp (°C)</label>
+                                {{ form.min_temp_allowed(class="form-control") }}
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Max Temp (°C)</label>
+                                {{ form.max_temp_allowed(class="form-control") }}
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-info w-100 mt-3">
+                            <i class="fas fa-plus me-1"></i>Register Device
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle text-info me-2"></i>Cold Chain Bonus</h6>
+                    <p class="small text-muted mb-2">
+                        Earn a <strong>15% bonus</strong> on deliveries where your cold chain maintains proper temperature throughout the trip!
+                    </p>
+                    <ul class="small text-muted mb-0">
+                        <li>Device sends temperature data automatically</li>
+                        <li>If all readings are within range = bonus earned</li>
+                        <li>Live temperature graph visible to customers</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Your Devices</h5>
+                    <span class="badge bg-info">{{ devices|length }} devices</span>
+                </div>
+                <div class="card-body">
+                    {% if devices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Device ID</th>
+                                    <th>Vehicle</th>
+                                    <th>Temp Range</th>
+                                    <th>Status</th>
+                                    <th>Last Reading</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for device in devices %}
+                                <tr>
+                                    <td><code>{{ device.device_id }}</code></td>
+                                    <td>{{ device.vehicle_registration }}</td>
+                                    <td>{{ device.min_temp_allowed }}°C - {{ device.max_temp_allowed }}°C</td>
+                                    <td>
+                                        {% if device.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if device.last_reading_at %}
+                                        {{ device.last_reading_at.strftime('%d/%m %H:%M') }}
+                                        {% else %}
+                                        <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('toggle_cold_chain_device', device_id=device.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            {% if device.is_active %}
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Deactivate">
+                                                <i class="fas fa-pause"></i>
+                                            </button>
+                                            {% else %}
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Activate">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-thermometer-half fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No cold chain devices registered yet.</p>
+                        <p class="small text-muted">Register your first device to start earning cold chain bonuses!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

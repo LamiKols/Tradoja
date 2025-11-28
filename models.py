@@ -408,13 +408,28 @@ class LogisticsRequest(db.Model):
     preferred_time = db.Column(db.Time, nullable=False)
     pickup_location = db.Column(db.String(200), nullable=False)
     destination_address = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'fulfilled', 'cancelled'
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'bidding', 'assigned', 'in_transit', 'delivered', 'cancelled'
     notes = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # New bidding fields
+    quantity_tons = db.Column(db.Float, default=0.0)  # Weight in tons
+    requires_cold_chain = db.Column(db.Boolean, default=False)  # Cold chain required?
+    winning_bid_id = db.Column(db.Integer, db.ForeignKey('logistics_bid.id', use_alter=True), nullable=True)
+    pickup_state = db.Column(db.String(50))  # Nigerian state for matching
+    destination_state = db.Column(db.String(50))  # Nigerian state for matching
+    
+    # Payment/escrow tracking
+    escrow_amount = db.Column(db.Float, default=0.0)  # Total escrow amount
+    first_payment_released = db.Column(db.Boolean, default=False)  # 50% on accept
+    final_payment_released = db.Column(db.Boolean, default=False)  # 50% + bonus on delivery
+    cold_chain_bonus_earned = db.Column(db.Boolean, default=False)  # 15% bonus for verified cold chain
     
     # Relationships
     produce = db.relationship('Produce', backref='logistics_requests')
     requester = db.relationship('User', backref='logistics_requests')
+    bids = db.relationship('LogisticsBid', foreign_keys='LogisticsBid.logistics_request_id', backref='logistics_request', lazy='dynamic')
+    winning_bid = db.relationship('LogisticsBid', foreign_keys=[winning_bid_id], post_update=True)
     
     def __repr__(self):
         return f'<LogisticsRequest {self.request_type} for {self.produce.name}>'
@@ -1116,3 +1131,146 @@ class LoanApplication(db.Model):
     
     def __repr__(self):
         return f'<LoanApplication {self.id}: ₦{self.loan_amount_requested:,.0f}>'
+
+
+class TransportProfile(db.Model):
+    """Transport company profile for logistics providers"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    company_name = db.Column(db.String(200), nullable=False)
+    cac_number = db.Column(db.String(50))  # Corporate Affairs Commission number
+    fleet_size = db.Column(db.Integer, default=1)
+    vehicle_types = db.Column(db.Text)  # JSON list: ["truck", "van", "pickup", "trailer"]
+    routes_covered = db.Column(db.Text)  # JSON list: [["Lagos", "Oyo"], ["Lagos", "Kano"]]
+    price_per_ton_km = db.Column(db.Float, default=100.0)  # Base rate in Naira
+    cold_chain_capable = db.Column(db.Boolean, default=False)
+    rating = db.Column(db.Float, default=5.0)  # 1-5 rating
+    total_trips = db.Column(db.Integer, default=0)
+    successful_trips = db.Column(db.Integer, default=0)  # For on-time % calculation
+    insurance_file = db.Column(db.String(255))  # File path
+    cac_file = db.Column(db.String(255))  # File path
+    is_verified = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # T2 wallet balance for transport payments
+    wallet_balance = db.Column(db.Float, default=0.0)
+    
+    # Relationship
+    user = db.relationship('User', backref='transport_profile')
+    
+    def get_vehicle_types_list(self):
+        """Parse vehicle types from JSON"""
+        import json
+        if self.vehicle_types:
+            return json.loads(self.vehicle_types)
+        return []
+    
+    def set_vehicle_types_list(self, types_list):
+        """Store vehicle types as JSON"""
+        import json
+        self.vehicle_types = json.dumps(types_list)
+    
+    def get_routes_covered_list(self):
+        """Parse routes from JSON"""
+        import json
+        if self.routes_covered:
+            return json.loads(self.routes_covered)
+        return []
+    
+    def set_routes_covered_list(self, routes_list):
+        """Store routes as JSON"""
+        import json
+        self.routes_covered = json.dumps(routes_list)
+    
+    def covers_route(self, from_state, to_state):
+        """Check if transporter covers specific route"""
+        routes = self.get_routes_covered_list()
+        for route in routes:
+            if len(route) >= 2:
+                if (route[0].lower() == from_state.lower() and route[1].lower() == to_state.lower()) or \
+                   (route[1].lower() == from_state.lower() and route[0].lower() == to_state.lower()):
+                    return True
+        return False
+    
+    def on_time_percentage(self):
+        """Calculate on-time delivery percentage"""
+        if self.total_trips == 0:
+            return 100.0
+        return (self.successful_trips / self.total_trips) * 100
+    
+    def __repr__(self):
+        return f'<TransportProfile {self.company_name}>'
+
+
+class ColdChainDevice(db.Model):
+    """Cold chain monitoring device attached to transport vehicle"""
+    id = db.Column(db.Integer, primary_key=True)
+    transporter_id = db.Column(db.Integer, db.ForeignKey('transport_profile.id'), nullable=False)
+    device_id = db.Column(db.String(100), unique=True, nullable=False)  # Unique device identifier
+    vehicle_registration = db.Column(db.String(50), nullable=False)
+    max_temp_allowed = db.Column(db.Float, default=4.0)  # Maximum allowed temperature in Celsius
+    min_temp_allowed = db.Column(db.Float, default=-2.0)  # Minimum allowed temperature
+    is_active = db.Column(db.Boolean, default=True)
+    last_reading_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    transporter = db.relationship('TransportProfile', backref='cold_chain_devices')
+    
+    def __repr__(self):
+        return f'<ColdChainDevice {self.device_id} on {self.vehicle_registration}>'
+
+
+class ColdChainLog(db.Model):
+    """Temperature and location log from cold chain device"""
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String(100), nullable=False)  # Links to ColdChainDevice.device_id
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'), nullable=False)
+    temperature_celsius = db.Column(db.Float, nullable=False)
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    trip_verified = db.Column(db.Boolean, nullable=True)  # Null = pending, True = passed, False = failed
+    
+    # Relationship
+    logistics_request = db.relationship('LogisticsRequest', backref='cold_chain_logs')
+    
+    def is_within_range(self, max_temp, min_temp=-2.0):
+        """Check if temperature is within acceptable range"""
+        return min_temp <= self.temperature_celsius <= max_temp
+    
+    def __repr__(self):
+        return f'<ColdChainLog {self.temperature_celsius}°C at {self.timestamp}>'
+
+
+class LogisticsBid(db.Model):
+    """Bid from transporter on logistics request"""
+    id = db.Column(db.Integer, primary_key=True)
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'), nullable=False)
+    transporter_id = db.Column(db.Integer, db.ForeignKey('transport_profile.id'), nullable=False)
+    bid_amount = db.Column(db.Float, nullable=False)  # Total bid in Naira
+    eta_hours = db.Column(db.Integer, default=24)  # Estimated time of arrival in hours
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'accepted', 'rejected', 'withdrawn'
+    source_channel = db.Column(db.String(20), default='web')  # 'web', 'ussd', 'sms', 'whatsapp'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    transporter = db.relationship('TransportProfile', backref='bids')
+    
+    def formatted_amount(self):
+        """Return formatted bid amount"""
+        return f"₦{self.bid_amount:,.0f}"
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status"""
+        status_classes = {
+            'pending': 'bg-warning',
+            'accepted': 'bg-success',
+            'rejected': 'bg-danger',
+            'withdrawn': 'bg-secondary'
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+    
+    def __repr__(self):
+        return f'<LogisticsBid ₦{self.bid_amount:,.0f} by {self.transporter.company_name}>'

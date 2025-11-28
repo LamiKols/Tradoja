@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-truck me-2"></i>Transport Job #{{ logistics_request.id }}</h2>
+            <span class="badge {{ logistics_request.get_status_badge_class() }} fs-6">{{ logistics_request.status|replace('_', ' ')|title }}</span>
+        </div>
+        <div class="col-auto">
+            {% if is_transporter %}
+            <a href="{{ url_for('transport_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            </a>
+            {% else %}
+            <a href="{{ url_for('my_logistics_requests') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>My Requests
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Job Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-box fa-lg text-primary me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Produce</small>
+                                    <strong>{{ logistics_request.produce.name if logistics_request.produce else 'N/A' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-weight fa-lg text-info me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Weight</small>
+                                    <strong>{{ logistics_request.quantity_tons or 'N/A' }} Tons</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-map-marker-alt fa-lg text-success me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Pickup</small>
+                                    <strong>{{ logistics_request.pickup_location }}</strong>
+                                    <br><small class="text-muted">{{ logistics_request.pickup_state or '' }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-map-marker-alt fa-lg text-danger me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Destination</small>
+                                    <strong>{{ logistics_request.destination_address }}</strong>
+                                    <br><small class="text-muted">{{ logistics_request.destination_state or '' }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-calendar fa-lg text-warning me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Preferred Date</small>
+                                    <strong>{{ logistics_request.preferred_date.strftime('%B %d, %Y') if logistics_request.preferred_date else 'Flexible' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                {% if logistics_request.requires_cold_chain %}
+                                <i class="fas fa-snowflake fa-lg text-info me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Cold Chain</small>
+                                    <strong class="text-info">Required</strong>
+                                </div>
+                                {% else %}
+                                <i class="fas fa-thermometer-half fa-lg text-secondary me-3 mt-1"></i>
+                                <div>
+                                    <small class="text-muted d-block">Cold Chain</small>
+                                    <strong>Not Required</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if logistics_request.notes %}
+                    <hr>
+                    <h6><i class="fas fa-sticky-note me-2"></i>Notes</h6>
+                    <p class="mb-0">{{ logistics_request.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if logistics_request.requires_cold_chain and cold_chain_logs %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-temperature-low me-2"></i>Temperature Log</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="temperatureChart" height="200"></canvas>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-gavel me-2"></i>Bids</h5>
+                    <span class="badge bg-primary">{{ bids|length }} bids</span>
+                </div>
+                <div class="card-body">
+                    {% if bids %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Transporter</th>
+                                    <th>Amount</th>
+                                    <th>ETA</th>
+                                    <th>Rating</th>
+                                    <th>Status</th>
+                                    {% if is_requester and logistics_request.status in ['pending', 'bidding'] %}
+                                    <th>Action</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bid in bids %}
+                                <tr class="{% if bid.status == 'accepted' %}table-success{% endif %}">
+                                    <td>
+                                        <strong>{{ bid.transporter.company_name }}</strong>
+                                        {% if bid.transporter.cold_chain_capable %}
+                                        <br><small class="text-info"><i class="fas fa-snowflake"></i> Cold Chain</small>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>₦{{ "{:,.0f}".format(bid.bid_amount) }}</strong></td>
+                                    <td>{{ bid.eta_hours }}h</td>
+                                    <td>
+                                        <i class="fas fa-star text-warning"></i>
+                                        {{ "%.1f"|format(bid.transporter.rating) }}
+                                    </td>
+                                    <td><span class="badge {{ bid.get_status_badge_class() }}">{{ bid.status|capitalize }}</span></td>
+                                    {% if is_requester and logistics_request.status in ['pending', 'bidding'] %}
+                                    <td>
+                                        {% if bid.status == 'pending' %}
+                                        <form method="POST" action="{{ url_for('accept_bid', request_id=logistics_request.id, bid_id=bid.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Accept this bid? 50% will be released to the transporter.')">
+                                                <i class="fas fa-check me-1"></i>Accept
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% if bid.notes %}
+                                <tr class="{% if bid.status == 'accepted' %}table-success{% endif %}">
+                                    <td colspan="6" class="small text-muted">
+                                        <i class="fas fa-comment me-1"></i>{{ bid.notes }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-hourglass-half fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No bids yet. Transporters have been notified.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            {% if is_transporter and logistics_request.status in ['pending', 'bidding'] %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-gavel me-2"></i>{% if my_bid %}Update Your Bid{% else %}Place Bid{% endif %}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('submit_bid', request_id=logistics_request.id) }}">
+                        {{ bid_form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Bid Amount (₦) *</label>
+                            <input type="number" name="bid_amount" class="form-control" required min="1000"
+                                   value="{{ my_bid.bid_amount if my_bid else '' }}"
+                                   placeholder="Enter your bid amount">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ETA (Hours) *</label>
+                            <input type="number" name="eta_hours" class="form-control" required min="1" max="168"
+                                   value="{{ my_bid.eta_hours if my_bid else 24 }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="3" 
+                                      placeholder="Vehicle details, availability, etc.">{{ my_bid.notes if my_bid else '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-paper-plane me-1"></i>{% if my_bid %}Update Bid{% else %}Submit Bid{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if logistics_request.winning_bid and is_transporter and transport_profile.id == logistics_request.winning_bid.transporter_id %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Your Bid Won!</h5>
+                </div>
+                <div class="card-body">
+                    <p>Congratulations! Your bid of <strong>₦{{ "{:,.0f}".format(logistics_request.winning_bid.bid_amount) }}</strong> was accepted.</p>
+                    
+                    {% if logistics_request.status == 'assigned' %}
+                    <form method="POST" action="{{ url_for('start_trip', request_id=logistics_request.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-play me-1"></i>Start Trip
+                        </button>
+                    </form>
+                    {% elif logistics_request.status == 'in_transit' %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-truck-moving me-2"></i>Trip in progress
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if is_requester and logistics_request.status == 'in_transit' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Confirm Delivery</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Has the delivery been completed successfully?</p>
+                    <form method="POST" action="{{ url_for('complete_delivery', request_id=logistics_request.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success w-100" onclick="return confirm('Confirm delivery complete? Final payment will be released.')">
+                            <i class="fas fa-check me-1"></i>Confirm Delivery
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-money-bill me-2"></i>Payment Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if logistics_request.escrow_amount > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted">Total Bid Amount</small>
+                        <h4 class="mb-0">₦{{ "{:,.0f}".format(logistics_request.escrow_amount) }}</h4>
+                    </div>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            {% if logistics_request.first_payment_released %}
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% else %}
+                            <i class="fas fa-clock text-warning me-2"></i>
+                            {% endif %}
+                            50% on bid acceptance (₦{{ "{:,.0f}".format(logistics_request.escrow_amount * 0.5) }})
+                        </li>
+                        <li>
+                            {% if logistics_request.final_payment_released %}
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% else %}
+                            <i class="fas fa-clock text-warning me-2"></i>
+                            {% endif %}
+                            50% on delivery (₦{{ "{:,.0f}".format(logistics_request.escrow_amount * 0.5) }})
+                        </li>
+                        {% if logistics_request.requires_cold_chain %}
+                        <li class="mt-2">
+                            {% if logistics_request.cold_chain_bonus_earned %}
+                            <i class="fas fa-check-circle text-info me-2"></i>
+                            {% else %}
+                            <i class="fas fa-snowflake text-info me-2"></i>
+                            {% endif %}
+                            15% cold chain bonus (₦{{ "{:,.0f}".format(logistics_request.escrow_amount * 0.15) }})
+                        </li>
+                        {% endif %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted mb-0">Awaiting bid acceptance</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Requester</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>{{ logistics_request.requester.name }}</strong></p>
+                    <small class="text-muted">Requested {{ logistics_request.timestamp.strftime('%B %d, %Y') }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if logistics_request.requires_cold_chain and cold_chain_logs %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('{{ url_for("temperature_chart_data", request_id=logistics_request.id) }}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: data.temperatures,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                maxLine: {
+                                    type: 'line',
+                                    yMin: data.max_temp || 4,
+                                    yMax: data.max_temp || 4,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: { content: 'Max Temp', enabled: true }
+                                },
+                                minLine: {
+                                    type: 'line',
+                                    yMin: data.min_temp || -2,
+                                    yMax: data.min_temp || -2,
+                                    borderColor: 'rgb(54, 162, 235)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: { content: 'Min Temp', enabled: true }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Temperature (°C)' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Time' }
+                        }
+                    }
+                }
+            });
+        });
+});
+</script>
+{% endif %}
+{% endblock %}

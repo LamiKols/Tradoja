@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-truck me-2"></i>Register Transport Company</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Join AgroLink's logistics network and start earning by transporting agricultural produce across Nigeria.
+                    </p>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Company Name *</label>
+                                {{ form.company_name(class="form-control", placeholder="Enter your company name") }}
+                                {% for error in form.company_name.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">CAC Number</label>
+                                {{ form.cac_number(class="form-control") }}
+                                <small class="text-muted">Optional but recommended</small>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Fleet Size *</label>
+                                {{ form.fleet_size(class="form-control") }}
+                                {% for error in form.fleet_size.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Primary Vehicle Type *</label>
+                                {{ form.vehicle_types(class="form-select") }}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Price per Ton-Km (₦) *</label>
+                                {{ form.price_per_ton_km(class="form-control") }}
+                                {% for error in form.price_per_ton_km.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number *</label>
+                                {{ form.phone_number(class="form-control") }}
+                                {% for error in form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    {{ form.has_cold_chain(class="form-check-input") }}
+                                    <label class="form-check-label">
+                                        <i class="fas fa-snowflake text-info me-1"></i>
+                                        Cold Chain Capable (Refrigerated Transport)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr>
+                                <h5>Documents (Optional)</h5>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">CAC Certificate</label>
+                                {{ form.cac_file(class="form-control") }}
+                                <small class="text-muted">PDF, JPG, PNG (Max 5MB)</small>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Insurance Certificate</label>
+                                {{ form.insurance_file(class="form-control") }}
+                                <small class="text-muted">PDF, JPG, PNG (Max 5MB)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Register Transport Company
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5><i class="fas fa-question-circle text-info me-2"></i>Why Register?</h5>
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-bell fa-2x text-success mb-2"></i>
+                                <h6>Job Notifications</h6>
+                                <small class="text-muted">Get SMS/USSD alerts for jobs matching your routes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-wallet fa-2x text-primary mb-2"></i>
+                                <h6>Secure Payments</h6>
+                                <small class="text-muted">50% upfront, 50% on delivery + cold chain bonus</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-star fa-2x text-warning mb-2"></i>
+                                <h6>Build Reputation</h6>
+                                <small class="text-muted">Earn ratings and get more jobs</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

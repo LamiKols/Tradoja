@@ -28,7 +28,8 @@ class USSDService:
                 '2': 'check_prices',
                 '3': 'my_listings',
                 '4': 'balance',
-                '5': 'register'
+                '5': 'register',
+                '6': 'transport_jobs'
             }
         },
         'list_produce': {
@@ -50,6 +51,26 @@ class USSDService:
         'register': {
             'steps': ['name', 'location', 'crop'],
             'next': 'main'
+        },
+        'transport_jobs': {
+            'options': {
+                '1': 'new_jobs',
+                '2': 'my_bids',
+                '3': 'active_trips'
+            },
+            'next': 'main'
+        },
+        'new_jobs': {
+            'steps': ['view_job', 'bid_amount', 'confirm_bid'],
+            'next': 'transport_jobs'
+        },
+        'my_bids': {
+            'steps': [],
+            'next': 'transport_jobs'
+        },
+        'active_trips': {
+            'steps': ['view_trip', 'start_trip'],
+            'next': 'transport_jobs'
         }
     }
     
@@ -64,11 +85,14 @@ class USSDService:
         """Lazy load database models to avoid circular imports"""
         if self.db is None:
             from app import db
-            from models import User, USSDSession, Produce
+            from models import User, USSDSession, Produce, TransportProfile, LogisticsRequest, LogisticsBid
             self.db = db
             self.User = User
             self.USSDSession = USSDSession
             self.Produce = Produce
+            self.TransportProfile = TransportProfile
+            self.LogisticsRequest = LogisticsRequest
+            self.LogisticsBid = LogisticsBid
     
     def process_request(
         self, 
@@ -187,6 +211,18 @@ class USSDService:
         elif session.current_menu == 'register':
             return self._handle_registration(session, current_input, user, lang)
         
+        elif session.current_menu == 'transport_jobs':
+            return self._handle_transport_menu(session, current_input, user, lang)
+        
+        elif session.current_menu == 'new_jobs':
+            return self._handle_new_jobs(session, current_input, user, lang)
+        
+        elif session.current_menu == 'my_bids':
+            return self._show_my_bids(session, user, lang)
+        
+        elif session.current_menu == 'active_trips':
+            return self._handle_active_trips(session, current_input, user, lang)
+        
         else:
             return self._show_main_menu(lang, user), True
     
@@ -236,6 +272,9 @@ class USSDService:
                 if user:
                     return get_message('already_registered', lang), False
                 return "Enter your name:", True
+            
+            elif target_menu == 'transport_jobs':
+                return self._show_transport_menu(session, user, lang)
         
         return get_message('invalid_command', lang), True
     
@@ -518,6 +557,347 @@ class USSDService:
         
         return get_message('error', lang), False
     
+    def _show_transport_menu(
+        self,
+        session,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Show transport jobs menu"""
+        
+        if not user:
+            session.current_menu = 'register'
+            return get_message('register_prompt', lang), True
+        
+        # Check if user is a transporter
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return "You are not registered as a transporter.\nVisit agrolink.ng/transport to register.", False
+        
+        menu = "TRANSPORT JOBS\n"
+        menu += "1. New Jobs\n"
+        menu += "2. My Bids\n"
+        menu += "3. Active Trips\n"
+        menu += "0. Back"
+        
+        return menu, True
+    
+    def _handle_transport_menu(
+        self,
+        session,
+        selection: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle transport menu selection"""
+        
+        if selection == '0':
+            session.current_menu = 'main'
+            session.current_step = 0
+            return self._show_main_menu(lang, user), True
+        
+        menu_map = self.MENUS['transport_jobs'].get('options', {})
+        
+        if selection in menu_map:
+            target = menu_map[selection]
+            session.current_menu = target
+            session.current_step = 0
+            session.set_session_data({})
+            
+            if target == 'new_jobs':
+                return self._show_available_jobs(session, user, lang)
+            elif target == 'my_bids':
+                return self._show_my_bids(session, user, lang)
+            elif target == 'active_trips':
+                return self._show_active_trips(session, user, lang)
+        
+        return get_message('invalid_command', lang), True
+    
+    def _show_available_jobs(
+        self,
+        session,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Show available transport jobs"""
+        
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            session.current_menu = 'main'
+            return "Not a registered transporter.", False
+        
+        # Get available jobs
+        jobs = self.LogisticsRequest.query.filter(
+            self.LogisticsRequest.status.in_(['pending', 'bidding'])
+        ).order_by(self.LogisticsRequest.timestamp.desc()).limit(5).all()
+        
+        if not jobs:
+            session.current_menu = 'transport_jobs'
+            return "No jobs available now.\nCheck back later.", False
+        
+        response = "AVAILABLE JOBS:\n"
+        job_ids = []
+        for i, job in enumerate(jobs, 1):
+            cc = "[CC]" if job.requires_cold_chain else ""
+            route = f"{job.pickup_state or 'N/A'}->{job.destination_state or 'N/A'}"
+            response += f"{i}. {route} {job.quantity_tons or 'N/A'}T {cc}\n"
+            job_ids.append(job.id)
+        
+        response += "\nEnter job number to bid:"
+        
+        # Store job IDs in session for later reference
+        session.update_session_data('job_ids', job_ids)
+        session.current_step = 1
+        
+        return response, True
+    
+    def _handle_new_jobs(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle new jobs selection and bidding"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            session.current_menu = 'main'
+            return "Not a registered transporter.", False
+        
+        if step == 0:
+            # Initial view - show jobs
+            return self._show_available_jobs(session, user, lang)
+        
+        elif step == 1:
+            # Job selection
+            try:
+                job_index = int(user_input) - 1
+                job_ids = data.get('job_ids', [])
+                
+                if 0 <= job_index < len(job_ids):
+                    job_id = job_ids[job_index]
+                    job = self.LogisticsRequest.query.get(job_id)
+                    
+                    if job:
+                        session.update_session_data('selected_job_id', job_id)
+                        session.current_step = 2
+                        
+                        # Show job details
+                        cc = "Yes" if job.requires_cold_chain else "No"
+                        details = f"JOB #{job.id}\n"
+                        details += f"From: {job.pickup_state or 'N/A'}\n"
+                        details += f"To: {job.destination_state or 'N/A'}\n"
+                        details += f"Weight: {job.quantity_tons or 'N/A'}T\n"
+                        details += f"Cold Chain: {cc}\n\n"
+                        details += "Enter bid amount (₦):"
+                        
+                        return details, True
+                
+                return "Invalid selection. Try again:", True
+                
+            except ValueError:
+                return "Enter a number:", True
+        
+        elif step == 2:
+            # Bid amount
+            try:
+                bid_amount = float(re.sub(r'[^\d.]', '', user_input))
+                if bid_amount < 1000:
+                    return "Minimum bid is ₦1,000:", True
+                
+                session.update_session_data('bid_amount', bid_amount)
+                session.current_step = 3
+                
+                job_id = data.get('selected_job_id')
+                confirm = f"Confirm bid of ₦{bid_amount:,.0f}\nfor Job #{job_id}?\n\n1. Confirm\n2. Cancel"
+                return confirm, True
+                
+            except ValueError:
+                return "Enter amount in numbers:", True
+        
+        elif step == 3:
+            # Confirmation
+            if user_input == '1':
+                return self._create_ussd_bid(session, user, data, lang)
+            else:
+                session.current_menu = 'transport_jobs'
+                session.current_step = 0
+                return "Bid cancelled.\n" + self._show_transport_menu(session, user, lang)[0], True
+        
+        return get_message('error', lang), False
+    
+    def _create_ussd_bid(
+        self,
+        session,
+        user,
+        data: dict,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Create a bid from USSD"""
+        try:
+            profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+            job_id = data.get('selected_job_id')
+            bid_amount = data.get('bid_amount', 0)
+            
+            if not profile or not job_id:
+                return "Error creating bid. Try again.", False
+            
+            # Check for existing bid
+            existing = self.LogisticsBid.query.filter_by(
+                logistics_request_id=job_id,
+                transporter_id=profile.id
+            ).first()
+            
+            if existing:
+                existing.bid_amount = bid_amount
+                existing.source_channel = 'ussd'
+            else:
+                bid = self.LogisticsBid(
+                    logistics_request_id=job_id,
+                    transporter_id=profile.id,
+                    bid_amount=bid_amount,
+                    eta_hours=24,
+                    source_channel='ussd'
+                )
+                self.db.session.add(bid)
+            
+            # Update job status
+            job = self.LogisticsRequest.query.get(job_id)
+            if job and job.status == 'pending':
+                job.status = 'bidding'
+            
+            self.db.session.commit()
+            
+            session.current_menu = 'transport_jobs'
+            session.current_step = 0
+            
+            return f"Bid of ₦{bid_amount:,.0f} submitted!\nYou will be notified if accepted.", False
+            
+        except Exception as e:
+            logger.error(f"USSD bid error: {e}")
+            return "Error submitting bid. Try again.", False
+    
+    def _show_my_bids(
+        self,
+        session,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Show user's transport bids"""
+        
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            session.current_menu = 'main'
+            return "Not a registered transporter.", False
+        
+        bids = self.LogisticsBid.query.filter_by(
+            transporter_id=profile.id
+        ).order_by(self.LogisticsBid.created_at.desc()).limit(5).all()
+        
+        if not bids:
+            session.current_menu = 'transport_jobs'
+            return "No bids yet.\nGo to New Jobs to start bidding.", False
+        
+        response = "YOUR BIDS:\n"
+        for bid in bids:
+            job = bid.logistics_request
+            route = f"{job.pickup_state or 'N/A'}->{job.destination_state or 'N/A'}" if job else "N/A"
+            status = bid.status.upper()
+            response += f"#{bid.logistics_request_id}: ₦{bid.bid_amount:,.0f} [{status}]\n"
+        
+        session.current_menu = 'transport_jobs'
+        return response, False
+    
+    def _show_active_trips(
+        self,
+        session,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Show active trips for transporter"""
+        
+        profile = self.TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            session.current_menu = 'main'
+            return "Not a registered transporter.", False
+        
+        # Get trips where this transporter's bid was accepted
+        accepted_bids = self.LogisticsBid.query.filter_by(
+            transporter_id=profile.id,
+            status='accepted'
+        ).all()
+        
+        active_jobs = [b.logistics_request for b in accepted_bids 
+                      if b.logistics_request and b.logistics_request.status in ['assigned', 'in_transit']]
+        
+        if not active_jobs:
+            session.current_menu = 'transport_jobs'
+            return "No active trips.\nBid on new jobs to get started!", False
+        
+        response = "ACTIVE TRIPS:\n"
+        job_ids = []
+        for i, job in enumerate(active_jobs[:5], 1):
+            route = f"{job.pickup_state or 'N/A'}->{job.destination_state or 'N/A'}"
+            status = job.status.replace('_', ' ').upper()
+            response += f"{i}. {route} [{status}]\n"
+            job_ids.append(job.id)
+        
+        if any(j.status == 'assigned' for j in active_jobs):
+            response += "\nEnter number to start trip:"
+            session.update_session_data('active_job_ids', job_ids)
+            session.current_step = 1
+            return response, True
+        
+        session.current_menu = 'transport_jobs'
+        return response, False
+    
+    def _handle_active_trips(
+        self,
+        session,
+        user_input: str,
+        user,
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle active trips menu"""
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            return self._show_active_trips(session, user, lang)
+        
+        elif step == 1:
+            # Start a trip
+            try:
+                job_index = int(user_input) - 1
+                job_ids = data.get('active_job_ids', [])
+                
+                if 0 <= job_index < len(job_ids):
+                    job_id = job_ids[job_index]
+                    job = self.LogisticsRequest.query.get(job_id)
+                    
+                    if job and job.status == 'assigned':
+                        job.status = 'in_transit'
+                        self.db.session.commit()
+                        
+                        session.current_menu = 'transport_jobs'
+                        session.current_step = 0
+                        
+                        return f"Trip #{job.id} started!\nSafe travels. Deliver on time for best rating.", False
+                    
+                    return "Trip already in progress or delivered.", False
+                
+                return "Invalid selection.", False
+                
+            except ValueError:
+                return "Enter a number:", True
+        
+        return get_message('error', lang), False
+
     def _parse_quantity(self, quantity_str: str) -> Optional[dict]:
         """Parse quantity string like '50BAGS', '100KG', '5TONS'"""
         pattern = r'^(\d+\.?\d*)\s*(BAGS?|KG|KILOS?|TONS?|T|TUBERS?|BUNCHES?)$'

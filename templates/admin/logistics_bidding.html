@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-truck me-2"></i>Logistics & Bidding Dashboard</h2>
+            <p class="text-muted">Admin view of transport operations</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-1">Total Requests</h6>
+                            <h3 class="mb-0">{{ stats.total_requests }}</h3>
+                        </div>
+                        <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-1">Active Requests</h6>
+                            <h3 class="mb-0">{{ stats.active_requests }}</h3>
+                        </div>
+                        <i class="fas fa-truck-moving fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-1">Completed</h6>
+                            <h3 class="mb-0">{{ stats.completed_requests }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-1">Total Transporters</h6>
+                            <h3 class="mb-0">{{ stats.total_transporters }}</h3>
+                        </div>
+                        <i class="fas fa-users fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h4 class="text-primary">{{ stats.total_bids }}</h4>
+                    <small class="text-muted">Total Bids</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h4 class="text-success">{{ stats.accepted_bids }}</h4>
+                    <small class="text-muted">Accepted Bids</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h4 class="text-info">{{ "%.1f"|format(stats.cold_chain_rate) }}%</h4>
+                    <small class="text-muted">Cold Chain Verified</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h4 class="text-warning">₦{{ "{:,.0f}".format(stats.avg_cost_per_ton) }}</h4>
+                    <small class="text-muted">Avg Cost/Ton</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Requests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Produce</th>
+                                    <th>Route</th>
+                                    <th>Weight</th>
+                                    <th>Cold Chain</th>
+                                    <th>Status</th>
+                                    <th>Bids</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in requests %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('logistics_request_detail', request_id=request.id) }}">
+                                            #{{ request.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ request.produce.name if request.produce else 'N/A' }}</td>
+                                    <td>
+                                        <small>{{ request.pickup_state or 'N/A' }} → {{ request.destination_state or 'N/A' }}</small>
+                                    </td>
+                                    <td>{{ request.quantity_tons or 'N/A' }}T</td>
+                                    <td>
+                                        {% if request.requires_cold_chain %}
+                                        <i class="fas fa-snowflake text-info"></i>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge {{ request.get_status_badge_class() }}">{{ request.status|replace('_', ' ')|title }}</span></td>
+                                    <td>{{ request.bids.count() }}</td>
+                                    <td>{{ request.timestamp.strftime('%d/%m') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Transporters</h5>
+                </div>
+                <div class="card-body">
+                    {% if transporters %}
+                    <div class="list-group list-group-flush">
+                        {% for transporter in transporters %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ transporter.company_name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ transporter.total_trips }} trips | 
+                                    <i class="fas fa-star text-warning"></i> {{ "%.1f"|format(transporter.rating) }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                {% if transporter.cold_chain_capable %}
+                                <span class="badge bg-info"><i class="fas fa-snowflake"></i></span>
+                                {% endif %}
+                                {% if transporter.is_verified %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No transporters registered yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
