@@ -1,0 +1,83 @@
+You are an expert Flask developer extending AgroLink Lagos — the most inclusive agricultural marketplace in Nigeria (already live with USSD *712*55#, SMS commands, WhatsApp bot, T2 wallet, multilingual Yoruba/Hausa/Pidgin/Igbo, agent onboarding, source_channel tracking).
+
+Now add the FULL LOGISTICS & TRANSPORT LAYER so farmers can move produce from farm gate to buyer with zero phone calls.
+
+Add these models, routes, and features EXACTLY:
+
+1. NEW MODELS
+   - TransportProfile (linked to User, role=transport_company)
+     Fields: company_name, cac_number, fleet_size, vehicle_types (JSON list), routes_covered (JSON list of [from_state, to_state]), price_per_ton_km, cold_chain_capable (Boolean), rating, total_trips, insurance_file, cac_file
+
+   - ColdChainDevice
+     Fields: transporter_id, device_id (unique), vehicle_registration, max_temp_allowed, is_active
+
+   - ColdChainLog
+     Fields: device_id, logistics_request_id, temperature_celsius, latitude, longitude, timestamp, trip_verified (nullable)
+
+   - LogisticsBid
+     Fields: logistics_request_id, transporter_id, bid_amount, eta_hours, notes, status (pending/accepted/rejected), created_at
+
+   Update existing LogisticsRequest model:
+     Add: produce_id (ForeignKey), quantity_tons, requires_cold_chain (Boolean), winning_bid_id (nullable)
+
+2. LOGISTICS FLOW
+   - On any Produce detail page → button “Request Transport”
+   - Form: pickup location, destination, preferred date, requires cold chain? → creates LogisticsRequest
+   - System auto-matches & notifies all transporters within 200km who match vehicle/cold-chain needs via WhatsApp + USSD + SMS
+   - Transporters reply via any channel: “BID 120000” or USSD menu → creates LogisticsBid
+   - Farmer/buyer selects winning bid → status updates → payment split (50% on accept, 50% on delivery)
+
+3. MATCHING ALGORITHM (logistics_service.py)
+   - Score transporters by: distance, price_per_ton_km, cold_chain match, rating, past on-time %
+   - If requires_cold_chain=True → ONLY show transporters with cold_chain_capable=True AND active ColdChainDevice
+
+4. COLD-CHAIN VERIFICATION
+   - When winning bid is accepted → show device QR code to driver
+   - Driver starts logging → POST to /coldchain/webhook (simulate or real device)
+   - Live graph on trip page (use Chart.js)
+   - At delivery: auto-check if temperature ever > max_temp_allowed → set trip_verified = True/False
+   - If verified → release final 50% + 15% cold-chain bonus to transporter
+
+5. CHANNEL SUPPORT (USSD, SMS, WhatsApp)
+   - USSD menu: add option 6. Transport Jobs → 1. New Jobs 2. My Bids 3. Active Trips
+   - SMS: “BID 4421 150000” → places bid on LogisticsRequest #4421
+   - WhatsApp: same + voice note support (“I bid one fifty thousand for job 4421”)
+
+6. PAYMENT & ESCROW
+   - Use existing Transaction model
+   - Add transaction_type = 'logistics'
+   - Split: 50% on bid accept (to transporter wallet), 50% + bonus on verified delivery
+
+7. NEW ROUTES (Blueprint: logistics)
+   - GET/POST /logistics/request/<produce_id>
+   - GET /logistics/request/<id>/detail
+   - POST /logistics/<id>/bid (web + webhook from USSD/SMS/WhatsApp)
+   - POST /logistics/<id>/accept-bid/<bid_id>
+   - GET /transport/dashboard (for transport companies)
+   - POST /coldchain/webhook (receives temperature data)
+
+8. TEMPLATES & MULTILINGUAL
+   - All logistics messages (bids, acceptances, delivery) in 5 languages
+   - Transport dashboard mobile-first (Bootstrap 5)
+
+9. ADMIN
+   - Admin → Logistics → View all requests, bids, cold-chain logs
+   - Analytics: % of trips cold-chain verified, average transport cost/ton, top transporters
+
+10. ENVIRONMENT VARIABLES TO ADD
+    COLDCHAIN_WEBHOOK_SECRET
+
+Generate the complete code:
+- All new models + migrations
+- Full logistics blueprint with routes
+- Matching algorithm in services/logistics_service.py
+- Cold-chain webhook + live graph page
+- Updated USSD/SMS/WhatsApp handlers for transport bids
+- Transport company registration flow
+- PDF cold-chain certificate generation on successful delivery
+- Ready to run on current Replit with zero conflicts
+
+This must be 100% compatible with the existing inclusive version (source_channel, T2 wallet, agents, multilingual).
+Prioritise rural transporters with feature phones.
+
+Make Nigeria’s food move.
