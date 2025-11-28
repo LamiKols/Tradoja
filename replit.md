@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Advanced Analytics Dashboard**: Market insights, crop performance, geographic analysis, user engagement, and export capabilities.
 - **Monetization Features**: Paystack integration for transaction fees, logistics fees, subscriptions, and payment analytics.
 - **Universal Onboarding Workflow**: Multi-role registration (farmer, aggregator, transport, etc.) with document uploads, progress tracking, and bulk onboarding.
+- **SabiBuy Group-Buy Engine**: Zero-stock middleman trading system with unique campaign codes, automatic batch management, multi-tier system (Free/Captain/Premium), Paystack subscription integration, and multi-channel support (web, SMS, USSD). Enables anyone to earn ₦4k-₦15k profit per batch with zero inventory risk.
 
 ## External Dependencies
 
