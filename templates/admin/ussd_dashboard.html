@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-hashtag me-2"></i>USSD Dashboard</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Admin
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.total_sessions or 0 }}</h3>
+                    <small>Total Sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.active_sessions or 0 }}</h3>
+                    <small>Active Sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.unique_phone_numbers or 0 }}</h3>
+                    <small>Unique Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.registered_ussd_users or 0 }}</h3>
+                    <small>Registered via USSD</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent USSD Sessions</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>Phone</th>
+                                    <th>Menu</th>
+                                    <th>Provider</th>
+                                    <th>Started</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in recent_sessions %}
+                                <tr>
+                                    <td><code>{{ session.session_id[:12] }}...</code></td>
+                                    <td>{{ session.phone_number }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ session.current_menu }}</span>
+                                    </td>
+                                    <td>{{ session.provider }}</td>
+                                    <td>{{ session.created_at.strftime('%d %b %H:%M') if session.created_at else '-' }}</td>
+                                    <td>
+                                        {% if session.ended_at %}
+                                            <span class="badge bg-secondary">Ended</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No USSD sessions recorded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt me-2"></i>USSD Shortcode</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h2 class="text-success mb-2">*712*55#</h2>
+                    <p class="text-muted mb-0">Farmers dial this code to access AgroLink</p>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Menu Options</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>List Produce</li>
+                        <li>Check Prices</li>
+                        <li>My Listings</li>
+                        <li>Balance</li>
+                        <li>Register</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-flask me-2"></i>Test USSD</h5>
+                </div>
+                <div class="card-body">
+                    <form id="ussdTestForm">
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" id="testPhone" class="form-control" 
+                                   placeholder="+234..." value="+2348012345678">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Input (empty for new session)</label>
+                            <input type="text" id="testInput" class="form-control" 
+                                   placeholder="e.g., 1*RICE*50BAGS*45000">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-play me-1"></i>Test Session
+                        </button>
+                    </form>
+                    <div id="ussdResponse" class="mt-3" style="display:none;">
+                        <label class="form-label">Response:</label>
+                        <pre class="bg-dark text-light p-3 rounded"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>USSD Registered Users</h5>
+        </div>
+        <div class="card-body">
+            {% if ussd_users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Location</th>
+                            <th>Language</th>
+                            <th>Registered</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in ussd_users[:20] %}
+                        <tr>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.phone_number }}</td>
+                            <td>{{ user.location or '-' }}</td>
+                            <td>{{ user.preferred_language or 'en' }}</td>
+                            <td>{{ user.registration_date.strftime('%d %b %Y') if user.registration_date else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-user-slash fa-3x mb-3"></i>
+                <p>No USSD registered users yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('ussdTestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const phone = document.getElementById('testPhone').value;
+    const input = document.getElementById('testInput').value;
+    
+    const formData = new FormData();
+    formData.append('phone_number', phone);
+    formData.append('text', input);
+    
+    try {
+        const response = await fetch('{{ url_for("simulate_ussd") }}', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        
+        const responseDiv = document.getElementById('ussdResponse');
+        responseDiv.style.display = 'block';
+        responseDiv.querySelector('pre').textContent = data.response || JSON.stringify(data, null, 2);
+    } catch (error) {
+        alert('Error testing USSD: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

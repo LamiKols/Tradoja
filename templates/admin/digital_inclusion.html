@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-globe-africa me-2"></i>Digital Inclusion Dashboard</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Admin
+        </a>
+    </div>
+    
+    <div class="alert alert-success mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-chart-line fa-2x me-3"></i>
+            <div>
+                <h5 class="mb-0">Digital Inclusion Rate: {{ metrics.digital_inclusion_rate }}%</h5>
+                <small>Farmers accessing AgroLink via USSD, SMS, or WhatsApp</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.total_users }}</h3>
+                    <small>Total Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.ussd_users }}</h3>
+                    <small>USSD Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.sms_users }}</h3>
+                    <small>SMS Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.whatsapp_users }}</h3>
+                    <small>WhatsApp</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.web_users }}</h3>
+                    <small>Web Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.ussd_sessions }}</h3>
+                    <small>USSD Sessions</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Channel Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3" style="height: 30px;">
+                        {% set total = metrics.total_users or 1 %}
+                        <div class="progress-bar bg-success" style="width: {{ (metrics.ussd_users / total * 100)|round(1) }}%">
+                            USSD {{ (metrics.ussd_users / total * 100)|round(1) }}%
+                        </div>
+                        <div class="progress-bar bg-info" style="width: {{ (metrics.sms_users / total * 100)|round(1) }}%">
+                            SMS {{ (metrics.sms_users / total * 100)|round(1) }}%
+                        </div>
+                        <div class="progress-bar bg-primary" style="width: {{ (metrics.whatsapp_users / total * 100)|round(1) }}%">
+                            WA {{ (metrics.whatsapp_users / total * 100)|round(1) }}%
+                        </div>
+                        <div class="progress-bar bg-secondary" style="width: {{ (metrics.web_users / total * 100)|round(1) }}%">
+                            Web
+                        </div>
+                    </div>
+                    
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-success">USSD</span></td>
+                                <td>{{ metrics.ussd_users }} users</td>
+                                <td>{{ metrics.ussd_produce }} listings</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-info">SMS</span></td>
+                                <td>{{ metrics.sms_users }} users</td>
+                                <td>{{ metrics.sms_produce }} listings</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-primary">WhatsApp</span></td>
+                                <td>{{ metrics.whatsapp_users }} users</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-secondary">Web</span></td>
+                                <td>{{ metrics.web_users }} users</td>
+                                <td>{{ metrics.web_produce }} listings</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-language me-2"></i>Language Distribution</h5>
+                </div>
+                <div class="card-body">
+                    {% if metrics.language_distribution %}
+                    {% set lang_names = {'en': 'English', 'yo': 'Yoruba', 'ha': 'Hausa', 'pcm': 'Pidgin', 'ig': 'Igbo'} %}
+                    {% set lang_total = metrics.language_distribution.values()|sum or 1 %}
+                    
+                    {% for code, count in metrics.language_distribution.items() %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>{{ lang_names.get(code, code) }}</span>
+                            <span>{{ count }} users ({{ (count / lang_total * 100)|round(1) }}%)</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" style="width: {{ (count / lang_total * 100)|round(1) }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">No language data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt me-2"></i>Access Channels</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="p-4 border rounded mb-3">
+                                <i class="fas fa-hashtag fa-3x text-success mb-3"></i>
+                                <h4>USSD</h4>
+                                <h2 class="text-success">*712*55#</h2>
+                                <p class="text-muted mb-0">Feature phone access</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-4 border rounded mb-3">
+                                <i class="fas fa-sms fa-3x text-info mb-3"></i>
+                                <h4>SMS</h4>
+                                <p>Send commands to:</p>
+                                <code>+234XXX</code>
+                                <p class="text-muted mb-0">Text-based access</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-4 border rounded mb-3">
+                                <i class="fab fa-whatsapp fa-3x text-success mb-3"></i>
+                                <h4>WhatsApp</h4>
+                                <p>Coming Soon</p>
+                                <p class="text-muted mb-0">Voice & text support</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-4 border rounded mb-3">
+                                <i class="fas fa-user-tie fa-3x text-warning mb-3"></i>
+                                <h4>Field Agents</h4>
+                                <p>Assisted Registration</p>
+                                <a href="{{ url_for('agent_dashboard') }}" class="btn btn-sm btn-outline-warning">
+                                    Access Portal
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Digital Registrations</h5>
+        </div>
+        <div class="card-body">
+            {% if recent_digital %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Location</th>
+                            <th>Channel</th>
+                            <th>Language</th>
+                            <th>Registered</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in recent_digital %}
+                        <tr>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.phone_number }}</td>
+                            <td>{{ user.location or '-' }}</td>
+                            <td>
+                                {% if user.is_ussd_user %}
+                                    <span class="badge bg-success">USSD</span>
+                                {% elif user.sms_enabled %}
+                                    <span class="badge bg-info">SMS</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Other</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.preferred_language or 'en' }}</td>
+                            <td>{{ user.registration_date.strftime('%d %b %Y %H:%M') if user.registration_date else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>No digital registrations yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

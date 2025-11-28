@@ -1915,6 +1915,313 @@ def simulate_sms():
         return jsonify({'status': 'error', 'message': 'Simulation failed'}), 500
 
 
+# Agent-Assisted Onboarding Routes
+@app.route('/agent/dashboard')
+@login_required
+def agent_dashboard():
+    """Agent dashboard for field registration of farmers"""
+    # Agents can be admins or users with agent role
+    if not (current_user.is_admin() or current_user.role == 'agent'):
+        flash('Access denied. Agent privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get agent statistics
+    from models import USSDSession
+    
+    try:
+        # Farmers registered by this agent (via source_channel = 'agent')
+        agent_registrations = User.query.filter(
+            User.registered_by_agent_id == current_user.id
+        ).order_by(User.registration_date.desc()).all()
+        
+        # Recent USSD sessions
+        recent_ussd = USSDSession.query.filter(
+            USSDSession.ended_at.is_(None)
+        ).order_by(USSDSession.created_at.desc()).limit(10).all()
+        
+        # Total farmers registered via digital channels
+        ussd_farmers = User.query.filter_by(is_ussd_user=True).count()
+        sms_farmers = User.query.filter_by(sms_enabled=True).count()
+        
+        metrics = {
+            'my_registrations': len(agent_registrations),
+            'ussd_farmers': ussd_farmers,
+            'sms_farmers': sms_farmers,
+            'total_digital_farmers': ussd_farmers + sms_farmers
+        }
+        
+        return render_template('agent/dashboard.html',
+                             title='Agent Dashboard',
+                             registrations=agent_registrations,
+                             recent_ussd=recent_ussd,
+                             metrics=metrics)
+    except Exception as e:
+        app.logger.error(f"Agent dashboard error: {e}")
+        flash('Unable to load dashboard', 'error')
+        return redirect(url_for('home'))
+
+
+@app.route('/agent/register-farmer', methods=['GET', 'POST'])
+@login_required
+def agent_register_farmer():
+    """Agent-assisted farmer registration"""
+    if not (current_user.is_admin() or current_user.role == 'agent'):
+        flash('Access denied. Agent privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        try:
+            from werkzeug.security import generate_password_hash
+            
+            # Get form data
+            name = request.form.get('name', '').strip()
+            phone = request.form.get('phone', '').strip()
+            location = request.form.get('location', '').strip()
+            main_crop = request.form.get('main_crop', '').strip()
+            language = request.form.get('language', 'en')
+            channel = request.form.get('channel', 'agent')  # ussd, sms, or agent
+            
+            if not name or not phone:
+                flash('Name and phone number are required.', 'error')
+                return redirect(url_for('agent_register_farmer'))
+            
+            # Normalize phone number
+            if not phone.startswith('+'):
+                if phone.startswith('0'):
+                    phone = '+234' + phone[1:]
+                else:
+                    phone = '+234' + phone
+            
+            # Check if user already exists
+            existing = User.query.filter_by(phone_number=phone).first()
+            if existing:
+                flash(f'Phone number already registered to {existing.name}.', 'warning')
+                return redirect(url_for('agent_register_farmer'))
+            
+            # Create new farmer
+            new_farmer = User(
+                name=name.title(),
+                phone_number=phone,
+                email=f"{phone.replace('+', '')}@agent.agrolink.com",
+                role='farmer',
+                location=location.title() if location else None,
+                preferred_language=language,
+                source_channel=channel,
+                is_ussd_user=(channel == 'ussd'),
+                sms_enabled=True,
+                sms_registration_date=datetime.utcnow(),
+                registered_by_agent_id=current_user.id
+            )
+            new_farmer.password_hash = generate_password_hash('farmer_temp_pass')
+            
+            db.session.add(new_farmer)
+            db.session.commit()
+            
+            # If main crop is provided, create initial listing
+            if main_crop:
+                initial_produce = Produce(
+                    farmer_id=new_farmer.id,
+                    name=main_crop.title(),
+                    quantity='Available',
+                    price=0,
+                    price_unit='NGN',
+                    listing_location=location.title() if location else 'Nigeria',
+                    description=f'Initial crop listing - {main_crop}',
+                    source_channel=channel,
+                    contact_method=channel
+                )
+                db.session.add(initial_produce)
+                db.session.commit()
+            
+            flash(f'Farmer {name} registered successfully! Phone: {phone}', 'success')
+            
+            # Send welcome SMS if service available
+            if sms_service and channel in ['sms', 'agent']:
+                try:
+                    welcome_msg = f"Welcome to AgroLink, {name}! You've been registered. Send HELP for commands or LIST to add your produce."
+                    sms_service.send_sms(phone, welcome_msg)
+                except Exception as sms_err:
+                    app.logger.warning(f"Failed to send welcome SMS: {sms_err}")
+            
+            return redirect(url_for('agent_dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Agent registration error: {e}")
+            flash('Registration failed. Please try again.', 'error')
+    
+    # GET request - show registration form
+    languages = [
+        ('en', 'English'),
+        ('yo', 'Yoruba'),
+        ('ha', 'Hausa'),
+        ('pcm', 'Pidgin'),
+        ('ig', 'Igbo')
+    ]
+    
+    channels = [
+        ('agent', 'Field Agent'),
+        ('ussd', 'USSD Registration'),
+        ('sms', 'SMS Registration')
+    ]
+    
+    return render_template('agent/register_farmer.html',
+                         title='Register Farmer',
+                         languages=languages,
+                         channels=channels)
+
+
+@app.route('/agent/bulk-register', methods=['GET', 'POST'])
+@login_required
+def agent_bulk_register():
+    """Bulk farmer registration by agent"""
+    if not (current_user.is_admin() or current_user.role == 'agent'):
+        flash('Access denied. Agent privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        try:
+            from werkzeug.security import generate_password_hash
+            
+            # Parse bulk data (CSV format: name,phone,location,crop)
+            bulk_data = request.form.get('bulk_data', '').strip()
+            language = request.form.get('language', 'en')
+            
+            if not bulk_data:
+                flash('No data provided.', 'error')
+                return redirect(url_for('agent_bulk_register'))
+            
+            lines = bulk_data.strip().split('\n')
+            registered = 0
+            errors = []
+            
+            for i, line in enumerate(lines, 1):
+                parts = [p.strip() for p in line.split(',')]
+                if len(parts) < 2:
+                    errors.append(f"Line {i}: Invalid format")
+                    continue
+                
+                name = parts[0]
+                phone = parts[1]
+                location = parts[2] if len(parts) > 2 else ''
+                crop = parts[3] if len(parts) > 3 else ''
+                
+                # Normalize phone
+                if not phone.startswith('+'):
+                    if phone.startswith('0'):
+                        phone = '+234' + phone[1:]
+                    else:
+                        phone = '+234' + phone
+                
+                # Check existing
+                if User.query.filter_by(phone_number=phone).first():
+                    errors.append(f"Line {i}: Phone {phone} already registered")
+                    continue
+                
+                try:
+                    new_farmer = User(
+                        name=name.title(),
+                        phone_number=phone,
+                        email=f"{phone.replace('+', '')}@bulk.agrolink.com",
+                        role='farmer',
+                        location=location.title() if location else None,
+                        preferred_language=language,
+                        source_channel='agent_bulk',
+                        sms_enabled=True,
+                        sms_registration_date=datetime.utcnow(),
+                        registered_by_agent_id=current_user.id
+                    )
+                    new_farmer.password_hash = generate_password_hash('farmer_temp_pass')
+                    db.session.add(new_farmer)
+                    registered += 1
+                except Exception as e:
+                    errors.append(f"Line {i}: {str(e)}")
+            
+            if registered > 0:
+                db.session.commit()
+                flash(f'Successfully registered {registered} farmers.', 'success')
+            
+            if errors:
+                flash(f'Errors on {len(errors)} lines. Check format.', 'warning')
+            
+            return redirect(url_for('agent_dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Bulk registration error: {e}")
+            flash('Bulk registration failed.', 'error')
+    
+    return render_template('agent/bulk_register.html',
+                         title='Bulk Register Farmers')
+
+
+@app.route('/admin/digital-inclusion')
+@login_required
+def admin_digital_inclusion_dashboard():
+    """Admin dashboard for digital inclusion metrics"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    from models import USSDSession, WhatsAppInteraction
+    
+    try:
+        # Channel statistics
+        total_users = User.query.count()
+        ussd_users = User.query.filter_by(is_ussd_user=True).count()
+        sms_users = User.query.filter_by(sms_enabled=True).count()
+        whatsapp_users = User.query.filter(User.whatsapp_id.isnot(None)).count()
+        web_users = total_users - ussd_users - sms_users
+        
+        # Language distribution
+        lang_stats = db.session.query(
+            User.preferred_language,
+            func.count(User.id)
+        ).group_by(User.preferred_language).all()
+        
+        language_distribution = {lang or 'en': count for lang, count in lang_stats}
+        
+        # Session metrics
+        ussd_sessions = USSDSession.query.count() if USSDSession else 0
+        sms_interactions = SMSInteraction.query.count()
+        
+        # Produce by channel
+        ussd_produce = Produce.query.filter_by(source_channel='ussd').count()
+        sms_produce = Produce.query.filter_by(source_channel='sms').count()
+        web_produce = Produce.query.filter(
+            (Produce.source_channel == 'web') | (Produce.source_channel.is_(None))
+        ).count()
+        
+        metrics = {
+            'total_users': total_users,
+            'ussd_users': ussd_users,
+            'sms_users': sms_users,
+            'whatsapp_users': whatsapp_users,
+            'web_users': web_users,
+            'ussd_sessions': ussd_sessions,
+            'sms_interactions': sms_interactions,
+            'ussd_produce': ussd_produce,
+            'sms_produce': sms_produce,
+            'web_produce': web_produce,
+            'digital_inclusion_rate': round((ussd_users + sms_users) / max(total_users, 1) * 100, 1),
+            'language_distribution': language_distribution
+        }
+        
+        # Recent registrations by channel
+        recent_digital = User.query.filter(
+            (User.is_ussd_user == True) | (User.sms_enabled == True)
+        ).order_by(User.registration_date.desc()).limit(20).all()
+        
+        return render_template('admin/digital_inclusion.html',
+                             title='Digital Inclusion Dashboard',
+                             metrics=metrics,
+                             recent_digital=recent_digital)
+    except Exception as e:
+        app.logger.error(f"Digital inclusion dashboard error: {e}")
+        flash('Unable to load dashboard', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+
 # AI Matchmaking Routes
 @app.route('/matchmaking/recommendations/<user_type>')
 @login_required

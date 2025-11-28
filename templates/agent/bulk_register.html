@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-csv me-2"></i>Bulk Register Farmers
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <h6><i class="fas fa-info-circle me-2"></i>Format Instructions</h6>
+                        <p class="mb-1">Enter one farmer per line in CSV format:</p>
+                        <code>Name, Phone Number, Location, Main Crop</code>
+                        <hr>
+                        <p class="mb-0"><strong>Example:</strong></p>
+                        <pre class="mb-0 text-light">John Okafor, 08012345678, Lagos, Rice
+Amina Bello, 07098765432, Kano, Tomatoes
+Chidi Eze, 09011223344, Onitsha, Yam</pre>
+                    </div>
+                    
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Default Language</label>
+                            <select name="language" class="form-select" style="max-width: 200px;">
+                                <option value="en">English</option>
+                                <option value="yo">Yoruba</option>
+                                <option value="ha">Hausa</option>
+                                <option value="pcm">Pidgin</option>
+                                <option value="ig">Igbo</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Farmer Data (CSV Format)</label>
+                            <textarea name="bulk_data" class="form-control font-monospace" rows="15"
+                                      placeholder="Name, Phone Number, Location, Main Crop
+John Okafor, 08012345678, Lagos, Rice
+Amina Bello, 07098765432, Kano, Tomatoes"></textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('agent_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-1"></i>Register All Farmers
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
