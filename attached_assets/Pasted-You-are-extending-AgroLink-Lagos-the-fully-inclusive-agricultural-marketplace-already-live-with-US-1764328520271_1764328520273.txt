@@ -1,0 +1,67 @@
+You are extending AgroLink Lagos — the fully inclusive agricultural marketplace already live with USSD *712*55#, SMS commands, WhatsApp bot, T2 wallet, multilingual support, cold-chain verification, logistics bidding, and source_channel tracking.
+
+NOW ADD: Transport Company LITE Registration via USSD and SMS so small truck owners with torch phones can join in under 2 minutes and start bidding immediately.
+
+Requirements:
+
+1. New USSD Flow (*712*55# → 6. Transport Menu)
+   Add option 2: "Register as Transporter"
+   3-step flow:
+   Step 1: Enter name or company name → reply
+   Step 2: Enter main location (state or city) → reply
+   Step 3: Choose vehicle type
+      1. Pickup/Motorcycle
+      2. 5–10 ton
+      3. 15–30 ton
+      4. Refrigerated/Cold truck
+   After step 3:
+   → Create User(role='transport_company')
+   → Create TransportProfile with:
+        company_name, main_location, vehicle_types (from choice), profile_complete=False, registration_channel='ussd_lite'
+   → Reply in user's language: "Thank you! You are now registered as transporter. Your ID: TRK-XXXXX. You will receive jobs immediately. Send DOC to complete profile later."
+
+2. SMS One-Line Registration
+   Accept these formats to the short-code:
+   - JOIN TRANSPORT [name] [location] [type]
+   - JOIN TRK [name] [location] [type]
+   Examples:
+     JOIN TRK Chinedu Onitsha Cold
+     JOIN TRANSPORT Mama Ngozi Kano 10ton
+   → Parse and create same minimal User + TransportProfile (registration_channel='sms_lite')
+
+3. Post-Registration Behaviour
+   - Immediately eligible for jobs in their state
+   - Daily reminder via SMS/WhatsApp: "Complete profile to get higher ranking and cold-chain bonus"
+   - When they text "DOC" → send WhatsApp link or agent-assisted completion
+
+4. Database Changes
+   Add to TransportProfile:
+     profile_complete = db.Column(db.Boolean, default=False)
+     main_location = db.Column(db.String(100))
+     registration_channel = db.Column(db.String(50))  # ussd_lite, sms_lite, web, agent
+
+5. Update Existing USSD Menu
+   Transport Menu (option 6) becomes:
+   1. New Transport Jobs
+   2. Register as Transporter   ← NEW
+   3. My Bids
+   4. Active Trips
+   5. Balance
+
+6. Multilingual Support
+   All messages in English, Yoruba, Hausa, Pidgin, Igbo based on user's preferred_language
+
+7. No breaking changes
+   Keep full web registration for those who want it
+   Lite users can upgrade profile later via agent or web
+
+Generate:
+- Updated USSD handler with new menu and 3-step registration
+- SMS parser for JOIN TRK / JOIN TRANSPORT commands
+- Minimal TransportProfile creation
+- Auto-welcome message with transporter ID
+- Ready to run on current Replit project with zero conflicts
+
+This makes AgroLink the FIRST platform where a 10-ton truck driver in Onitsha with a ₦6,000 Nokia can register and start earning in 90 seconds.
+
+Do it now.
