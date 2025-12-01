@@ -43,6 +43,13 @@ Preferred communication style: Simple, everyday language.
 - **Template Inheritance**: Consistent layout and styling.
 
 ### Feature Specifications
+- **Anti-Reseller Controls (Farmer-First)**: Protects farmers from pure resellers who markup prices without adding value. Features include:
+  - Trader verification system requiring value-add proof (transport, aggregation, processing, storage, working capital, quality grading)
+  - Reseller Detection Service with 6 rules scoring: no value declaration, no logistics usage, no farmer relationships, high markup ratios, quick buy-relist patterns, unverified status
+  - Farmer listing preferences (all buyers, verified traders only, direct buyers only, SabiBuy only)
+  - Marketplace source transparency badges (Farmer/Aggregator/Trader) with farmers listed first
+  - Admin trader verification dashboard for reviewing applications and flagged accounts
+  - Automatic integration into buyer dashboard with verification notices
 - **AI Scam Detector**: Rules-based fraud detection (8 rules targeting registration, listings, payments, and transport) with an admin dashboard for review and action (ban/approve/agent call). Includes automatic integration into user flows and SMS admin alerts for high-score detections.
 - **Full Logistics & Transport Layer**: Transport company registration (fleet, cold chain), intelligent matching algorithm (weighted scoring), multi-channel bidding (web, USSD, SMS), real-time cold chain IoT tracking (Chart.js, webhooks, alerts), payment escrow, and an admin logistics dashboard.
 - **Digital Inclusion Layer**: Multi-channel access via USSD (*712*55#) and extended SMS commands for rural farmers. Features USSD session management, buyer/transporter LITE registration, multilingual support (English, Yoruba, Hausa, Pidgin, Igbo), agent-assisted onboarding, and a digital inclusion analytics dashboard. WhatsApp integration foundation is also included.
