@@ -31,12 +31,16 @@ class SabiBuyService:
         'default': 6000  # ₦6,000 default margin
     }
     
-    # Captain bond tiers based on batch size
+    # Fixed captain bond - ₦10,000 required for ALL campaigns
+    # This protects farmers and buyers from abandoned batches
+    CAPTAIN_BOND_AMOUNT = 10000  # ₦10,000 fixed bond for all campaigns
+    
+    # Legacy tier structure (kept for reference, all tiers now require ₦10,000)
     BOND_TIERS = {
-        'small': {'max_quantity': 100, 'bond': 2000},   # ₦2,000 for up to 100 units
-        'medium': {'max_quantity': 300, 'bond': 5000},  # ₦5,000 for up to 300 units
-        'large': {'max_quantity': 500, 'bond': 8000},   # ₦8,000 for up to 500 units
-        'mega': {'max_quantity': 1000, 'bond': 10000}   # ₦10,000 for 500+ units
+        'small': {'max_quantity': 100, 'bond': 10000},   # ₦10,000 fixed
+        'medium': {'max_quantity': 300, 'bond': 10000},  # ₦10,000 fixed
+        'large': {'max_quantity': 500, 'bond': 10000},   # ₦10,000 fixed
+        'mega': {'max_quantity': 1000, 'bond': 10000}    # ₦10,000 fixed
     }
     
     def __init__(self):
@@ -147,9 +151,13 @@ class SabiBuyService:
                 delivery_lga=delivery_lga,
                 delivery_market=delivery_market,
                 delivery_state=delivery_state,
-                status='active',
+                status='pending_bond',
                 expires_at=datetime.utcnow() + timedelta(days=expires_in_days),
-                source_channel=source_channel
+                source_channel=source_channel,
+                bond_required=True,
+                bond_amount=self.CAPTAIN_BOND_AMOUNT,
+                bond_paid=False,
+                bond_status='pending'
             )
             
             self.db.session.add(campaign)
@@ -159,13 +167,15 @@ class SabiBuyService:
             
             self.db.session.commit()
             
-            logger.info(f"SabiBuy campaign created: {code} by {user.name}")
+            logger.info(f"SabiBuy campaign created: {code} by {user.name}, bond pending")
             
             return {
                 'success': True,
                 'campaign': campaign,
                 'code': code,
-                'message': f'SabiBuy created! Share code: {code}'
+                'bond_required': True,
+                'bond_amount': self.CAPTAIN_BOND_AMOUNT,
+                'message': f'SabiBuy created! Pay ₦{self.CAPTAIN_BOND_AMOUNT:,} bond to activate. Code: {code}'
             }
             
         except Exception as e:
