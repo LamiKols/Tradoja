@@ -43,6 +43,14 @@ class User(UserMixin, db.Model):
     phone_verified = db.Column(db.Boolean, default=False)  # Phone verification status
     agent_verified = db.Column(db.Boolean, default=False)  # Verified by field agent
     
+    # Cell tower location fields (telecom-provided location for feature phones)
+    cell_tower_id = db.Column(db.String(50))  # Cell tower ID from telecom (MCC-MNC-LAC-CID)
+    network_location_lat = db.Column(db.Float)  # Latitude from cell tower triangulation
+    network_location_lng = db.Column(db.Float)  # Longitude from cell tower triangulation
+    location_accuracy = db.Column(db.Float)  # Accuracy in meters (cell tower ~500-2000m)
+    location_timestamp = db.Column(db.DateTime)  # When location was captured
+    location_source = db.Column(db.String(20))  # 'cell_tower', 'gps', 'manual', 'agent_gps'
+    
     # Relationship with produce
     produce_listings = db.relationship('Produce', foreign_keys='Produce.farmer_id', backref='farmer', lazy=True, cascade='all, delete-orphan')
     purchased_produce = db.relationship('Produce', foreign_keys='Produce.buyer_id', backref='buyer', lazy=True)

@@ -1188,10 +1188,120 @@ class SMSService:
         try:
             user = User.query.filter_by(phone_number=phone_number).first()
             if user and user.sms_enabled:
-                alert_message = f"🚨 AgroLink Alert ({alert_type.title()}):\n{message}"
+                alert_message = f"AgroLink Alert ({alert_type.title()}):\n{message}"
                 return self.send_sms(phone_number, alert_message)
         except Exception as e:
             current_app.logger.error(f"Alert sending error: {e}")
+    
+    def notify_order_placed(self, farmer_phone, buyer_name, produce_name, quantity, amount):
+        """Notify farmer when buyer places an order"""
+        try:
+            message = (f"New order!\n"
+                      f"Buyer: {buyer_name}\n"
+                      f"Product: {produce_name}\n"
+                      f"Qty: {quantity}\n"
+                      f"Amount: N{amount:,.0f}\n"
+                      f"Check your dashboard or reply ACCEPT")
+            return self.send_sms(farmer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Order notification error: {e}")
+    
+    def notify_payment_received(self, seller_phone, amount, order_id, buyer_name):
+        """Notify seller when payment is confirmed"""
+        try:
+            message = (f"Payment received!\n"
+                      f"Amount: N{amount:,.0f}\n"
+                      f"Order #{order_id}\n"
+                      f"From: {buyer_name}\n"
+                      f"Prepare for delivery.")
+            return self.send_sms(seller_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Payment notification error: {e}")
+    
+    def notify_bid_received(self, farmer_phone, transporter_name, job_id, bid_amount, delivery_date=None):
+        """Notify farmer when transporter bids on their logistics request"""
+        try:
+            message = (f"Transport bid!\n"
+                      f"Job #{job_id}\n"
+                      f"From: {transporter_name}\n"
+                      f"Amount: N{bid_amount:,.0f}")
+            if delivery_date:
+                message += f"\nDelivery: {delivery_date}"
+            message += "\nReply ACCEPT to confirm"
+            return self.send_sms(farmer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Bid notification error: {e}")
+    
+    def notify_bid_accepted(self, transporter_phone, job_id, pickup_location, delivery_location, amount):
+        """Notify transporter when their bid is accepted"""
+        try:
+            message = (f"Bid accepted!\n"
+                      f"Job #{job_id}\n"
+                      f"Pickup: {pickup_location}\n"
+                      f"Deliver: {delivery_location}\n"
+                      f"Amount: N{amount:,.0f}\n"
+                      f"Reply START {job_id} when ready")
+            return self.send_sms(transporter_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Bid accepted notification error: {e}")
+    
+    def notify_sabibuy_order(self, organizer_phone, campaign_code, buyer_name, quantity, progress_percent):
+        """Notify SabiBuy organizer when someone joins their campaign"""
+        try:
+            message = (f"SabiBuy order!\n"
+                      f"Campaign: {campaign_code}\n"
+                      f"Buyer: {buyer_name}\n"
+                      f"Qty: {quantity}\n"
+                      f"Progress: {progress_percent}%")
+            return self.send_sms(organizer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"SabiBuy order notification error: {e}")
+    
+    def notify_sabibuy_complete(self, organizer_phone, campaign_code, total_orders, profit):
+        """Notify organizer when SabiBuy campaign reaches minimum"""
+        try:
+            message = (f"SabiBuy complete!\n"
+                      f"Campaign: {campaign_code}\n"
+                      f"Orders: {total_orders}\n"
+                      f"Your profit: N{profit:,.0f}\n"
+                      f"Book transport now!")
+            return self.send_sms(organizer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"SabiBuy complete notification error: {e}")
+    
+    def notify_delivery_started(self, buyer_phone, transporter_name, job_id, estimated_arrival=None):
+        """Notify buyer when delivery is in transit"""
+        try:
+            message = (f"Delivery started!\n"
+                      f"Job #{job_id}\n"
+                      f"Driver: {transporter_name}")
+            if estimated_arrival:
+                message += f"\nETA: {estimated_arrival}"
+            return self.send_sms(buyer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Delivery notification error: {e}")
+    
+    def notify_delivery_complete(self, farmer_phone, job_id, amount):
+        """Notify farmer when delivery is complete and payment will be released"""
+        try:
+            message = (f"Delivery complete!\n"
+                      f"Job #{job_id}\n"
+                      f"Payment: N{amount:,.0f} releasing\n"
+                      f"Thank you for using AgroLink!")
+            return self.send_sms(farmer_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Delivery complete notification error: {e}")
+    
+    def notify_agent_milestone(self, agent_phone, farmers_count, airtime_earned):
+        """Notify agent when they reach a milestone"""
+        try:
+            message = (f"Agent milestone!\n"
+                      f"Farmers registered: {farmers_count}\n"
+                      f"Airtime earned: N{airtime_earned:,.0f}\n"
+                      f"Keep up the great work!")
+            return self.send_sms(agent_phone, message)
+        except Exception as e:
+            current_app.logger.error(f"Agent milestone notification error: {e}")
     
     def get_sms_metrics(self):
         """Get SMS usage metrics for admin dashboard"""

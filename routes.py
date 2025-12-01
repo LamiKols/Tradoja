@@ -1740,6 +1740,20 @@ def ussd_webhook():
             app.logger.error("Missing session_id or phone_number in USSD request")
             return "END Invalid request. Please dial again.", 200
         
+        # Capture cell tower location if provided by telecom
+        # Africa's Talking may provide location in headers or request body
+        cell_tower_id = request.form.get('cellId') or request.headers.get('X-Cell-Id')
+        location_lat = request.form.get('latitude') or request.headers.get('X-Location-Lat')
+        location_lng = request.form.get('longitude') or request.headers.get('X-Location-Lng')
+        location_accuracy = request.form.get('locationAccuracy') or request.headers.get('X-Location-Accuracy')
+        
+        # Update user location if we have cell tower data
+        if cell_tower_id or (location_lat and location_lng):
+            _update_user_location_from_telecom(
+                phone_number, cell_tower_id, location_lat, location_lng, 
+                location_accuracy, 'cell_tower'
+            )
+        
         # Process the USSD request
         response, should_continue = ussd_service.process_request(
             session_id=session_id,
@@ -1778,6 +1792,19 @@ def t2_ussd_webhook():
             app.logger.error("Missing session_id or phone_number in T2 USSD request")
             return "END Invalid request. Please dial again.", 200
         
+        # Capture cell tower location from T2 (9mobile specific fields)
+        cell_tower_id = request.form.get('cell_id') or request.form.get('cellId')
+        location_lat = request.form.get('lat') or request.form.get('latitude')
+        location_lng = request.form.get('lng') or request.form.get('longitude')
+        location_accuracy = request.form.get('accuracy') or request.form.get('locationAccuracy')
+        
+        # Update user location if we have cell tower data
+        if cell_tower_id or (location_lat and location_lng):
+            _update_user_location_from_telecom(
+                phone_number, cell_tower_id, location_lat, location_lng, 
+                location_accuracy, 'cell_tower'
+            )
+        
         # Process the USSD request
         response, should_continue = ussd_service.process_request(
             session_id=session_id,
@@ -1795,6 +1822,50 @@ def t2_ussd_webhook():
     except Exception as e:
         app.logger.error(f"T2 USSD webhook error: {e}")
         return "END An error occurred. Please try again.", 200
+
+
+def _update_user_location_from_telecom(phone_number, cell_tower_id, lat, lng, accuracy, source):
+    """Update user's location from telecom-provided cell tower data"""
+    try:
+        # Normalize phone number
+        if not phone_number.startswith('+'):
+            if phone_number.startswith('0'):
+                phone_number = '+234' + phone_number[1:]
+            else:
+                phone_number = '+' + phone_number
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return
+        
+        # Update cell tower ID
+        if cell_tower_id:
+            user.cell_tower_id = str(cell_tower_id)
+        
+        # Update coordinates if provided
+        if lat and lng:
+            try:
+                user.network_location_lat = float(lat)
+                user.network_location_lng = float(lng)
+            except (ValueError, TypeError):
+                pass
+        
+        # Update accuracy if provided
+        if accuracy:
+            try:
+                user.location_accuracy = float(accuracy)
+            except (ValueError, TypeError):
+                user.location_accuracy = 1000.0  # Default cell tower accuracy ~1km
+        
+        user.location_timestamp = datetime.utcnow()
+        user.location_source = source
+        
+        db.session.commit()
+        app.logger.info(f"Updated location for {phone_number}: cell={cell_tower_id}, lat={lat}, lng={lng}")
+        
+    except Exception as e:
+        app.logger.error(f"Error updating user location: {e}")
+        db.session.rollback()
 
 
 @app.route('/admin/ussd-dashboard')
@@ -2060,6 +2131,11 @@ def agent_register_farmer():
             language = request.form.get('language', 'en')
             channel = request.form.get('channel', 'agent')  # ussd, sms, or agent
             
+            # Get GPS coordinates if agent captured them
+            gps_lat = request.form.get('gps_lat', '').strip()
+            gps_lng = request.form.get('gps_lng', '').strip()
+            gps_accuracy = request.form.get('gps_accuracy', '').strip()
+            
             if not name or not phone:
                 flash('Name and phone number are required.', 'error')
                 return redirect(url_for('agent_register_farmer'))
@@ -2089,9 +2165,22 @@ def agent_register_farmer():
                 is_ussd_user=(channel == 'ussd'),
                 sms_enabled=True,
                 sms_registration_date=datetime.utcnow(),
-                registered_by_agent_id=current_user.id
+                registered_by_agent_id=current_user.id,
+                agent_verified=True  # Agent-registered farmers are verified
             )
             new_farmer.password_hash = generate_password_hash('farmer_temp_pass')
+            
+            # Store GPS coordinates if captured by agent
+            if gps_lat and gps_lng:
+                try:
+                    new_farmer.network_location_lat = float(gps_lat)
+                    new_farmer.network_location_lng = float(gps_lng)
+                    new_farmer.location_source = 'agent_gps'
+                    new_farmer.location_timestamp = datetime.utcnow()
+                    if gps_accuracy:
+                        new_farmer.location_accuracy = float(gps_accuracy)
+                except (ValueError, TypeError):
+                    pass  # Ignore invalid GPS data
             
             db.session.add(new_farmer)
             db.session.commit()

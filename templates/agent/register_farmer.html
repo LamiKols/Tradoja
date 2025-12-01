@@ -28,8 +28,18 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Location</label>
-                                <input type="text" name="location" class="form-control"
-                                       placeholder="Town, State">
+                                <div class="input-group">
+                                    <input type="text" name="location" id="location" class="form-control"
+                                           placeholder="Town, State">
+                                    <button type="button" class="btn btn-outline-primary" id="captureGpsBtn"
+                                            title="Capture GPS location from your device">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted" id="gpsStatus"></small>
+                                <input type="hidden" name="gps_lat" id="gps_lat">
+                                <input type="hidden" name="gps_lng" id="gps_lng">
+                                <input type="hidden" name="gps_accuracy" id="gps_accuracy">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Main Crop</label>
@@ -76,4 +86,84 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const captureBtn = document.getElementById('captureGpsBtn');
+    const gpsStatus = document.getElementById('gpsStatus');
+    const locationInput = document.getElementById('location');
+    const gpsLat = document.getElementById('gps_lat');
+    const gpsLng = document.getElementById('gps_lng');
+    const gpsAccuracy = document.getElementById('gps_accuracy');
+    
+    if (captureBtn) {
+        captureBtn.addEventListener('click', function() {
+            if (!navigator.geolocation) {
+                gpsStatus.innerHTML = '<span class="text-danger">GPS not supported on this device</span>';
+                return;
+            }
+            
+            captureBtn.disabled = true;
+            captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            gpsStatus.innerHTML = '<span class="text-info">Getting location...</span>';
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    gpsLat.value = lat;
+                    gpsLng.value = lng;
+                    gpsAccuracy.value = accuracy;
+                    
+                    captureBtn.disabled = false;
+                    captureBtn.innerHTML = '<i class="fas fa-check text-success"></i>';
+                    gpsStatus.innerHTML = '<span class="text-success">GPS captured! Accuracy: ' + Math.round(accuracy) + 'm</span>';
+                    
+                    if (!locationInput.value) {
+                        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.address) {
+                                    const city = data.address.city || data.address.town || data.address.village || '';
+                                    const state = data.address.state || '';
+                                    if (city || state) {
+                                        locationInput.value = city + (city && state ? ', ' : '') + state;
+                                    }
+                                }
+                            })
+                            .catch(err => console.log('Geocoding error:', err));
+                    }
+                },
+                function(error) {
+                    captureBtn.disabled = false;
+                    captureBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+                    
+                    let errorMsg = 'Unable to get location';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'Location permission denied';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'Location unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'Location request timed out';
+                            break;
+                    }
+                    gpsStatus.innerHTML = '<span class="text-danger">' + errorMsg + '</span>';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 60000
+                }
+            );
+        });
+    }
+});
+</script>
 {% endblock %}
