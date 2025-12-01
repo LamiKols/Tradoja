@@ -123,6 +123,14 @@ class SMSService:
                 return self._handle_agent_add_farmer(phone_number, command_parts)
             elif command == 'TRIPBAL' or command == 'TBAL':
                 return self._handle_transport_balance(phone_number)
+            elif command == 'COMPLAINT' or command == 'REPORT' or command == 'DISPUTE':
+                return self._handle_complaint(phone_number, command_parts)
+            elif command == 'TRACK':
+                return self._handle_order_tracking(phone_number, command_parts)
+            elif command == 'RATE':
+                return self._handle_rating(phone_number, command_parts)
+            elif command == 'STATUS':
+                return self._handle_status_check(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -1522,13 +1530,283 @@ class SMSService:
             return self.send_sms(phone_number, "Order failed. Please try again.")
 
 
+    def _handle_complaint(self, phone_number, command_parts):
+        """Handle complaint/dispute filing via SMS
+        
+        Format: COMPLAINT [issue description]
+        Examples:
+        - COMPLAINT BAD QUALITY TOMATOES
+        - REPORT FRAUD SELLER 08012345678
+        - DISPUTE PAYMENT NOT RECEIVED
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "To file a complaint, send:\nCOMPLAINT [your issue]\n"
+                "Example: COMPLAINT BAD QUALITY TOMATOES")
+        
+        issue_text = ' '.join(command_parts[1:])
+        
+        try:
+            from services.dispute_service import dispute_service
+            
+            result = dispute_service.file_dispute_via_sms(
+                phone=phone_number,
+                message=issue_text,
+                language=user.preferred_language or 'en'
+            )
+            
+            if result.get('success'):
+                return self.send_sms(phone_number, result.get('sms_response'))
+            else:
+                return self.send_sms(phone_number, 
+                    result.get('sms_response', 'Could not process complaint. Please try again.'))
+                
+        except Exception as e:
+            current_app.logger.error(f"Complaint error: {e}")
+            return self.send_sms(phone_number,
+                "Could not process complaint. Call support: 0800-AGROLINK")
+    
+    def _handle_order_tracking(self, phone_number, command_parts):
+        """Handle order tracking via SMS
+        
+        Format: TRACK [code or order type]
+        Examples:
+        - TRACK NGOZI-SABIBUY-48K
+        - TRACK MYORDERS
+        - TRACK LOGISTICS
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "To track orders:\nTRACK [code]\n"
+                "Or: TRACK MYORDERS for all orders")
+        
+        tracking_target = command_parts[1].upper()
+        
+        try:
+            if tracking_target == 'MYORDERS':
+                from models import SabiBuyOrder
+                orders = SabiBuyOrder.query.filter_by(
+                    buyer_phone=phone_number
+                ).order_by(SabiBuyOrder.created_at.desc()).limit(3).all()
+                
+                if not orders:
+                    return self.send_sms(phone_number, "No orders found.")
+                
+                order_lines = []
+                for o in orders:
+                    status = '✓' if o.delivered else ('💰' if o.payment_status == 'paid' else '⏳')
+                    order_lines.append(f"{status} {o.campaign.code}: {o.quantity} units")
+                
+                return self.send_sms(phone_number,
+                    "Your orders:\n" + "\n".join(order_lines))
+            
+            elif 'SABIBUY' in tracking_target or tracking_target.startswith('SB-'):
+                from models import SabiBuy, SabiBuyOrder
+                
+                campaign = SabiBuy.query.filter_by(code=tracking_target).first()
+                if not campaign:
+                    return self.send_sms(phone_number,
+                        f"Campaign not found: {tracking_target}")
+                
+                order = SabiBuyOrder.query.filter_by(
+                    sabibuy_id=campaign.id,
+                    buyer_phone=phone_number
+                ).first()
+                
+                if not order:
+                    return self.send_sms(phone_number,
+                        f"You have no order in {tracking_target}")
+                
+                status_text = {
+                    'pending': 'Awaiting payment',
+                    'paid': 'Paid - In escrow',
+                    'refunded': 'Refunded',
+                    'released': 'Completed'
+                }.get(order.payment_status, order.payment_status)
+                
+                delivery = "Delivered ✓" if order.delivered else "Pending delivery"
+                
+                return self.send_sms(phone_number,
+                    f"Order: {tracking_target}\n"
+                    f"Qty: {order.quantity}\n"
+                    f"Status: {status_text}\n"
+                    f"Delivery: {delivery}")
+            
+            elif tracking_target == 'LOGISTICS':
+                from models import LogisticsRequest
+                requests = LogisticsRequest.query.filter_by(
+                    requester_id=user.id
+                ).order_by(LogisticsRequest.created_at.desc()).limit(3).all()
+                
+                if not requests:
+                    return self.send_sms(phone_number, "No logistics requests found.")
+                
+                lines = []
+                for r in requests:
+                    lines.append(f"#{r.id}: {r.status}")
+                
+                return self.send_sms(phone_number,
+                    "Logistics:\n" + "\n".join(lines))
+            
+            else:
+                return self.send_sms(phone_number,
+                    f"Invalid tracking target: {tracking_target}\n"
+                    "Use: TRACK MYORDERS or TRACK [campaign code]")
+                
+        except Exception as e:
+            current_app.logger.error(f"Tracking error: {e}")
+            return self.send_sms(phone_number,
+                "Could not fetch tracking info. Please try again.")
+    
+    def _handle_rating(self, phone_number, command_parts):
+        """Handle rating submission via SMS
+        
+        Format: RATE [code/phone] [1-5 stars] [comment]
+        Examples:
+        - RATE NGOZI-SABIBUY-48K 5 GREAT SERVICE
+        - RATE 08012345678 4 GOOD QUALITY
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 3:
+            return self.send_sms(phone_number,
+                "To rate:\nRATE [code] [1-5] [comment]\n"
+                "Example: RATE NGOZI-SABIBUY-48K 5 GREAT")
+        
+        target = command_parts[1]
+        
+        try:
+            rating = int(command_parts[2])
+            if rating < 1 or rating > 5:
+                raise ValueError()
+        except ValueError:
+            return self.send_sms(phone_number,
+                "Rating must be 1-5 stars")
+        
+        comment = ' '.join(command_parts[3:]) if len(command_parts) > 3 else ''
+        
+        try:
+            from services.rating_service import rating_service
+            
+            if 'SABIBUY' in target.upper() or target.upper().startswith('SB-'):
+                from models import SabiBuy
+                campaign = SabiBuy.query.filter_by(code=target.upper()).first()
+                if campaign:
+                    result = rating_service.submit_rating(
+                        rater_id=user.id,
+                        rated_id=campaign.organizer_id,
+                        overall_rating=rating,
+                        comment=comment,
+                        transaction_type='purchase'
+                    )
+                    
+                    if result.get('success'):
+                        return self.send_sms(phone_number,
+                            f"Thanks! Rated {rating}/5 stars")
+                    else:
+                        return self.send_sms(phone_number,
+                            result.get('error', 'Rating failed'))
+            
+            rated_user = User.query.filter_by(phone_number=target).first()
+            if rated_user:
+                result = rating_service.submit_rating(
+                    rater_id=user.id,
+                    rated_id=rated_user.id,
+                    overall_rating=rating,
+                    comment=comment,
+                    transaction_type='purchase'
+                )
+                
+                if result.get('success'):
+                    return self.send_sms(phone_number,
+                        f"Thanks! Rated {rating}/5 stars")
+                else:
+                    return self.send_sms(phone_number,
+                        result.get('error', 'Rating failed'))
+            
+            return self.send_sms(phone_number,
+                f"Could not find: {target}")
+                
+        except Exception as e:
+            current_app.logger.error(f"Rating error: {e}")
+            return self.send_sms(phone_number,
+                "Rating failed. Please try again.")
+    
+    def _handle_status_check(self, phone_number, command_parts):
+        """Handle status check via SMS
+        
+        Format: STATUS [optional: dispute ticket]
+        Examples:
+        - STATUS
+        - STATUS DISP-000123
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) > 1:
+            ticket = command_parts[1].upper()
+            
+            if ticket.startswith('DISP-'):
+                from models import Dispute
+                try:
+                    dispute_id = int(ticket.replace('DISP-', ''))
+                    dispute = Dispute.query.get(dispute_id)
+                    
+                    if dispute and dispute.complainant_id == user.id:
+                        badge_class, status_text = dispute.get_status_badge()
+                        return self.send_sms(phone_number,
+                            f"Ticket: {ticket}\n"
+                            f"Status: {status_text}\n"
+                            f"Type: {dispute.dispute_type}")
+                    else:
+                        return self.send_sms(phone_number,
+                            f"Ticket {ticket} not found or not yours")
+                except:
+                    return self.send_sms(phone_number,
+                        f"Invalid ticket: {ticket}")
+        
+        from models import SabiBuyOrder, Dispute
+        
+        open_orders = SabiBuyOrder.query.filter_by(
+            buyer_phone=phone_number,
+            delivered=False
+        ).filter(SabiBuyOrder.payment_status.in_(['pending', 'paid'])).count()
+        
+        open_disputes = Dispute.query.filter_by(
+            complainant_id=user.id
+        ).filter(Dispute.status.in_(['open', 'investigating'])).count()
+        
+        rating_info = f"Rating: {user.average_rating:.1f}/5" if user.total_ratings else "No ratings yet"
+        
+        return self.send_sms(phone_number,
+            f"Account: {user.name}\n"
+            f"Open orders: {open_orders}\n"
+            f"Open disputes: {open_disputes}\n"
+            f"{rating_info}")
+
+
 # SMS Templates for future multilingual support
 SMS_TEMPLATES = {
     'en': {
         'welcome': "Welcome to AgroLink! 🌾 Reply with: JOIN [name] [location] [crop]",
         'registration_success': "Welcome {name}! You're registered for {crop} in {location}.",
         'invalid_format': "Invalid format. Send HELP for commands.",
-        'help': "Commands: JOIN, LIST, PRICE, HELP, STOP",
+        'help': "Commands: JOIN, LIST, PRICE, TRACK, RATE, COMPLAINT, STATUS, HELP, STOP",
     },
     # Future: Yoruba, Hausa, Pidgin templates
 }
