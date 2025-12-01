@@ -5316,7 +5316,7 @@ def ussd_simulator_api():
     """API endpoint for USSD simulator"""
     from ussd_service import ussd_handler
     
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     session_id = data.get('sessionId', 'SIM_' + str(datetime.utcnow().timestamp()))
     phone_number = data.get('phoneNumber', '+2348012345678')
     text = data.get('text', '')
@@ -5346,7 +5346,7 @@ def sms_simulator_api():
     """API endpoint for SMS simulator"""
     from sms_service import sms_handler
     
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     phone_number = data.get('phoneNumber', '+2348012345678')
     message = data.get('message', '')
     
