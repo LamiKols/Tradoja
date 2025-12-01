@@ -5298,3 +5298,61 @@ def sabibuy_upgrade_callback():
         flash('Payment service unavailable', 'error')
     
     return redirect(url_for('sabibuy_upgrade'))
+
+
+@app.route('/simulator/ussd')
+def ussd_simulator():
+    """USSD Simulator for demo and testing"""
+    return render_template('simulator/ussd_simulator.html', title='USSD Simulator')
+
+@app.route('/simulator/sms')
+def sms_simulator():
+    """SMS Simulator for demo and testing"""
+    return render_template('simulator/sms_simulator.html', title='SMS Simulator')
+
+@app.route('/simulator/ussd/api', methods=['POST'])
+@csrf_exempt
+def ussd_simulator_api():
+    """API endpoint for USSD simulator"""
+    from ussd_service import ussd_handler
+    
+    data = request.get_json()
+    session_id = data.get('sessionId', 'SIM_' + str(datetime.utcnow().timestamp()))
+    phone_number = data.get('phoneNumber', '+2348012345678')
+    text = data.get('text', '')
+    service_code = data.get('serviceCode', '*712*55#')
+    
+    try:
+        response = ussd_handler.handle_ussd(
+            session_id=session_id,
+            phone_number=phone_number,
+            text=text,
+            service_code=service_code
+        )
+        
+        if response.startswith('CON '):
+            return jsonify({'response': response[4:], 'continue': True})
+        elif response.startswith('END '):
+            return jsonify({'response': response[4:], 'continue': False})
+        else:
+            return jsonify({'response': response, 'continue': True})
+    except Exception as e:
+        app.logger.error(f"USSD simulator error: {e}")
+        return jsonify({'response': f'Error: {str(e)}', 'continue': False})
+
+@app.route('/simulator/sms/api', methods=['POST'])
+@csrf_exempt
+def sms_simulator_api():
+    """API endpoint for SMS simulator"""
+    from sms_service import sms_handler
+    
+    data = request.get_json()
+    phone_number = data.get('phoneNumber', '+2348012345678')
+    message = data.get('message', '')
+    
+    try:
+        response = sms_handler.process_incoming_sms(phone_number, message)
+        return jsonify({'response': response or 'Message processed successfully'})
+    except Exception as e:
+        app.logger.error(f"SMS simulator error: {e}")
+        return jsonify({'response': f'Error processing message. Please try again.'})

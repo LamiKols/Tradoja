@@ -172,6 +172,13 @@
                                     <li><a class="dropdown-item" href="{{ url_for('admin_onboarding_dashboard') }}">
                                         <i class="fas fa-user-plus me-1"></i>Onboarding Management
                                     </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('ussd_simulator') }}">
+                                        <i class="fas fa-mobile-alt me-1"></i>USSD Simulator
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('sms_simulator') }}">
+                                        <i class="fas fa-sms me-1"></i>SMS Simulator
+                                    </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('inbox') }}">
