@@ -5,16 +5,97 @@
 <section class="container my-5">
     <div class="row align-items-center">
         <div class="col-md-6">
-            <h1 class="display-4 fw-bold">Connecting Farmers, Markets & Africa</h1>
+            <h1 class="display-4 fw-bold">Trade Smarter. Reach Every Farmer.</h1>
             <p class="lead">
-                AgroLink empowers Africa's farmers and buyers to trade seamlessly, reduce food waste, and build resilient food systems across cities and borders.  
-                Join us to unlock new markets, access funding, and drive food security from Lagos — to every corner of the continent.
+                AgroLink connects farmers, buyers, and traders across Nigeria through <strong>Web, SMS, and USSD</strong> — 
+                so even farmers with basic phones can list produce, find buyers, and earn money.
+                Join Africa's most inclusive agricultural marketplace.
             </p>
-            <a href="{{ url_for('register') }}" class="btn btn-success btn-lg">Register Now</a>
-            <a href="{{ url_for('marketplace') }}" class="btn btn-outline-primary btn-lg ms-2">Browse Marketplace</a>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <a href="{{ url_for('register') }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-user-plus me-2"></i>Register Free
+                </a>
+                <a href="{{ url_for('marketplace') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-store me-2"></i>Browse Marketplace
+                </a>
+            </div>
+            <p class="text-muted small">
+                <i class="fas fa-mobile-alt me-1"></i> No smartphone? Text <strong>REG</strong> to <strong>20388</strong> or dial <strong>*712*55#</strong>
+            </p>
         </div>
         <div class="col-md-6 text-center">
-            <img src="https://images.unsplash.com/photo-1591105691442-c7f0c9e8aecf?auto=format&fit=crop&w=600&q=80" class="img-fluid rounded-4 shadow" alt="Farm in Lagos Nigeria">
+            <img src="https://images.unsplash.com/photo-1591105691442-c7f0c9e8aecf?auto=format&fit=crop&w=600&q=80" class="img-fluid rounded-4 shadow" alt="Nigerian farmers in field">
+        </div>
+    </div>
+</section>
+
+<!-- Key Features Section -->
+<section class="bg-light py-5">
+    <div class="container">
+        <h2 class="fw-bold text-center mb-5">Why Choose AgroLink?</h2>
+        <div class="row g-4">
+            <!-- SabiBuy -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-users text-success fs-3"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">SabiBuy Group-Buy</h5>
+                        <p class="card-text">
+                            Become a trader with zero stock! Organize group purchases, earn <strong>₦4,000 - ₦15,000</strong> profit per batch. No inventory risk.
+                        </p>
+                        <a href="{{ url_for('sabibuy_home') }}" class="btn btn-sm btn-outline-success">Learn More</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Multi-Channel Access -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-mobile-alt text-primary fs-3"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Access Anywhere</h5>
+                        <p class="card-text">
+                            Use Web, SMS, or USSD (<strong>*712*55#</strong>). Works on any phone — smartphones and feature phones alike.
+                        </p>
+                        <a href="{{ url_for('ussd_simulator') }}" class="btn btn-sm btn-outline-primary">Try Simulator</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Scam Protection -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-shield-alt text-warning fs-3"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">AI Scam Protection</h5>
+                        <p class="card-text">
+                            Trade with confidence. Our AI-powered fraud detection flags suspicious activity and protects your transactions.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Smart Logistics -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-truck text-info fs-3"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Smart Logistics</h5>
+                        <p class="card-text">
+                            Get matched with verified transporters. Cold chain tracking ensures your produce arrives fresh.
+                        </p>
+                        <a href="{{ url_for('logistics_dashboard') }}" class="btn btn-sm btn-outline-info">View Logistics</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -22,26 +103,34 @@
 <!-- How It Works Section -->
 <section class="container py-5">
     <h2 class="mb-4 text-center fw-bold">How It Works</h2>
-    <div class="row text-center">
+    <div class="row text-center g-4">
         <div class="col-md-3">
-            <div class="mb-2"><span class="badge bg-primary rounded-pill p-3 fs-4">1</span></div>
-            <h5>Register</h5>
-            <p>Create a free account as a farmer or buyer.</p>
+            <div class="mb-3">
+                <span class="badge bg-success rounded-circle p-3 fs-4">1</span>
+            </div>
+            <h5>Register Your Way</h5>
+            <p class="text-muted">Sign up on <strong>web</strong>, via <strong>SMS</strong> (text REG to 20388), or dial <strong>*712*55#</strong> on any phone.</p>
         </div>
         <div class="col-md-3">
-            <div class="mb-2"><span class="badge bg-primary rounded-pill p-3 fs-4">2</span></div>
-            <h5>List or Browse Produce</h5>
-            <p>Farmers add produce. Buyers search and connect instantly.</p>
+            <div class="mb-3">
+                <span class="badge bg-success rounded-circle p-3 fs-4">2</span>
+            </div>
+            <h5>List or Browse</h5>
+            <p class="text-muted">Farmers add produce with prices. Buyers search by crop, location, or quantity.</p>
         </div>
         <div class="col-md-3">
-            <div class="mb-2"><span class="badge bg-primary rounded-pill p-3 fs-4">3</span></div>
+            <div class="mb-3">
+                <span class="badge bg-success rounded-circle p-3 fs-4">3</span>
+            </div>
             <h5>Connect & Trade</h5>
-            <p>Communicate securely, negotiate, and arrange delivery.</p>
+            <p class="text-muted">Message directly, negotiate prices, and arrange pickup or delivery with verified transporters.</p>
         </div>
         <div class="col-md-3">
-            <div class="mb-2"><span class="badge bg-primary rounded-pill p-3 fs-4">4</span></div>
-            <h5>Grow Together</h5>
-            <p>Access funding, join trainings, and help build Lagos's food future.</p>
+            <div class="mb-3">
+                <span class="badge bg-success rounded-circle p-3 fs-4">4</span>
+            </div>
+            <h5>Earn & Grow</h5>
+            <p class="text-muted">Build your reputation, access funding opportunities, and grow your agricultural business.</p>
         </div>
     </div>
 </section>
@@ -52,62 +141,80 @@
     <div class="row justify-content-center">
         {% for produce in featured_produce %}
         <div class="col-md-3 mb-3">
-            <div class="card shadow-sm">
-                <img src="{{ image_map.get(produce.name, 'https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80') }}" class="card-img-top" alt="{{ produce.name }}">
+            <div class="card shadow-sm h-100">
+                <img src="{{ image_map.get(produce.name, 'https://images.unsplash.com/photo-1519864600265-abb241c7d1e5?auto=format&fit=crop&w=400&q=80') }}" class="card-img-top" alt="{{ produce.name }}" style="height: 180px; object-fit: cover;">
                 <div class="card-body">
                     <h5 class="card-title">{{ produce.name }}</h5>
-                    <p class="card-text">{{ produce.desc }}</p>
+                    <p class="card-text small text-muted">{{ produce.desc }}</p>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
+    <div class="text-center mt-3">
+        <a href="{{ url_for('marketplace') }}" class="btn btn-outline-success">View All Produce</a>
+    </div>
 </section>
 
-<!-- Additional Call to Action -->
-<section class="container text-center py-3">
-    <a href="{{ url_for('register') }}" class="btn btn-success btn-lg mx-2">Register Now</a>
-    <a href="{{ url_for('marketplace') }}" class="btn btn-outline-primary btn-lg mx-2">Browse Marketplace</a>
+<!-- SMS & USSD Access Highlight -->
+<section class="py-5" style="background: linear-gradient(135deg, #198754 0%, #0d6efd 100%);">
+    <div class="container text-center text-white">
+        <h3 class="fw-bold mb-4"><i class="fas fa-mobile-alt me-2"></i>No Smartphone? No Problem!</h3>
+        <p class="lead mb-4">AgroLink works on any phone. Access the marketplace using SMS or USSD.</p>
+        <div class="row justify-content-center g-4">
+            <div class="col-md-4">
+                <div class="bg-white bg-opacity-10 rounded-3 p-4">
+                    <h4 class="mb-3"><i class="fas fa-sms me-2"></i>SMS Commands</h4>
+                    <p class="mb-2"><strong>REG</strong> - Register as farmer</p>
+                    <p class="mb-2"><strong>SELL [crop] [qty] [price]</strong> - List produce</p>
+                    <p class="mb-2"><strong>BUY [crop]</strong> - Find produce</p>
+                    <p class="mb-0"><strong>HELP</strong> - Get all commands</p>
+                    <p class="mt-3 small">Send to: <strong>20388</strong></p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="bg-white bg-opacity-10 rounded-3 p-4">
+                    <h4 class="mb-3"><i class="fas fa-hashtag me-2"></i>USSD Menu</h4>
+                    <p class="mb-2">Dial <strong class="fs-5">*712*55#</strong></p>
+                    <p class="mb-2">Navigate with number keys</p>
+                    <p class="mb-2">Register, list, buy, check balance</p>
+                    <p class="mb-0">Works on any network</p>
+                    <p class="mt-3 small">Powered by T2/Africa's Talking</p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('ussd_simulator') }}" class="btn btn-light btn-lg me-2">
+                <i class="fas fa-play me-2"></i>Try USSD Simulator
+            </a>
+            <a href="{{ url_for('sms_simulator') }}" class="btn btn-outline-light btn-lg">
+                <i class="fas fa-comment me-2"></i>Try SMS Simulator
+            </a>
+        </div>
+    </div>
 </section>
 
 <!-- Impact & Reach Section -->
 <section class="bg-light py-5">
     <div class="container text-center">
-        <h3 class="fw-bold mb-4">Impact & Reach</h3>
+        <h3 class="fw-bold mb-4">Growing Across Nigeria</h3>
         <div class="row">
-            <div class="col-md-4">
-                <h1 class="display-5 fw-bold text-success">100+</h1>
-                <p>Registered Farmers</p>
+            <div class="col-md-3">
+                <h1 class="display-5 fw-bold text-success">3+</h1>
+                <p>Access Channels<br><small class="text-muted">Web, SMS, USSD</small></p>
             </div>
-            <div class="col-md-4">
-                <h1 class="display-5 fw-bold text-primary">₦500bn</h1>
-                <p>Offtake Funding Access</p>
+            <div class="col-md-3">
+                <h1 class="display-5 fw-bold text-primary">36</h1>
+                <p>States Covered<br><small class="text-muted">Nationwide reach</small></p>
             </div>
-            <div class="col-md-4">
-                <h1 class="display-5 fw-bold text-warning">3+</h1>
-                <p>Partner States</p>
+            <div class="col-md-3">
+                <h1 class="display-5 fw-bold text-warning">5</h1>
+                <p>Languages<br><small class="text-muted">English, Yoruba, Hausa, Igbo, Pidgin</small></p>
             </div>
-        </div>
-        <div class="my-4">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/1/15/Lagos_State_seal.png" alt="Lagos State Logo" style="height: 48px; margin: 0 12px;" class="opacity-75">
-            <img src="https://produceforlagos.com/assets/logo.png" alt="Produce for Lagos Logo" style="height: 48px; margin: 0 12px;" class="opacity-75" onerror="this.style.display='none'">
-        </div>
-    </div>
-</section>
-
-<!-- Testimonial Section -->
-<section class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8 text-center">
-            <blockquote class="blockquote">
-                <p class="mb-3 fs-5 fst-italic">
-                    "AgroLink Lagos made it easy for me to find new buyers and get my produce to market faster. I look forward to using it every harvest."
-                </p>
-                <footer class="blockquote-footer">
-                    <strong>Adewale O.,</strong> pilot farmer, Ogun State
-                </footer>
-            </blockquote>
-            <small class="text-muted">*Pilot user for demonstration purposes</small>
+            <div class="col-md-3">
+                <h1 class="display-5 fw-bold text-info">24/7</h1>
+                <p>Always Available<br><small class="text-muted">SMS & USSD never sleep</small></p>
+            </div>
         </div>
     </div>
 </section>
@@ -118,17 +225,23 @@
     <div class="row justify-content-center">
         <div class="col-md-10">
             <p class="fs-5">
-                <strong>AgroLink</strong> is Africa's digital agriculture marketplace, connecting farmers, aggregators, buyers, and partners across cities, states, and borders.  
-                We make it easy for producers to access urban markets, streamline logistics, and unlock vital funding opportunities.
+                <strong>AgroLink</strong> is Nigeria's inclusive digital agriculture marketplace, built by <strong>Alpha Intel Advisory Ltd</strong> 
+                to connect farmers, aggregators, buyers, and traders — regardless of what phone they use.
             </p>
-            <ul>
-                <li>Empowering food producers in Nigeria and across Africa to reach more buyers and grow their businesses.</li>
-                <li>Reducing post-harvest losses and food waste by linking rural supply with urban demand.</li>
-                <li>Enabling governments, NGOs, and investors to foster sustainable food systems and resilient supply chains.</li>
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> <strong>Digital Inclusion:</strong> Access via Web, SMS, or USSD — works on any phone, any network.</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> <strong>Zero-Stock Trading:</strong> SabiBuy lets anyone become a trader and earn without holding inventory.</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> <strong>AI-Powered Protection:</strong> Our scam detection keeps the marketplace safe for everyone.</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> <strong>Smart Logistics:</strong> Verified transporters, cold chain tracking, and delivery coordination.</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> <strong>Multilingual Support:</strong> Trade in English, Yoruba, Hausa, Igbo, or Pidgin.</li>
             </ul>
-            <p class="fs-6 text-muted">
-                <strong>Launched in partnership with Lagos State's "Produce for Lagos" initiative, AgroLink is built to scale across Africa — one city, one farmer, one market at a time.</strong>
-            </p>
+            <div class="bg-light rounded-3 p-4 mt-4">
+                <p class="mb-0 text-muted">
+                    <i class="fas fa-rocket me-2 text-primary"></i>
+                    <strong>Vision:</strong> AgroLink is the foundation for <strong>AlphaLink</strong> — 
+                    a future general marketplace that will expand beyond agriculture to connect buyers and sellers across all sectors of Nigeria's economy.
+                </p>
+            </div>
         </div>
     </div>
 </section>
@@ -138,44 +251,108 @@
     <h2 class="fw-bold text-center mb-4">Frequently Asked Questions</h2>
     <div class="row justify-content-center">
         <div class="col-md-10">
-            <details class="mb-3">
-                <summary><strong>Is AgroLink only for Lagos?</strong></summary>
-                <p>No. AgroLink launched its pilot in Lagos, but the platform is built for any state, city, or country in Africa. Any government, cooperative, or partner can use AgroLink to connect their farmers and markets.</p>
-            </details>
-            
-            <details class="mb-3">
-                <summary><strong>Can farmers from outside Nigeria join AgroLink?</strong></summary>
-                <p>Yes! AgroLink is designed for all African farmers, aggregators, and buyers. We welcome participants from any country — simply register and start trading.</p>
-            </details>
-            
-            <details class="mb-3">
-                <summary><strong>How do I bring AgroLink to my state or city?</strong></summary>
-                <p>Contact our partnership team at <a href="mailto:support@agrolink.com">support@agrolink.com</a>. We work with governments, NGOs, and cooperatives to launch AgroLink in new markets.</p>
-            </details>
-            
-            <details class="mb-3">
-                <summary><strong>Is AgroLink linked to the ₦500bn Lagos Offtake Guarantee Fund?</strong></summary>
-                <p>Yes. AgroLink partners with Lagos State and other initiatives to make funding opportunities available on the platform. As AgroLink expands, we aim to offer funding access in every participating state and region.</p>
-            </details>
+            <div class="accordion" id="faqAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            How do I register without a smartphone?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Simple! Just send <strong>REG</strong> to <strong>20388</strong> via SMS, or dial <strong>*712*55#</strong> on any phone. 
+                            You can register, list produce, and find buyers without ever using the internet.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            What is SabiBuy and how do I earn money?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            SabiBuy is our group-buying system. You organize bulk purchases from farmers, collect orders from buyers, 
+                            and earn ₦4,000 to ₦15,000 per batch — without holding any stock yourself! 
+                            It's perfect for traders, agents, and anyone who wants to earn from agriculture without the risk.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            Is AgroLink only for Lagos?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            No! While we launched with Lagos State's "Produce for Lagos" initiative, AgroLink serves farmers and buyers across all 36 Nigerian states. 
+                            Our SMS and USSD channels work nationwide on all networks.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                            How does the AI scam protection work?
+                        </button>
+                    </h2>
+                    <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Our AI monitors listings, registrations, and transactions for suspicious patterns — like unrealistic prices, 
+                            unusual activity, or known fraud indicators. Flagged accounts are reviewed by admins before any harm is done. 
+                            This keeps the marketplace safe for honest farmers and buyers.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+                            How do I arrange transport for my produce?
+                        </button>
+                    </h2>
+                    <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Use our logistics feature to request transport. We'll match you with verified transporters based on your location, 
+                            cargo type, and whether you need cold chain storage. You can track your shipment and communicate directly with the driver.
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
 
 <!-- Call to Action -->
 {% if not current_user.is_authenticated %}
-<section class="py-5">
+<section class="py-5 bg-success text-white">
     <div class="container text-center">
-        <h3 class="fw-bold mb-4">Ready to Get Started?</h3>
-        <p class="lead mb-4">Join the AgroLink Lagos community today and be part of the food security solution.</p>
-        <div class="d-flex justify-content-center gap-3">
-            <a href="{{ url_for('register') }}" class="btn btn-success btn-lg">
-                <i class="fas fa-user-plus me-2"></i>Create Account
+        <h3 class="fw-bold mb-3">Ready to Join Africa's Most Inclusive Marketplace?</h3>
+        <p class="lead mb-4">Register today — on web, SMS, or USSD. It's free!</p>
+        <div class="d-flex justify-content-center flex-wrap gap-3">
+            <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Register on Web
             </a>
-            <a href="{{ url_for('marketplace') }}" class="btn btn-outline-secondary btn-lg">
-                <i class="fas fa-eye me-2"></i>View Marketplace
+            <a href="{{ url_for('marketplace') }}" class="btn btn-outline-light btn-lg">
+                <i class="fas fa-store me-2"></i>Browse Marketplace
             </a>
         </div>
+        <p class="mt-4 mb-0 small opacity-75">
+            <i class="fas fa-mobile-alt me-1"></i> Or text <strong>REG</strong> to 20388 | Dial <strong>*712*55#</strong>
+        </p>
     </div>
 </section>
 {% endif %}
+
+<!-- Footer Note -->
+<section class="container py-4 text-center">
+    <p class="text-muted small mb-0">
+        <i class="fas fa-building me-1"></i> AgroLink is a product of <strong>Alpha Intel Advisory Ltd</strong>
+    </p>
+</section>
 {% endblock %}
