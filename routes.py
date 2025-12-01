@@ -5323,19 +5323,26 @@ def ussd_simulator_api():
     service_code = data.get('serviceCode', '*712*55#')
     
     try:
-        response = ussd_service.process_request(
+        result = ussd_service.process_request(
             session_id=session_id,
             phone_number=phone_number,
             text=text,
             service_code=service_code
         )
         
-        if response.startswith('CON '):
-            return jsonify({'response': response[4:], 'continue': True})
-        elif response.startswith('END '):
-            return jsonify({'response': response[4:], 'continue': False})
+        # process_request returns (response_text, should_continue) tuple
+        if isinstance(result, tuple):
+            response_text, should_continue = result
+            return jsonify({'response': response_text, 'continue': should_continue})
         else:
-            return jsonify({'response': response, 'continue': True})
+            # Fallback for string response
+            response = str(result)
+            if response.startswith('CON '):
+                return jsonify({'response': response[4:], 'continue': True})
+            elif response.startswith('END '):
+                return jsonify({'response': response[4:], 'continue': False})
+            else:
+                return jsonify({'response': response, 'continue': True})
     except Exception as e:
         app.logger.error(f"USSD simulator error: {e}")
         return jsonify({'response': f'Error: {str(e)}', 'continue': False})
