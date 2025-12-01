@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Simulator - Demo{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="text-center mb-4">
+                <h2><i class="fas fa-sms me-2"></i>SMS Simulator</h2>
+                <p class="text-muted">Test SMS commands as if texting from a mobile phone</p>
+                <p class="text-muted small">Send to shortcode <strong>20255</strong></p>
+            </div>
+            
+            <div class="phone-frame mx-auto">
+                <div class="phone-screen">
+                    <div class="phone-header">
+                        <span class="back-btn" id="backBtn">
+                            <i class="fas fa-arrow-left"></i>
+                        </span>
+                        <span class="contact-name">
+                            <i class="fas fa-leaf me-1"></i> AgroLink (20255)
+                        </span>
+                        <span class="call-btn">
+                            <i class="fas fa-phone"></i>
+                        </span>
+                    </div>
+                    
+                    <div class="sms-display" id="smsDisplay">
+                        <div class="sms-welcome">
+                            <div class="welcome-icon">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <p>Welcome to AgroLink SMS</p>
+                            <p class="small">Send a command to get started</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sms-input-area">
+                        <input type="text" 
+                               class="sms-input" 
+                               id="smsInput" 
+                               placeholder="Type a message..."
+                               autocomplete="off">
+                        <button class="send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button class="btn btn-outline-secondary btn-sm" id="clearBtn">
+                    <i class="fas fa-trash me-1"></i> Clear Chat
+                </button>
+                <a href="{{ url_for('ussd_simulator') }}" class="btn btn-outline-primary btn-sm ms-2">
+                    <i class="fas fa-mobile-alt me-1"></i> Try USSD Simulator
+                </a>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="fas fa-terminal me-2"></i>Available SMS Commands
+                </div>
+                <div class="card-body">
+                    <div class="row small">
+                        <div class="col-6">
+                            <p class="mb-2"><strong>Registration:</strong></p>
+                            <ul class="ps-3 mb-3">
+                                <li><code>REG FARMER John</code></li>
+                                <li><code>REG BUYER Mary</code></li>
+                                <li><code>REG TRANSPORT ABC Ltd</code></li>
+                            </ul>
+                            <p class="mb-2"><strong>Listings:</strong></p>
+                            <ul class="ps-3 mb-0">
+                                <li><code>SELL Tomatoes 100 5000</code></li>
+                                <li><code>LIST</code></li>
+                            </ul>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-2"><strong>SabiBuy:</strong></p>
+                            <ul class="ps-3 mb-3">
+                                <li><code>JOIN ABC123 3</code></li>
+                                <li><code>SABIBUY Tomatoes 5000</code></li>
+                                <li><code>CAMPAIGNS</code></li>
+                            </ul>
+                            <p class="mb-2"><strong>Other:</strong></p>
+                            <ul class="ps-3 mb-0">
+                                <li><code>HELP</code></li>
+                                <li><code>BALANCE</code></li>
+                                <li><code>STATUS</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="fas fa-lightbulb me-2"></i>Quick Test Messages
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="HELP">HELP</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="REG FARMER Demo User">REG FARMER</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="LIST">LIST</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="CAMPAIGNS">CAMPAIGNS</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="BALANCE">BALANCE</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="SELL Tomatoes 100 5000">SELL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.phone-frame {
+    background: linear-gradient(145deg, #2d2d2d, #1a1a1a);
+    border-radius: 40px;
+    padding: 15px;
+    max-width: 350px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+}
+
+.phone-screen {
+    background: #0a0a0a;
+    border-radius: 28px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+
+.phone-header {
+    background: #1a5f2a;
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #fff;
+}
+
+.contact-name {
+    font-weight: 600;
+}
+
+.back-btn, .call-btn {
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.sms-display {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+}
+
+.sms-welcome {
+    text-align: center;
+    color: #8b949e;
+    padding: 40px 20px;
+}
+
+.welcome-icon {
+    width: 60px;
+    height: 60px;
+    background: #1a5f2a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    font-size: 24px;
+    color: #fff;
+}
+
+.sms-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.sms-bubble.sent {
+    background: #1a5f2a;
+    color: #fff;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+.sms-bubble.received {
+    background: #30363d;
+    color: #e6edf3;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+.sms-time {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 4px;
+}
+
+.sms-input-area {
+    background: #161b22;
+    padding: 10px 15px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #30363d;
+}
+
+.sms-input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 10px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.sms-input:focus {
+    outline: none;
+    border-color: #1a5f2a;
+}
+
+.sms-input::placeholder {
+    color: #8b949e;
+}
+
+.send-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: #1a5f2a;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.send-btn:hover {
+    background: #238636;
+}
+
+.send-btn:active {
+    transform: scale(0.95);
+}
+
+.quick-msg {
+    font-size: 12px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const smsInput = document.getElementById('smsInput');
+    const smsDisplay = document.getElementById('smsDisplay');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const quickMsgs = document.querySelectorAll('.quick-msg');
+    
+    const phoneNumber = '+2348012345678';
+    let hasMessages = false;
+    
+    quickMsgs.forEach(btn => {
+        btn.addEventListener('click', function() {
+            smsInput.value = this.dataset.msg;
+            smsInput.focus();
+        });
+    });
+    
+    sendBtn.addEventListener('click', sendSms);
+    smsInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') sendSms();
+    });
+    
+    clearBtn.addEventListener('click', function() {
+        hasMessages = false;
+        smsDisplay.innerHTML = `
+            <div class="sms-welcome">
+                <div class="welcome-icon">
+                    <i class="fas fa-leaf"></i>
+                </div>
+                <p>Welcome to AgroLink SMS</p>
+                <p class="small">Send a command to get started</p>
+            </div>
+        `;
+    });
+    
+    function addMessage(text, type) {
+        if (!hasMessages) {
+            smsDisplay.innerHTML = '';
+            hasMessages = true;
+        }
+        
+        const bubble = document.createElement('div');
+        bubble.className = `sms-bubble ${type}`;
+        
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        bubble.innerHTML = `
+            ${text.replace(/\n/g, '<br>')}
+            <div class="sms-time">${time}</div>
+        `;
+        
+        smsDisplay.appendChild(bubble);
+        smsDisplay.scrollTop = smsDisplay.scrollHeight;
+    }
+    
+    function sendSms() {
+        const message = smsInput.value.trim();
+        if (!message) return;
+        
+        addMessage(message, 'sent');
+        smsInput.value = '';
+        
+        fetch('{{ url_for("sms_simulator_api") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                phoneNumber: phoneNumber,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            setTimeout(() => {
+                addMessage(data.response || data.message || 'No response received', 'received');
+            }, 500);
+        })
+        .catch(error => {
+            setTimeout(() => {
+                addMessage('Error: ' + error.message, 'received');
+            }, 500);
+        });
+    }
+});
+</script>
+{% endblock %}
