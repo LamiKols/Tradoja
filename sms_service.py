@@ -111,6 +111,18 @@ class SMSService:
                 return self._handle_my_sabibuy(phone_number)
             elif '-SABIBUY-' in command or command.startswith('SB-'):
                 return self._handle_sabibuy_join_code(phone_number, command, command_parts)
+            elif command == 'MYLIST' or command == 'MYLISTINGS':
+                return self._handle_my_listings(phone_number)
+            elif command == 'BAL' or command == 'BALANCE':
+                return self._handle_balance_check(phone_number)
+            elif command == 'SBEARNINGS' or command == 'EARNINGS':
+                return self._handle_sabibuy_earnings(phone_number)
+            elif command == 'AGENTBAL' or command == 'AGBAL':
+                return self._handle_agent_balance(phone_number)
+            elif command == 'AGENTADD' or command == 'AGADD':
+                return self._handle_agent_add_farmer(phone_number, command_parts)
+            elif command == 'TRIPBAL' or command == 'TBAL':
+                return self._handle_transport_balance(phone_number)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -841,29 +853,293 @@ class SMSService:
         
         return self.send_sms(phone_number, completion_message)
     
-    def _send_help_message(self, phone_number):
-        """Send help message with available commands"""
-        from models import TransportProfile
+    def _handle_my_listings(self, phone_number):
+        """Handle MYLIST command - view farmer's own produce listings"""
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
+        
+        listings = Produce.query.filter_by(farmer_id=user.id).order_by(
+            Produce.created_at.desc()
+        ).limit(5).all()
+        
+        if not listings:
+            return self.send_sms(phone_number,
+                "No produce listings yet.\n"
+                "To list: LIST [crop] [qty] [price]\n"
+                "Example: LIST TOMATOES 5T 150000")
+        
+        listing_text = []
+        for p in listings:
+            status = "Active" if p.status == 'available' else p.status.title()
+            listing_text.append(f"{p.crop_type}: {p.quantity} @ N{p.price:,.0f} [{status}]")
+        
+        return self.send_sms(phone_number,
+            f"Your Listings ({len(listings)}):\n" + "\n".join(listing_text))
+    
+    def _handle_balance_check(self, phone_number):
+        """Handle BAL command - check account/wallet balance"""
+        from models import SabiBuy, SabiBuyOrder, AgentProfile, TransportProfile, LogisticsBid
         
         user = User.query.filter_by(phone_number=phone_number).first()
-        profile = TransportProfile.query.filter_by(user_id=user.id).first() if user else None
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
         
-        help_message = ("AgroLink SMS Commands:\n"
-                       "JOIN [name] [location] [crop] - Register as farmer\n"
-                       "JOIN BUYER [name] [loc] - Register as buyer\n"
-                       "JOIN TRK [name] [loc] [type] - Register as transporter\n"
-                       "JOIN AGENT [name] [loc] - Become agent\n"
-                       "LIST [crop] [qty] [price] - List produce\n"
-                       "PRICE [crop] - Check prices\n")
+        balances = []
         
-        if profile:
-            help_message += ("JOBS - View transport jobs\n"
-                            "BID [job_id] [amt] - Place bid\n"
-                            "MYBIDS - View your bids\n"
-                            "START [job_id] - Start trip\n"
+        if user.t2_wallet_balance and user.t2_wallet_balance > 0:
+            balances.append(f"T2 Wallet: N{user.t2_wallet_balance:,.0f}")
+        
+        campaigns = SabiBuy.query.filter_by(organizer_id=user.id).all()
+        if campaigns:
+            total_sb_earnings = sum(c.organizer_profit or 0 for c in campaigns if c.status == 'delivered')
+            pending_sb = sum(c.organizer_profit or 0 for c in campaigns if c.status in ['active', 'closed', 'booked', 'in_transit'])
+            if total_sb_earnings > 0 or pending_sb > 0:
+                balances.append(f"SabiBuy Paid: N{total_sb_earnings:,.0f}")
+                balances.append(f"SabiBuy Pending: N{pending_sb:,.0f}")
+        
+        agent_profile = AgentProfile.query.filter_by(user_id=user.id).first()
+        if agent_profile:
+            balances.append(f"Agent Earnings: N{agent_profile.total_earnings or 0:,.0f}")
+        
+        transport_profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if transport_profile:
+            completed_bids = LogisticsBid.query.filter_by(
+                transporter_id=transport_profile.id,
+                status='completed'
+            ).all()
+            total_transport = sum(b.bid_amount or 0 for b in completed_bids)
+            balances.append(f"Transport Earnings: N{total_transport:,.0f}")
+        
+        if not balances:
+            return self.send_sms(phone_number,
+                "No earnings yet.\n"
+                "Start earning:\n"
+                "- SabiBuy: Dial *712*55# > 10\n"
+                "- Transport: JOIN TRK [name] [loc] [type]\n"
+                "- Agent: JOIN AGENT [name] [loc]")
+        
+        return self.send_sms(phone_number,
+            f"Balance Summary:\n" + "\n".join(balances))
+    
+    def _handle_sabibuy_earnings(self, phone_number):
+        """Handle SBEARNINGS command - check SabiBuy campaign earnings"""
+        from models import SabiBuy
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN [name] [location] [crop]")
+        
+        campaigns = SabiBuy.query.filter_by(organizer_id=user.id).all()
+        
+        if not campaigns:
+            return self.send_sms(phone_number,
+                "No SabiBuy campaigns yet.\n"
+                "Start earning N4k-N15k per batch!\n"
+                "Dial *712*55# > 10 to start")
+        
+        total_profit = sum(c.organizer_profit or 0 for c in campaigns if c.status == 'delivered')
+        pending = sum(c.organizer_profit or 0 for c in campaigns if c.status in ['active', 'closed', 'booked', 'in_transit'])
+        active_campaigns = len([c for c in campaigns if c.status == 'active'])
+        completed = len([c for c in campaigns if c.status == 'delivered'])
+        
+        return self.send_sms(phone_number,
+            f"SabiBuy Earnings:\n"
+            f"Total Paid: N{total_profit:,.0f}\n"
+            f"Pending: N{pending:,.0f}\n"
+            f"Active: {active_campaigns} campaigns\n"
+            f"Completed: {completed} batches")
+    
+    def _handle_agent_balance(self, phone_number):
+        """Handle AGENTBAL command - check agent referral earnings"""
+        from models import AgentProfile
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! Reply: JOIN AGENT [name] [location]")
+        
+        profile = AgentProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not an agent.\n"
+                "To become one: JOIN AGENT [name] [location]")
+        
+        farmers_count = User.query.filter_by(registered_by_agent_id=user.id).count()
+        
+        airtime_earned = (farmers_count // 10) * 200
+        next_milestone = 10 - (farmers_count % 10)
+        
+        return self.send_sms(phone_number,
+            f"Agent Earnings:\n"
+            f"Agent ID: {profile.agent_id}\n"
+            f"Farmers Registered: {farmers_count}\n"
+            f"Airtime Earned: N{airtime_earned:,.0f}\n"
+            f"Next N200: {next_milestone} more farmers\n"
+            f"Total Earnings: N{profile.total_earnings or 0:,.0f}")
+    
+    def _handle_agent_add_farmer(self, phone_number, command_parts):
+        """Handle AGENTADD command - register farmer on behalf of agent
+        
+        Format: AGENTADD [farmer_phone] [name] [location] [crop]
+        Example: AGENTADD 08012345678 John Lagos Tomatoes
+        """
+        from models import AgentProfile
+        from werkzeug.security import generate_password_hash
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register as agent first!\nJOIN AGENT [name] [location]")
+        
+        profile = AgentProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not an agent.\nTo become one: JOIN AGENT [name] [location]")
+        
+        if not profile.is_approved:
+            return self.send_sms(phone_number,
+                "Your agent account is pending approval.\nPlease wait 24 hours or contact support.")
+        
+        if len(command_parts) < 5:
+            return self.send_sms(phone_number,
+                "Format: AGENTADD [phone] [name] [location] [crop]\n"
+                "Example: AGENTADD 08012345678 John Lagos Tomatoes")
+        
+        farmer_phone = self._normalize_phone_number(command_parts[1])
+        farmer_name = command_parts[2].title()
+        location = command_parts[3].title()
+        main_crop = ' '.join(command_parts[4:])
+        
+        existing = User.query.filter_by(phone_number=farmer_phone).first()
+        if existing:
+            return self.send_sms(phone_number,
+                f"Farmer {farmer_phone} is already registered.\n"
+                f"Name: {existing.name}")
+        
+        try:
+            farmer = User(
+                name=farmer_name,
+                phone_number=farmer_phone,
+                email=f"{farmer_phone.replace('+', '')}@agent.agrolink.ng",
+                role='farmer',
+                sms_enabled=True,
+                sms_registration_date=datetime.utcnow(),
+                source_channel='agent',
+                location=location,
+                registered_by_agent_id=user.id,
+                agent_verified=True
+            )
+            farmer.password_hash = generate_password_hash('agent_registered_temp')
+            
+            db.session.add(farmer)
+            
+            farmers_by_agent = User.query.filter_by(registered_by_agent_id=user.id).count() + 1
+            if farmers_by_agent % 10 == 0:
+                profile.total_earnings = (profile.total_earnings or 0) + 200
+            
+            db.session.commit()
+            
+            self.send_sms(farmer_phone,
+                f"Welcome to AgroLink!\n"
+                f"Agent {user.name} registered you.\n"
+                f"Text HELP for commands.\n"
+                f"Your crop: {main_crop}")
+            
+            milestone_msg = ""
+            if farmers_by_agent % 10 == 0:
+                milestone_msg = f"\nMilestone! N200 airtime earned!"
+            
+            return self.send_sms(phone_number,
+                f"Farmer registered!\n"
+                f"Name: {farmer_name}\n"
+                f"Phone: {farmer_phone}\n"
+                f"Location: {location}\n"
+                f"Total farmers: {farmers_by_agent}{milestone_msg}")
+        
+        except Exception as e:
+            current_app.logger.error(f"Agent farmer registration error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number, "Registration failed. Please try again.")
+    
+    def _handle_transport_balance(self, phone_number):
+        """Handle TRIPBAL command - check transport earnings"""
+        from models import TransportProfile, LogisticsBid, LogisticsRequest
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first! JOIN TRK [name] [location] [type]")
+        
+        profile = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            return self.send_sms(phone_number,
+                "You're not a transporter.\nTo register: JOIN TRK [name] [location] [type]")
+        
+        completed_bids = LogisticsBid.query.filter_by(
+            transporter_id=profile.id,
+            status='completed'
+        ).all()
+        
+        active_bids = LogisticsBid.query.filter_by(
+            transporter_id=profile.id,
+            status='accepted'
+        ).all()
+        
+        total_earned = sum(b.bid_amount or 0 for b in completed_bids)
+        pending = sum(b.bid_amount or 0 for b in active_bids)
+        
+        return self.send_sms(phone_number,
+            f"Transport Earnings:\n"
+            f"ID: {profile.transporter_id}\n"
+            f"Completed: {len(completed_bids)} trips\n"
+            f"Active: {len(active_bids)} trips\n"
+            f"Total Earned: N{total_earned:,.0f}\n"
+            f"Pending: N{pending:,.0f}")
+    
+    def _send_help_message(self, phone_number):
+        """Send help message with available commands"""
+        from models import TransportProfile, AgentProfile
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        transport_profile = TransportProfile.query.filter_by(user_id=user.id).first() if user else None
+        agent_profile = AgentProfile.query.filter_by(user_id=user.id).first() if user else None
+        
+        help_message = ("AgroLink SMS Commands:\n\n"
+                       "REGISTRATION:\n"
+                       "JOIN [name] [loc] [crop]\n"
+                       "JOIN BUYER [name] [loc]\n"
+                       "JOIN TRK [name] [loc] [type]\n"
+                       "JOIN AGENT [name] [loc]\n\n"
+                       "FARMER:\n"
+                       "LIST [crop] [qty] [price]\n"
+                       "MYLIST - Your listings\n"
+                       "PRICE [crop] - Check prices\n\n"
+                       "SABIBUY:\n"
+                       "SABIBUY [code] - Join campaign\n"
+                       "MYSABIBUY - Your campaigns\n"
+                       "SBEARNINGS - Your earnings\n\n"
+                       "BALANCE:\n"
+                       "BAL - All balances\n")
+        
+        if transport_profile:
+            help_message += ("\nTRANSPORT:\n"
+                            "JOBS - Available jobs\n"
+                            "BID [job_id] [amt]\n"
+                            "MYBIDS - Your bids\n"
+                            "START [job_id]\n"
+                            "TRIPBAL - Earnings\n"
                             "DOC - Complete profile\n")
         
-        help_message += "HELP - This message\nSTOP - Unsubscribe"
+        if agent_profile:
+            help_message += ("\nAGENT:\n"
+                            "AGENTADD [phone] [name] [loc] [crop]\n"
+                            "AGENTBAL - Your earnings\n")
+        
+        help_message += "\nHELP - This menu\nSTOP - Unsubscribe"
         
         return self.send_sms(phone_number, help_message)
     
