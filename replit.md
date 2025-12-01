@@ -62,6 +62,23 @@ Preferred communication style: Simple, everyday language.
 - **Monetization Features**: Paystack integration for transaction fees, logistics fees, subscriptions, and payment analytics.
 - **Universal Onboarding Workflow**: Multi-role registration (farmer, aggregator, transport, etc.) with document uploads, progress tracking, and bulk onboarding.
 - **SabiBuy Group-Buy Engine**: Zero-stock middleman trading system with unique campaign codes, automatic batch management, multi-tier system (Free/Captain/Premium), Paystack subscription integration, and multi-channel support (web, SMS, USSD). Enables anyone to earn ₦4k-₦15k profit per batch with zero inventory risk.
+- **Enhanced Anti-Reseller Protections**:
+  - Continuous trader verification with 90-day expiry and monthly activity checks
+  - Device fingerprinting (IP/user agent/device ID) to detect multi-account collusion
+  - Farmer feedback system - traders rated after each transaction, poor ratings trigger re-verification
+  - Captain bond system - ₦10,000 refundable deposit required for SabiBuy campaigns
+  - Buyer escrow - payments held until delivery confirmed, auto-refund on cancellation
+  - Tiered transaction fees: farmer-direct 2%, verified trader 3.5%, unverified trader 5%
+- **Dispute & Rating System**:
+  - Dispute service with SLA tracking (24h farmer/buyer response, 48h trader response)
+  - Auto-escalation on SLA breach with priority flags
+  - Star rating system (1-5) with leaderboards and trust scores
+  - Re-verification triggers when trader rating drops below 3 stars
+- **Extended SMS Commands for Digital Inclusion**:
+  - COMPLAINT/REPORT/DISPUTE - file complaints via SMS
+  - TRACK [code/MYORDERS/LOGISTICS] - order and logistics tracking
+  - RATE [code] [1-5] [comment] - rate transactions
+  - STATUS [ticket] - check account and dispute status
 
 ## External Dependencies
 
