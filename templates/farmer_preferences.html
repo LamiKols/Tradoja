@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-cog me-2"></i>Listing Visibility Preferences</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Farmer-First Marketplace:</strong> AgroLink protects you from pure resellers who just mark up prices without adding value. 
+                        Choose who can see and buy your produce.
+                    </div>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <h5 class="mb-3">Who can see your listings?</h5>
+                        
+                        <div class="list-group mb-4">
+                            <label class="list-group-item list-group-item-action">
+                                <input class="form-check-input me-2" type="radio" name="listing_visibility" value="all_buyers"
+                                       {% if current_preference == 'all_buyers' %}checked{% endif %}>
+                                <strong class="text-primary"><i class="fas fa-users me-2"></i>All Buyers</strong>
+                                <span class="d-block text-muted ms-4 small">Your produce is visible to everyone - individual consumers, restaurants, hotels, traders, and aggregators.</span>
+                            </label>
+                            
+                            <label class="list-group-item list-group-item-action">
+                                <input class="form-check-input me-2" type="radio" name="listing_visibility" value="verified_only"
+                                       {% if current_preference == 'verified_only' %}checked{% endif %}>
+                                <strong class="text-success"><i class="fas fa-shield-alt me-2"></i>Verified Traders Only</strong>
+                                <span class="d-block text-muted ms-4 small">Only verified traders (who provide transport, aggregation, processing, or working capital) can see your listings. Protects you from pure resellers.</span>
+                                <span class="badge bg-success ms-4 mt-1">Recommended for Premium Produce</span>
+                            </label>
+                            
+                            <label class="list-group-item list-group-item-action">
+                                <input class="form-check-input me-2" type="radio" name="listing_visibility" value="direct_only"
+                                       {% if current_preference == 'direct_only' %}checked{% endif %}>
+                                <strong class="text-warning"><i class="fas fa-handshake me-2"></i>Direct Buyers Only (No Traders)</strong>
+                                <span class="d-block text-muted ms-4 small">Only final consumers (individuals, restaurants, hotels, institutions) can see your listings. No traders at all.</span>
+                                <span class="badge bg-warning text-dark ms-4 mt-1">Maximum Farmer Protection</span>
+                            </label>
+                            
+                            <label class="list-group-item list-group-item-action">
+                                <input class="form-check-input me-2" type="radio" name="listing_visibility" value="sabibuy_only"
+                                       {% if current_preference == 'sabibuy_only' %}checked{% endif %}>
+                                <strong class="text-info"><i class="fas fa-shopping-basket me-2"></i>SabiBuy Group-Buy Only</strong>
+                                <span class="d-block text-muted ms-4 small">Your produce only appears in SabiBuy group-buy campaigns. Get guaranteed bulk orders at fixed prices.</span>
+                            </label>
+                        </div>
+                        
+                        <div class="card bg-light mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>What's the difference?</h6>
+                            </div>
+                            <div class="card-body small">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Buyer Type</th>
+                                            <th class="text-center">All</th>
+                                            <th class="text-center">Verified</th>
+                                            <th class="text-center">Direct</th>
+                                            <th class="text-center">SabiBuy</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Individual Consumers</td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Restaurants/Hotels</td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Verified Traders</td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-danger"><i class="fas fa-times"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Unverified Traders</td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                            <td class="text-center text-danger"><i class="fas fa-times"></i></td>
+                                            <td class="text-center text-danger"><i class="fas fa-times"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                        </tr>
+                                        <tr>
+                                            <td>SabiBuy Captains</td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                            <td class="text-center text-muted"><i class="fas fa-minus"></i></td>
+                                            <td class="text-center text-success"><i class="fas fa-check"></i></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save me-2"></i>Save Preferences
+                            </button>
+                            <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>How AgroLink Protects Farmers</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Trader Verification:</strong> All bulk traders must prove they add value (transport, aggregation, processing, or working capital)</li>
+                        <li><strong>Reseller Detection:</strong> Our AI flags suspicious trader behavior (quick relisting, high markups without services)</li>
+                        <li><strong>Your Choice:</strong> You decide who can see and buy your produce</li>
+                        <li><strong>Transparency:</strong> Buyers see whether produce is from a farmer or aggregator</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

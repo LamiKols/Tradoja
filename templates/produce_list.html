@@ -11,6 +11,24 @@
             <p class="text-muted mb-0">Fresh produce from local farmers in Lagos</p>
         </div>
     </div>
+    
+    <!-- Source Transparency Info -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card bg-light border-success">
+                <div class="card-body py-2 d-flex align-items-center justify-content-between flex-wrap">
+                    <div>
+                        <i class="fas fa-shield-alt text-success me-2"></i>
+                        <strong>Farmer-First Marketplace</strong> - 
+                        <span class="badge bg-success"><i class="fas fa-leaf me-1"></i>Farmer</span> = Direct from farm
+                        <span class="badge bg-info ms-2"><i class="fas fa-check-circle me-1"></i>Aggregator</span> = Verified value-add
+                        <span class="badge bg-secondary ms-2"><i class="fas fa-boxes me-1"></i>Trader</span> = Middleman
+                    </div>
+                    <small class="text-muted">Farmers listed first for best prices</small>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Search Bar -->
     <div class="row mb-4">
@@ -96,16 +114,43 @@
                         </p>
                         {% endif %}
                         
-                        <!-- Farmer Info -->
+                        <!-- Source Transparency: Farmer vs Aggregator -->
                         <div class="d-flex align-items-center mb-3 mt-auto">
-                            <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                            {% if produce.farmer.is_farmer() and produce.farmer.buyer_type != 'bulk_trader' %}
+                            <i class="fas fa-tractor fa-2x text-success me-2"></i>
                             <div class="flex-grow-1">
-                                <div class="fw-bold text-truncate">{{ produce.farmer.name }}</div>
+                                <div class="fw-bold text-truncate">
+                                    {{ produce.farmer.name }}
+                                    <span class="badge bg-success ms-1" title="Direct from farmer - no middleman markup">
+                                        <i class="fas fa-leaf me-1"></i>Farmer
+                                    </span>
+                                </div>
                                 <small class="text-muted">
                                     <i class="fas fa-clock me-1"></i>
                                     {{ produce.date_listed.strftime('%b %d, %Y') }}
                                 </small>
                             </div>
+                            {% else %}
+                            <i class="fas fa-warehouse fa-2x text-warning me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold text-truncate">
+                                    {{ produce.farmer.name }}
+                                    {% if produce.farmer.trader_verified %}
+                                    <span class="badge bg-info ms-1" title="Verified value-add trader">
+                                        <i class="fas fa-check-circle me-1"></i>Aggregator
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary ms-1" title="Trader/Aggregator">
+                                        <i class="fas fa-boxes me-1"></i>Trader
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ produce.date_listed.strftime('%b %d, %Y') }}
+                                </small>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     

@@ -266,6 +266,34 @@ def farmer_dashboard():
                          buyer_recommendations=buyer_recommendations,
                          pending_matches=pending_matches)
 
+
+@app.route('/farmer/preferences', methods=['GET', 'POST'])
+@login_required
+def farmer_preferences():
+    """Farmer preferences for marketplace visibility"""
+    if not current_user.is_farmer():
+        flash('Access denied. Farmers only.', 'danger')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        preference = request.form.get('listing_visibility', 'all_buyers')
+        current_user.farmer_listing_preference = preference
+        
+        try:
+            db.session.commit()
+            flash('Your listing preferences have been updated.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error saving farmer preferences: {e}")
+            flash('Failed to save preferences. Please try again.', 'danger')
+        
+        return redirect(url_for('farmer_dashboard'))
+    
+    return render_template('farmer_preferences.html',
+                         title='Listing Preferences',
+                         current_preference=current_user.farmer_listing_preference or 'all_buyers')
+
+
 @app.route('/buyer/dashboard')
 @login_required
 def buyer_dashboard():
@@ -1013,7 +1041,7 @@ def delete_produce(id):
 
 @app.route('/marketplace')
 def marketplace():
-    """Public marketplace view"""
+    """Public marketplace view with farmer-first transparency"""
     form = SearchForm()
     
     # Get all available produce
@@ -1026,7 +1054,47 @@ def marketplace():
                            Produce.description.contains(search_term))
         form.search_term.data = search_term
     
-    produce_listings = query.order_by(Produce.date_listed.desc()).all()
+    # Apply farmer visibility preferences if user is logged in
+    if current_user.is_authenticated:
+        all_listings = query.order_by(Produce.date_listed.desc()).all()
+        
+        # Filter based on farmer preferences
+        filtered_listings = []
+        for listing in all_listings:
+            farmer = listing.farmer
+            preference = farmer.farmer_listing_preference or 'all_buyers'
+            
+            # Check if current user can see this listing
+            if preference == 'all_buyers':
+                filtered_listings.append(listing)
+            elif preference == 'verified_only':
+                # Only verified traders and direct buyers can see
+                if not current_user.is_trader() or current_user.trader_verified:
+                    filtered_listings.append(listing)
+            elif preference == 'direct_only':
+                # Only direct buyers (non-traders) can see
+                if not current_user.is_trader():
+                    filtered_listings.append(listing)
+            elif preference == 'sabibuy_only':
+                # Only show in SabiBuy campaigns, not regular marketplace
+                pass  # Don't add to filtered_listings
+        
+        produce_listings = filtered_listings
+    else:
+        # Non-authenticated users see all (but can't buy)
+        produce_listings = query.order_by(Produce.date_listed.desc()).all()
+    
+    # Sort: farmers first, then aggregators/traders (source transparency)
+    farmer_listings = []
+    aggregator_listings = []
+    for listing in produce_listings:
+        if listing.farmer.is_farmer() and not listing.farmer.buyer_type == 'bulk_trader':
+            farmer_listings.append(listing)
+        else:
+            aggregator_listings.append(listing)
+    
+    # Combine with farmers first
+    produce_listings = farmer_listings + aggregator_listings
     
     return render_template('produce_list.html', 
                          title='Marketplace', 
