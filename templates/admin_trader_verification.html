@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-user-shield me-2"></i>Trader Verification Management</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Admin
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.total_traders }}</h3>
+                    <p class="mb-0">Total Traders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>{{ stats.pending }}</h3>
+                    <p class="mb-0">Pending Review</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.verified }}</h3>
+                    <p class="mb-0">Verified</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.rejected }}</h3>
+                    <p class="mb-0">Rejected</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.suspended }}</h3>
+                    <p class="mb-0">Suspended</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.high_risk }}</h3>
+                    <p class="mb-0">High Risk</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Pending Verification ({{ pending_traders|length }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if pending_traders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Trader</th>
+                                    <th>Services</th>
+                                    <th>Registered</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trader in pending_traders %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ trader.name }}</strong><br>
+                                        <small class="text-muted">{{ trader.email }}</small>
+                                    </td>
+                                    <td>
+                                        {% for service in trader.get_value_services_display()[:2] %}
+                                        <span class="badge bg-info">{{ service }}</span>
+                                        {% endfor %}
+                                        {% if trader.get_value_services_display()|length > 2 %}
+                                        <span class="badge bg-secondary">+{{ trader.get_value_services_display()|length - 2 }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ trader.registration_date.strftime('%b %d') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin_review_trader', trader_id=trader.id) }}" class="btn btn-sm btn-primary">
+                                            Review
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                        <p>No pending verifications!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Flagged Traders (Score >= 50)</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if flagged_traders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Trader</th>
+                                    <th>Risk Score</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trader in flagged_traders %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ trader.name }}</strong><br>
+                                        <small class="text-muted">{{ trader.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if trader.reseller_score >= 70 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                            {{ trader.reseller_score }}/100
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% set badge_class, badge_text = trader.get_trader_status_badge() %}
+                                        <span class="badge bg-{{ badge_class }}">{{ badge_text }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('admin_review_trader', trader_id=trader.id) }}" class="btn btn-sm btn-outline-danger">
+                                            Investigate
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-shield-alt fa-3x mb-3 text-success"></i>
+                        <p>No high-risk traders detected!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Decisions</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_decisions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Trader</th>
+                            <th>Decision</th>
+                            <th>Services</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trader in recent_decisions %}
+                        <tr>
+                            <td>
+                                <strong>{{ trader.name }}</strong><br>
+                                <small class="text-muted">{{ trader.email }}</small>
+                            </td>
+                            <td>
+                                {% set badge_class, badge_text = trader.get_trader_status_badge() %}
+                                <span class="badge bg-{{ badge_class }}">{{ badge_text }}</span>
+                            </td>
+                            <td>
+                                {% for service in trader.get_value_services_display()[:2] %}
+                                <span class="badge bg-secondary">{{ service }}</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if trader.trader_verification_date %}
+                                {{ trader.trader_verification_date.strftime('%b %d, %Y') }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin_review_trader', trader_id=trader.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <p>No recent decisions to display.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

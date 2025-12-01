@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Trader Verification</h4>
+                </div>
+                <div class="card-body">
+                    {% if status == 'pending' %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Application Pending:</strong> Your trader verification is under review. We'll notify you within 24-48 hours.
+                    </div>
+                    {% elif status == 'verified' %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Verified Trader:</strong> You're verified to trade on AgroLink. Thank you for adding value!
+                    </div>
+                    {% elif status == 'rejected' %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        <strong>Application Rejected:</strong> Please update your information and reapply.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-4">
+                        <h5>Why Verification?</h5>
+                        <p class="text-muted">
+                            AgroLink protects farmers from pure resellers who just mark up prices without adding value. 
+                            As a trader, you must prove you provide at least one of these services:
+                        </p>
+                        <ul class="text-muted">
+                            <li><strong>Transport:</strong> You deliver produce from farms to markets</li>
+                            <li><strong>Aggregation:</strong> You collect from multiple small farmers</li>
+                            <li><strong>Processing:</strong> You clean, sort, or package produce</li>
+                            <li><strong>Storage:</strong> You provide warehousing or cold chain</li>
+                            <li><strong>Working Capital:</strong> You pay farmers upfront before resale</li>
+                            <li><strong>Quality Grading:</strong> You grade and sort by quality standards</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <h5 class="mb-3">Select Your Value-Add Services</h5>
+                        <p class="text-muted small">Check all services you provide and upload proof for each:</p>
+                        
+                        {% for service_id, service in available_services.items() %}
+                        <div class="card mb-3 {% if service_id in current_services %}border-success{% endif %}">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="value_services" 
+                                           value="{{ service_id }}" id="service_{{ service_id }}"
+                                           {% if service_id in current_services %}checked{% endif %}
+                                           onchange="toggleProofUpload('{{ service_id }}')">
+                                    <label class="form-check-label fw-bold" for="service_{{ service_id }}">
+                                        {{ service.name }}
+                                    </label>
+                                </div>
+                                <p class="text-muted small mb-2 ms-4">{{ service.description }}</p>
+                                
+                                <div class="ms-4 mt-2 proof-upload" id="proof_{{ service_id }}" 
+                                     style="{% if service_id not in current_services %}display: none;{% endif %}">
+                                    <label class="form-label small text-primary">
+                                        <i class="fas fa-upload me-1"></i>Upload Proof: {{ service.proof_required }}
+                                    </label>
+                                    <input type="file" class="form-control form-control-sm" 
+                                           name="proof_{{ service_id }}" accept="image/*,.pdf">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-paper-plane me-2"></i>Submit for Verification
+                            </button>
+                            <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>What Happens Next?</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>Our team reviews your application within 24-48 hours</li>
+                        <li>We may contact you to verify your documents</li>
+                        <li>Once verified, you can list produce and contact farmers directly</li>
+                        <li>Your verified status shows on your profile to build trust</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleProofUpload(serviceId) {
+    const checkbox = document.getElementById('service_' + serviceId);
+    const proofDiv = document.getElementById('proof_' + serviceId);
+    proofDiv.style.display = checkbox.checked ? 'block' : 'none';
+}
+</script>
+{% endblock %}

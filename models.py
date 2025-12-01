@@ -51,6 +51,30 @@ class User(UserMixin, db.Model):
     location_timestamp = db.Column(db.DateTime)  # When location was captured
     location_source = db.Column(db.String(20))  # 'cell_tower', 'gps', 'manual', 'agent_gps'
     
+    # TRADER VALUE-ADD VERIFICATION (Anti-Reseller System)
+    # Traders must declare and prove they add value - not just markup
+    trader_value_services = db.Column(db.String(500))  # Comma-separated: 'transport,aggregation,processing,storage,working_capital,quality_grading'
+    trader_verified = db.Column(db.Boolean, default=False)  # Admin-verified value-add
+    trader_verification_status = db.Column(db.String(20), default='none')  # 'none', 'pending', 'verified', 'rejected', 'suspended'
+    trader_verification_notes = db.Column(db.Text)  # Admin notes on verification
+    trader_verification_date = db.Column(db.DateTime)
+    trader_verified_by = db.Column(db.Integer, db.ForeignKey('user.id'))  # Admin who verified
+    
+    # Trader proof documents
+    trader_transport_proof = db.Column(db.String(500))  # Vehicle registration, fleet photos
+    trader_storage_proof = db.Column(db.String(500))  # Warehouse photos, lease agreement
+    trader_processing_proof = db.Column(db.String(500))  # Equipment photos, processing license
+    trader_capital_proof = db.Column(db.String(500))  # Bank statement, credit facility letter
+    
+    # Reseller detection metrics (auto-calculated)
+    reseller_score = db.Column(db.Integer, default=0)  # 0-100, higher = more likely pure reseller
+    total_purchases = db.Column(db.Integer, default=0)  # Total buy transactions
+    total_sales = db.Column(db.Integer, default=0)  # Total sell transactions
+    avg_markup_percentage = db.Column(db.Float, default=0.0)  # Average markup on resales
+    logistics_bookings = db.Column(db.Integer, default=0)  # Times used platform logistics
+    direct_farmer_deals = db.Column(db.Integer, default=0)  # Deals with original farmers
+    last_reseller_check = db.Column(db.DateTime)  # Last time reseller score was calculated
+    
     # Relationship with produce
     produce_listings = db.relationship('Produce', foreign_keys='Produce.farmer_id', backref='farmer', lazy=True, cascade='all, delete-orphan')
     purchased_produce = db.relationship('Produce', foreign_keys='Produce.buyer_id', backref='buyer', lazy=True)
@@ -115,6 +139,114 @@ class User(UserMixin, db.Model):
             'ig': 'Igbo'
         }
         return languages.get(self.preferred_language, 'English')
+    
+    def is_trader(self):
+        """Check if user is a trader (bulk_trader buyer type)"""
+        return self.role == 'buyer' and self.buyer_type == 'bulk_trader'
+    
+    def get_value_services_list(self):
+        """Get list of declared value-add services"""
+        if not self.trader_value_services:
+            return []
+        return [s.strip() for s in self.trader_value_services.split(',') if s.strip()]
+    
+    def set_value_services(self, services_list):
+        """Set value-add services from list"""
+        self.trader_value_services = ','.join(services_list) if services_list else ''
+    
+    def has_value_service(self, service):
+        """Check if trader has declared a specific value-add service"""
+        return service in self.get_value_services_list()
+    
+    def is_verified_trader(self):
+        """Check if trader is verified to add value (not a pure reseller)"""
+        if not self.is_trader():
+            return True  # Not a trader, no verification needed
+        return self.trader_verified and self.trader_verification_status == 'verified'
+    
+    def can_list_produce(self):
+        """Check if user can list produce for sale"""
+        if self.is_farmer():
+            return True
+        if self.is_trader():
+            return self.is_verified_trader()
+        return False
+    
+    def can_view_farmer_listings(self):
+        """Check if user can see farmer listings directly"""
+        if self.is_farmer():
+            return True
+        if self.is_admin():
+            return True
+        if self.is_trader():
+            return self.is_verified_trader() or self.trader_verification_status == 'pending'
+        return True  # Regular buyers can see
+    
+    def calculate_reseller_score(self):
+        """Calculate reseller score based on behavior patterns
+        Higher score = more likely to be a pure reseller (bad)
+        Returns 0-100 score"""
+        score = 0
+        
+        # No value-add services declared: +30 points
+        if not self.trader_value_services:
+            score += 30
+        
+        # Never used platform logistics: +20 points
+        if self.logistics_bookings == 0 and self.total_purchases > 3:
+            score += 20
+        
+        # High markup without services: +25 points
+        if self.avg_markup_percentage > 30 and not self.trader_verified:
+            score += 25
+        
+        # Only one-off transactions (no repeat farmer relationships): +15 points
+        if self.total_purchases > 5 and self.direct_farmer_deals < 2:
+            score += 15
+        
+        # Buy/sell ratio suggests pure flipping: +10 points
+        if self.total_purchases > 0 and self.total_sales > 0:
+            if abs(self.total_purchases - self.total_sales) < 2:
+                score += 10
+        
+        self.reseller_score = min(100, score)
+        self.last_reseller_check = datetime.utcnow()
+        return self.reseller_score
+    
+    def get_reseller_risk_level(self):
+        """Get human-readable reseller risk level"""
+        if self.reseller_score >= 70:
+            return 'high'
+        elif self.reseller_score >= 40:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def get_trader_status_badge(self):
+        """Get Bootstrap badge class for trader verification status"""
+        status_badges = {
+            'none': ('secondary', 'Not Applied'),
+            'pending': ('warning', 'Pending Review'),
+            'verified': ('success', 'Verified'),
+            'rejected': ('danger', 'Rejected'),
+            'suspended': ('dark', 'Suspended')
+        }
+        status = self.trader_verification_status or 'none'
+        return status_badges.get(status, ('secondary', 'Unknown'))
+    
+    def get_value_services_display(self):
+        """Get human-readable list of value-add services"""
+        service_names = {
+            'transport': 'Transport/Delivery',
+            'aggregation': 'Aggregation (Bulk Collection)',
+            'processing': 'Processing/Packaging',
+            'storage': 'Storage/Warehousing',
+            'working_capital': 'Working Capital/Financing',
+            'quality_grading': 'Quality Grading/Sorting',
+            'market_access': 'Market Access/Export'
+        }
+        services = self.get_value_services_list()
+        return [service_names.get(s, s.title()) for s in services]
     
     def __repr__(self):
         return f'<User {self.email}>'

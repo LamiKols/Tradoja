@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Trader Status</h5>
+                    <span class="badge bg-{{ badge_class }}">{{ badge_text }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card {% if risk_level == 'high' %}border-danger{% elif risk_level == 'medium' %}border-warning{% else %}border-success{% endif %}">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">Reseller Risk Score</h6>
+                                    <h2 class="{% if risk_level == 'high' %}text-danger{% elif risk_level == 'medium' %}text-warning{% else %}text-success{% endif %}">
+                                        {{ reseller_score }}/100
+                                    </h2>
+                                    <p class="mb-0">
+                                        {% if risk_level == 'high' %}
+                                        <span class="badge bg-danger">High Risk</span>
+                                        {% elif risk_level == 'medium' %}
+                                        <span class="badge bg-warning text-dark">Medium Risk</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Low Risk</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">Verification Status</h6>
+                                    <h4><span class="badge bg-{{ badge_class }} fs-5">{{ badge_text }}</span></h4>
+                                    {% if badge_text != 'Verified' %}
+                                    <a href="{{ url_for('trader_verification') }}" class="btn btn-sm btn-primary mt-2">
+                                        {% if badge_text == 'Not Applied' %}Apply Now{% else %}Update Application{% endif %}
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if services %}
+                    <h6><i class="fas fa-cogs me-2"></i>Your Value-Add Services</h6>
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        {% for service in services %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>{{ service }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        You haven't declared any value-add services yet. 
+                        <a href="{{ url_for('trader_verification') }}">Apply for verification</a> to prove you add value.
+                    </div>
+                    {% endif %}
+                    
+                    {% if triggered_rules %}
+                    <h6 class="text-danger"><i class="fas fa-flag me-2"></i>Risk Factors Detected</h6>
+                    <div class="list-group mb-4">
+                        {% for rule in triggered_rules %}
+                        <div class="list-group-item list-group-item-warning">
+                            <div class="d-flex justify-content-between">
+                                <span>{{ rule.message }}</span>
+                                <span class="badge bg-warning text-dark">+{{ rule.points }} pts</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if recommendations %}
+                    <h6 class="text-success"><i class="fas fa-lightbulb me-2"></i>How to Improve</h6>
+                    <ul class="list-group">
+                        {% for rec in recommendations %}
+                        <li class="list-group-item list-group-item-success">
+                            <i class="fas fa-arrow-right me-2"></i>{{ rec }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Understanding Your Score</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Your reseller risk score measures how likely you are to be a pure reseller 
+                        (someone who just marks up prices without adding value).
+                    </p>
+                    <ul class="small text-muted mb-0">
+                        <li><strong>0-39:</strong> Low risk - Good standing</li>
+                        <li><strong>40-69:</strong> Medium risk - Needs attention</li>
+                        <li><strong>70-100:</strong> High risk - Action required</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Your Activity</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Purchases</span>
+                        <strong>{{ current_user.total_purchases or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Sales</span>
+                        <strong>{{ current_user.total_sales or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Logistics Bookings</span>
+                        <strong>{{ current_user.logistics_bookings or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Farmer Relationships</span>
+                        <strong>{{ current_user.direct_farmer_deals or 0 }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -61,6 +61,13 @@ except Exception as e:
     app.logger.error(f"Scam detector initialization failed: {e}")
     scam_detector = None
 
+# Initialize reseller detection service (Anti-middleman)
+try:
+    from services.reseller_detection import reseller_detector
+except Exception as e:
+    app.logger.error(f"Reseller detector initialization failed: {e}")
+    reseller_detector = None
+
 @app.route('/')
 def home():
     """Homepage route - redirect authenticated users to their dashboard"""
@@ -296,6 +303,17 @@ def buyer_dashboard():
     # Get recent logistics requests
     recent_logistics = LogisticsRequest.query.filter_by(requester_id=current_user.id).order_by(LogisticsRequest.timestamp.desc()).limit(3).all()
     
+    # Check if trader needs verification notice
+    trader_notice = None
+    if current_user.is_trader() and reseller_detector:
+        allowed, reason, action = reseller_detector.can_trader_proceed(current_user, 'view_listings')
+        if not allowed or action:
+            trader_notice = {
+                'message': reason or 'Complete your trader verification to access all features',
+                'action': action,
+                'status': current_user.trader_verification_status
+            }
+    
     return render_template('buyer_dashboard.html', 
                          title='Buyer Dashboard', 
                          recent_purchases=recent_purchases,
@@ -303,7 +321,204 @@ def buyer_dashboard():
                          pending_matches=pending_matches,
                          total_purchases=total_purchases,
                          total_spent=total_spent,
-                         recent_logistics=recent_logistics)
+                         recent_logistics=recent_logistics,
+                         trader_notice=trader_notice)
+
+
+# ==================== TRADER VERIFICATION ROUTES ====================
+# Anti-reseller system: Traders must prove they add value before full platform access
+
+@app.route('/trader/verification', methods=['GET', 'POST'])
+@login_required
+def trader_verification():
+    """Trader value-add verification application"""
+    if not current_user.is_trader():
+        flash('This page is for bulk traders only.', 'warning')
+        return redirect(url_for('buyer_dashboard'))
+    
+    if request.method == 'POST':
+        # Get selected services
+        selected_services = request.form.getlist('value_services')
+        
+        if not selected_services:
+            flash('Please select at least one value-add service you provide.', 'warning')
+            return redirect(url_for('trader_verification'))
+        
+        # Save selected services
+        current_user.set_value_services(selected_services)
+        current_user.trader_verification_status = 'pending'
+        
+        # Handle file uploads
+        upload_folder = 'static/uploads/trader_proofs'
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        for service in selected_services:
+            file_key = f'proof_{service}'
+            if file_key in request.files:
+                file = request.files[file_key]
+                if file and file.filename:
+                    filename = secure_filename(f"{current_user.id}_{service}_{file.filename}")
+                    filepath = os.path.join(upload_folder, filename)
+                    file.save(filepath)
+                    
+                    # Save proof path based on service type
+                    if service == 'transport':
+                        current_user.trader_transport_proof = filepath
+                    elif service in ['storage', 'aggregation']:
+                        current_user.trader_storage_proof = filepath
+                    elif service == 'processing':
+                        current_user.trader_processing_proof = filepath
+                    elif service == 'working_capital':
+                        current_user.trader_capital_proof = filepath
+        
+        try:
+            db.session.commit()
+            flash('Your trader verification application has been submitted! We will review it within 24-48 hours.', 'success')
+            return redirect(url_for('buyer_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Trader verification error: {e}")
+            flash('Failed to submit application. Please try again.', 'danger')
+    
+    # Get available services
+    available_services = reseller_detector.get_available_services() if reseller_detector else {}
+    current_services = current_user.get_value_services_list()
+    
+    return render_template('trader_verification.html',
+                         title='Trader Verification',
+                         available_services=available_services,
+                         current_services=current_services,
+                         status=current_user.trader_verification_status)
+
+
+@app.route('/trader/status')
+@login_required
+def trader_status():
+    """View trader verification status and reseller score"""
+    if not current_user.is_trader():
+        flash('This page is for bulk traders only.', 'warning')
+        return redirect(url_for('buyer_dashboard'))
+    
+    # Calculate current reseller score
+    score = 0
+    rules = []
+    recommendations = []
+    if reseller_detector:
+        score, rules, recommendations = reseller_detector.calculate_trader_score(current_user)
+    
+    risk_level = current_user.get_reseller_risk_level()
+    badge_class, badge_text = current_user.get_trader_status_badge()
+    
+    return render_template('trader_status.html',
+                         title='Trader Status',
+                         reseller_score=score,
+                         risk_level=risk_level,
+                         triggered_rules=rules,
+                         recommendations=recommendations,
+                         badge_class=badge_class,
+                         badge_text=badge_text,
+                         services=current_user.get_value_services_display())
+
+
+@app.route('/admin/trader-verification')
+@login_required
+def admin_trader_verification():
+    """Admin dashboard for trader verification management"""
+    if not current_user.is_admin():
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('home'))
+    
+    # Get pending verifications
+    pending_traders = User.query.filter(
+        User.role == 'buyer',
+        User.buyer_type == 'bulk_trader',
+        User.trader_verification_status == 'pending'
+    ).order_by(User.registration_date.desc()).all()
+    
+    # Get flagged traders (high reseller score)
+    flagged_traders = User.query.filter(
+        User.role == 'buyer',
+        User.buyer_type == 'bulk_trader',
+        User.reseller_score >= 50
+    ).order_by(User.reseller_score.desc()).all()
+    
+    # Get recently verified/rejected
+    recent_decisions = User.query.filter(
+        User.role == 'buyer',
+        User.buyer_type == 'bulk_trader',
+        User.trader_verification_status.in_(['verified', 'rejected', 'suspended'])
+    ).order_by(User.trader_verification_date.desc()).limit(20).all()
+    
+    # Statistics
+    stats = {
+        'total_traders': User.query.filter(User.role == 'buyer', User.buyer_type == 'bulk_trader').count(),
+        'pending': len(pending_traders),
+        'verified': User.query.filter(User.role == 'buyer', User.buyer_type == 'bulk_trader', User.trader_verified == True).count(),
+        'rejected': User.query.filter(User.role == 'buyer', User.buyer_type == 'bulk_trader', User.trader_verification_status == 'rejected').count(),
+        'suspended': User.query.filter(User.role == 'buyer', User.buyer_type == 'bulk_trader', User.trader_verification_status == 'suspended').count(),
+        'high_risk': len(flagged_traders)
+    }
+    
+    return render_template('admin_trader_verification.html',
+                         title='Trader Verification Management',
+                         pending_traders=pending_traders,
+                         flagged_traders=flagged_traders,
+                         recent_decisions=recent_decisions,
+                         stats=stats)
+
+
+@app.route('/admin/trader/<int:trader_id>/review', methods=['GET', 'POST'])
+@login_required
+def admin_review_trader(trader_id):
+    """Admin review individual trader application"""
+    if not current_user.is_admin():
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('home'))
+    
+    trader = User.query.get_or_404(trader_id)
+    if not trader.is_trader():
+        flash('Invalid trader.', 'danger')
+        return redirect(url_for('admin_trader_verification'))
+    
+    if request.method == 'POST':
+        decision = request.form.get('decision')
+        notes = request.form.get('notes', '')
+        
+        if decision not in ['verified', 'rejected', 'suspended']:
+            flash('Invalid decision.', 'danger')
+            return redirect(url_for('admin_review_trader', trader_id=trader_id))
+        
+        if reseller_detector:
+            success, message = reseller_detector.verify_trader(trader_id, current_user.id, decision, notes)
+            if success:
+                flash(f'Trader has been {decision}.', 'success')
+            else:
+                flash(f'Error: {message}', 'danger')
+        else:
+            # Manual update if service unavailable
+            trader.trader_verification_status = decision
+            trader.trader_verified = (decision == 'verified')
+            trader.trader_verification_date = datetime.utcnow()
+            trader.trader_verified_by = current_user.id
+            trader.trader_verification_notes = notes
+            db.session.commit()
+            flash(f'Trader has been {decision}.', 'success')
+        
+        return redirect(url_for('admin_trader_verification'))
+    
+    # Calculate reseller score for display
+    score = 0
+    rules = []
+    if reseller_detector:
+        score, rules, _ = reseller_detector.calculate_trader_score(trader)
+    
+    return render_template('admin_review_trader.html',
+                         title=f'Review Trader: {trader.name}',
+                         trader=trader,
+                         reseller_score=score,
+                         triggered_rules=rules,
+                         services=trader.get_value_services_display())
+
 
 @app.route('/admin/dashboard')
 @login_required

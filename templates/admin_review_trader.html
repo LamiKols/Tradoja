@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-user-check me-2"></i>Review Trader: {{ trader.name }}</h2>
+        <a href="{{ url_for('admin_trader_verification') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Trader Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Name:</strong> {{ trader.name }}<br>
+                            <strong>Email:</strong> {{ trader.email }}<br>
+                            <strong>Phone:</strong> {{ trader.phone_number or 'Not provided' }}<br>
+                            <strong>Location:</strong> {{ trader.location or 'Not provided' }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Registered:</strong> {{ trader.registration_date.strftime('%B %d, %Y') }}<br>
+                            <strong>Source Channel:</strong> {{ trader.source_channel or 'web' }}<br>
+                            <strong>Phone Verified:</strong> 
+                            {% if trader.phone_verified %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}<br>
+                            <strong>Agent Verified:</strong>
+                            {% if trader.agent_verified %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-cogs me-2"></i>Declared Value-Add Services</h6>
+                    {% if services %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% for service in services %}
+                        <span class="badge bg-primary fs-6">{{ service }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No services declared</p>
+                    {% endif %}
+                    
+                    <h6 class="mt-4"><i class="fas fa-file-alt me-2"></i>Uploaded Proof Documents</h6>
+                    <div class="row">
+                        {% if trader.trader_transport_proof %}
+                        <div class="col-md-3 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-truck fa-2x text-primary mb-2"></i>
+                                    <p class="small mb-1">Transport Proof</p>
+                                    <a href="/{{ trader.trader_transport_proof }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if trader.trader_storage_proof %}
+                        <div class="col-md-3 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-warehouse fa-2x text-success mb-2"></i>
+                                    <p class="small mb-1">Storage/Aggregation</p>
+                                    <a href="/{{ trader.trader_storage_proof }}" target="_blank" class="btn btn-sm btn-outline-success">View</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if trader.trader_processing_proof %}
+                        <div class="col-md-3 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-industry fa-2x text-warning mb-2"></i>
+                                    <p class="small mb-1">Processing Proof</p>
+                                    <a href="/{{ trader.trader_processing_proof }}" target="_blank" class="btn btn-sm btn-outline-warning">View</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if trader.trader_capital_proof %}
+                        <div class="col-md-3 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-money-bill fa-2x text-info mb-2"></i>
+                                    <p class="small mb-1">Capital Proof</p>
+                                    <a href="/{{ trader.trader_capital_proof }}" target="_blank" class="btn btn-sm btn-outline-info">View</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if not trader.trader_transport_proof and not trader.trader_storage_proof and not trader.trader_processing_proof and not trader.trader_capital_proof %}
+                        <div class="col-12">
+                            <p class="text-muted">No proof documents uploaded</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-gavel me-2"></i>Make Decision</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Decision</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="decision" id="dec_verified" value="verified">
+                                <label class="btn btn-outline-success" for="dec_verified">
+                                    <i class="fas fa-check me-2"></i>Verify
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="decision" id="dec_rejected" value="rejected">
+                                <label class="btn btn-outline-danger" for="dec_rejected">
+                                    <i class="fas fa-times me-2"></i>Reject
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="decision" id="dec_suspended" value="suspended">
+                                <label class="btn btn-outline-dark" for="dec_suspended">
+                                    <i class="fas fa-ban me-2"></i>Suspend
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes (will be added to trader's record)</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Reason for decision, any conditions, etc."></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Submit Decision
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4 {% if reseller_score >= 70 %}border-danger{% elif reseller_score >= 40 %}border-warning{% else %}border-success{% endif %}">
+                <div class="card-header {% if reseller_score >= 70 %}bg-danger text-white{% elif reseller_score >= 40 %}bg-warning text-dark{% else %}bg-success text-white{% endif %}">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Reseller Risk Score</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h1 class="{% if reseller_score >= 70 %}text-danger{% elif reseller_score >= 40 %}text-warning{% else %}text-success{% endif %}">
+                        {{ reseller_score }}/100
+                    </h1>
+                    <p class="mb-0">
+                        {% if reseller_score >= 70 %}
+                        <span class="badge bg-danger fs-6">High Risk - Likely Pure Reseller</span>
+                        {% elif reseller_score >= 40 %}
+                        <span class="badge bg-warning text-dark fs-6">Medium Risk - Needs Scrutiny</span>
+                        {% else %}
+                        <span class="badge bg-success fs-6">Low Risk - Likely Legitimate</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            {% if triggered_rules %}
+            <div class="card shadow mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-flag me-2"></i>Risk Factors</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for rule in triggered_rules %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="small">{{ rule.message }}</span>
+                            <span class="badge bg-warning text-dark">+{{ rule.points }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Activity Metrics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Purchases</span>
+                        <strong>{{ trader.total_purchases or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Sales</span>
+                        <strong>{{ trader.total_sales or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Avg Markup</span>
+                        <strong>{{ "%.1f"|format(trader.avg_markup_percentage or 0) }}%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Logistics Bookings</span>
+                        <strong>{{ trader.logistics_bookings or 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Farmer Relationships</span>
+                        <strong>{{ trader.direct_farmer_deals or 0 }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            {% if trader.trader_verification_notes %}
+            <div class="card shadow mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Previous Notes</h6>
+                </div>
+                <div class="card-body">
+                    <pre class="small mb-0" style="white-space: pre-wrap;">{{ trader.trader_verification_notes }}</pre>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
