@@ -22,9 +22,6 @@
                     <a href="{{ url_for('csa_dashboard') }}" class="btn btn-outline-success">
                         <i class="fas fa-leaf me-2"></i>Climate Tools
                     </a>
-                    <a href="{{ url_for('export_dashboard') }}" class="btn btn-outline-warning">
-                        <i class="fas fa-globe-africa me-2"></i>Export Trade
-                    </a>
                     {% if current_user.email == 'admin@agrolink.com' or current_user.role == 'admin' %}
                     <a href="{{ url_for('admin_sms_dashboard') }}" class="btn btn-outline-info">
                         <i class="fas fa-sms me-2"></i>SMS Gateway
