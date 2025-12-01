@@ -88,3 +88,19 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL Database**: Scalable database.
 - **Environment Variables**: Configuration management.
 - **Replit Hosting**: Cloud-based development and deployment.
+
+## Pending Integrations
+
+### Twilio WhatsApp Integration (Planned)
+- **Status**: Awaiting credentials
+- **Required Secrets**:
+  - `TWILIO_ACCOUNT_SID` - From Twilio Console dashboard
+  - `TWILIO_AUTH_TOKEN` - From Twilio Console dashboard  
+  - `TWILIO_WHATSAPP_NUMBER` - WhatsApp-enabled Twilio number
+- **Purpose**: Unified SMS + WhatsApp messaging via Twilio API
+- **Implementation**: Create `whatsapp_service.py` using `twilio` Python package
+- **Features Planned**: 
+  - WhatsApp messaging for farmers (text + voice notes)
+  - Same commands as SMS (REG, SELL, JOIN, SABIBUY, HELP)
+  - Rich media support (produce images)
+  - Integration with existing SabiBuy, logistics, and scam detection
