@@ -5314,7 +5314,7 @@ def sms_simulator():
 @csrf_exempt
 def ussd_simulator_api():
     """API endpoint for USSD simulator"""
-    from ussd_service import ussd_handler
+    from ussd_service import ussd_service
     
     data = request.get_json(silent=True) or {}
     session_id = data.get('sessionId', 'SIM_' + str(datetime.utcnow().timestamp()))
@@ -5323,7 +5323,7 @@ def ussd_simulator_api():
     service_code = data.get('serviceCode', '*712*55#')
     
     try:
-        response = ussd_handler.handle_ussd(
+        response = ussd_service.process_request(
             session_id=session_id,
             phone_number=phone_number,
             text=text,
@@ -5344,14 +5344,14 @@ def ussd_simulator_api():
 @csrf_exempt
 def sms_simulator_api():
     """API endpoint for SMS simulator"""
-    from sms_service import sms_handler
+    from sms_service import sms_service
     
     data = request.get_json(silent=True) or {}
     phone_number = data.get('phoneNumber', '+2348012345678')
     message = data.get('message', '')
     
     try:
-        response = sms_handler.process_incoming_sms(phone_number, message)
+        response = sms_service.process_incoming_sms(phone_number, message)
         return jsonify({'response': response or 'Message processed successfully'})
     except Exception as e:
         app.logger.error(f"SMS simulator error: {e}")

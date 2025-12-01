@@ -1146,3 +1146,10 @@ SMS_TEMPLATES = {
     },
     # Future: Yoruba, Hausa, Pidgin templates
 }
+
+# Create singleton instance
+import os
+sms_service = SMSService(
+    username=os.environ.get('AFRICASTALKING_USERNAME', 'sandbox'),
+    api_key=os.environ.get('AFRICASTALKING_API_KEY', '')
+)
