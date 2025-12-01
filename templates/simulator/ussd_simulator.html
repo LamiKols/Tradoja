@@ -34,6 +34,10 @@
                     </div>
                     
                     <div class="ussd-input-area">
+                        <div class="input-mode-indicator">
+                            <span id="inputMode" class="mode-badge">ABC</span>
+                            <span id="pendingChar" class="pending-char"></span>
+                        </div>
                         <input type="text" 
                                class="ussd-input" 
                                id="ussdInput" 
@@ -156,6 +160,36 @@
     padding: 10px 15px;
 }
 
+.input-mode-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 0 5px;
+}
+
+.mode-badge {
+    background: #1e5631;
+    color: #90EE90;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.mode-badge:hover {
+    background: #2a7a45;
+}
+
+.pending-char {
+    color: #FFD700;
+    font-size: 16px;
+    font-weight: bold;
+    min-width: 30px;
+    text-align: right;
+}
+
 .ussd-input {
     width: 100%;
     background: #333;
@@ -251,35 +285,160 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('sendBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const inputModeBtn = document.getElementById('inputMode');
+    const pendingCharDisplay = document.getElementById('pendingChar');
     const keys = document.querySelectorAll('.key[data-value]');
     
     let sessionId = 'SIM_' + Date.now();
     let isSessionActive = false;
     
+    // T9 Text Input State
+    let inputMode = 'abc'; // 'abc' for text, '123' for numbers
+    let lastKey = null;
+    let pressIndex = 0;
+    let pendingTimeout = null;
+    const COMMIT_DELAY = 800; // ms before auto-committing character
+    
+    // T9 Key Mappings (multi-tap)
+    const T9_MAP = {
+        '1': ['1', '.', ',', '?', '!', "'", '-'],
+        '2': ['A', 'B', 'C', '2'],
+        '3': ['D', 'E', 'F', '3'],
+        '4': ['G', 'H', 'I', '4'],
+        '5': ['J', 'K', 'L', '5'],
+        '6': ['M', 'N', 'O', '6'],
+        '7': ['P', 'Q', 'R', 'S', '7'],
+        '8': ['T', 'U', 'V', '8'],
+        '9': ['W', 'X', 'Y', 'Z', '9'],
+        '0': [' ', '0'],
+        '*': ['*'],
+        '#': ['#']
+    };
+    
+    // Toggle input mode
+    inputModeBtn.addEventListener('click', function() {
+        commitPendingChar();
+        inputMode = inputMode === 'abc' ? '123' : 'abc';
+        inputModeBtn.textContent = inputMode.toUpperCase();
+    });
+    
     keys.forEach(key => {
         key.addEventListener('click', function() {
             const value = this.dataset.value;
-            ussdInput.value += value;
-            ussdInput.focus();
+            handleKeyPress(value);
         });
     });
     
-    sendBtn.addEventListener('click', sendUssd);
+    function handleKeyPress(key) {
+        // Special keys always insert directly
+        if (key === '*' || key === '#') {
+            commitPendingChar();
+            ussdInput.value += key;
+            ussdInput.focus();
+            return;
+        }
+        
+        // Number mode: insert digits directly
+        if (inputMode === '123') {
+            commitPendingChar();
+            ussdInput.value += key;
+            ussdInput.focus();
+            return;
+        }
+        
+        // Text mode: T9 multi-tap
+        const chars = T9_MAP[key];
+        if (!chars) return;
+        
+        // Clear previous timeout
+        if (pendingTimeout) {
+            clearTimeout(pendingTimeout);
+        }
+        
+        // Same key pressed again - cycle through characters
+        if (lastKey === key) {
+            pressIndex = (pressIndex + 1) % chars.length;
+        } else {
+            // Different key - commit previous and start new
+            commitPendingChar();
+            pressIndex = 0;
+        }
+        
+        lastKey = key;
+        const currentChar = chars[pressIndex];
+        pendingCharDisplay.textContent = currentChar;
+        
+        // Set timeout to auto-commit
+        pendingTimeout = setTimeout(function() {
+            commitPendingChar();
+        }, COMMIT_DELAY);
+        
+        ussdInput.focus();
+    }
+    
+    function commitPendingChar() {
+        if (lastKey && T9_MAP[lastKey]) {
+            const chars = T9_MAP[lastKey];
+            const charToCommit = chars[pressIndex];
+            ussdInput.value += charToCommit;
+        }
+        
+        // Reset state
+        lastKey = null;
+        pressIndex = 0;
+        pendingCharDisplay.textContent = '';
+        
+        if (pendingTimeout) {
+            clearTimeout(pendingTimeout);
+            pendingTimeout = null;
+        }
+    }
+    
+    // Handle backspace
+    ussdInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && pendingCharDisplay.textContent) {
+            // Cancel pending character instead of deleting from input
+            e.preventDefault();
+            lastKey = null;
+            pressIndex = 0;
+            pendingCharDisplay.textContent = '';
+            if (pendingTimeout) {
+                clearTimeout(pendingTimeout);
+                pendingTimeout = null;
+            }
+        }
+    });
+    
+    sendBtn.addEventListener('click', function() {
+        commitPendingChar();
+        sendUssd();
+    });
+    
     ussdInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') sendUssd();
+        if (e.key === 'Enter') {
+            commitPendingChar();
+            sendUssd();
+        }
     });
     
     cancelBtn.addEventListener('click', function() {
+        commitPendingChar();
         resetSession();
         ussdContent.innerHTML = '<p class="text-center py-5"><i class="fas fa-phone-alt fa-2x mb-3 d-block"></i>Session ended.<br>Dial *712*55# to start again.</p>';
     });
     
-    resetBtn.addEventListener('click', resetSession);
+    resetBtn.addEventListener('click', function() {
+        commitPendingChar();
+        resetSession();
+    });
     
     function resetSession() {
         sessionId = 'SIM_' + Date.now();
         isSessionActive = false;
         ussdInput.value = '';
+        lastKey = null;
+        pressIndex = 0;
+        pendingCharDisplay.textContent = '';
         ussdContent.innerHTML = '<p class="text-center py-5"><i class="fas fa-phone-alt fa-2x mb-3 d-block"></i>Dial *712*55# to start</p>';
     }
     
@@ -307,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ussdContent.textContent = data.response || data.message || 'No response';
             ussdInput.value = '';
             
-            if (data.response && data.response.toLowerCase().includes('thank you')) {
+            if (data.continue === false) {
                 isSessionActive = false;
             }
         })
