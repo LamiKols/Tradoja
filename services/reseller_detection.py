@@ -7,11 +7,15 @@ Key Principles:
 2. Traders MUST provide proof of their declared services
 3. System automatically monitors behavior for pure reseller patterns
 4. High-risk traders are flagged for admin review
+5. CONTINUOUS VERIFICATION: Traders are monitored monthly for value-add activity
+6. DEVICE FINGERPRINTING: Detect multiple accounts from same person/device
 """
 
 from datetime import datetime, timedelta
 from app import db
 import logging
+import hashlib
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +110,47 @@ class ResellerDetector:
             'description': 'Claims value-add services but no proof submitted',
             'points': 15,
             'action': 'require_proof'
+        },
+        # CONTINUOUS VERIFICATION RULES
+        {
+            'id': 'verification_expired',
+            'name': 'Verification Expired',
+            'description': 'Trader verification is more than 90 days old without renewal',
+            'points': 25,
+            'action': 'require_renewal'
+        },
+        {
+            'id': 'inactive_value_add',
+            'name': 'Inactive Value-Add Activity',
+            'description': 'No logistics or farmer deals in last 30 days despite claiming services',
+            'points': 20,
+            'action': 'flag_for_review'
+        },
+        {
+            'id': 'poor_farmer_ratings',
+            'name': 'Poor Farmer Feedback',
+            'description': 'Average rating from farmers below 3 stars',
+            'points': 20,
+            'action': 'flag_for_review'
+        },
+        {
+            'id': 'device_collision',
+            'name': 'Suspicious Device Match',
+            'description': 'Account shares device fingerprint with another account',
+            'points': 15,
+            'action': 'investigate'
+        },
+        {
+            'id': 'ip_farming',
+            'name': 'IP Address Farming',
+            'description': 'Multiple accounts registered from same IP',
+            'points': 10,
+            'action': 'investigate'
         }
     ]
+    
+    # Verification renewal period (90 days)
+    VERIFICATION_VALIDITY_DAYS = 90
     
     def __init__(self):
         pass
@@ -119,6 +162,8 @@ class ResellerDetector:
     def calculate_trader_score(self, user):
         """Calculate comprehensive reseller score for a user
         Returns tuple: (score, triggered_rules, recommendations)
+        
+        Enhanced with continuous verification and device fingerprinting rules.
         """
         if not user.is_trader():
             return (0, [], [])
@@ -195,6 +240,64 @@ class ResellerDetector:
                 })
                 recommendations.append('Upload proof documents for your declared services')
         
+        # ===== CONTINUOUS VERIFICATION RULES =====
+        
+        # Rule 7: Verification expired (90 days since last verification)
+        if user.trader_verified and user.verification_expiry:
+            if datetime.utcnow() > user.verification_expiry:
+                score += 25
+                triggered_rules.append({
+                    'rule': 'verification_expired',
+                    'points': 25,
+                    'message': 'Verification expired - renewal required'
+                })
+                recommendations.append('Renew your trader verification with updated proof')
+                user.verification_renewal_required = True
+        
+        # Rule 8: Inactive value-add activity (verified but no activity in 30 days)
+        if user.trader_verified and user.trader_value_services:
+            # Check if they have logistics service but no recent bookings
+            if 'transport' in (user.trader_value_services or ''):
+                if (user.monthly_logistics_count or 0) == 0 and (user.total_purchases or 0) > 5:
+                    score += 20
+                    triggered_rules.append({
+                        'rule': 'inactive_value_add',
+                        'points': 20,
+                        'message': 'Claims transport service but no logistics activity this month'
+                    })
+                    recommendations.append('Use platform logistics to maintain verified status')
+        
+        # Rule 9: Poor farmer ratings
+        if user.trader_verified and (user.average_rating or 0) > 0:
+            if user.average_rating < 3.0 and (user.total_ratings or 0) >= 3:
+                score += 20
+                triggered_rules.append({
+                    'rule': 'poor_farmer_ratings',
+                    'points': 20,
+                    'message': f'Average farmer rating of {user.average_rating:.1f}/5 stars'
+                })
+                recommendations.append('Improve your service to farmers to maintain good standing')
+        
+        # Rule 10: Device fingerprint collision
+        if (user.fingerprint_flags or 0) > 0:
+            score += 15
+            triggered_rules.append({
+                'rule': 'device_collision',
+                'points': 15,
+                'message': 'Account shares device with other accounts'
+            })
+        
+        # Rule 11: Multiple accounts from same IP
+        if user.registration_ip:
+            collision_count = self._check_ip_collision(user)
+            if collision_count > 1:
+                score += 10
+                triggered_rules.append({
+                    'rule': 'ip_farming',
+                    'points': 10,
+                    'message': f'{collision_count} accounts registered from same IP'
+                })
+        
         # Cap at 100
         score = min(100, score)
         
@@ -203,6 +306,18 @@ class ResellerDetector:
         user.last_reseller_check = datetime.utcnow()
         
         return (score, triggered_rules, recommendations)
+    
+    def _check_ip_collision(self, user):
+        """Check how many accounts share this user's registration IP"""
+        from models import User
+        if not user.registration_ip:
+            return 0
+        
+        count = User.query.filter(
+            User.registration_ip == user.registration_ip,
+            User.id != user.id
+        ).count()
+        return count
     
     def get_risk_level(self, score):
         """Get risk level from score"""
@@ -321,6 +436,11 @@ class ResellerDetector:
         trader.trader_verification_date = datetime.utcnow()
         trader.trader_verified_by = admin_id
         
+        # Set verification expiry for continuous verification
+        if status == 'verified':
+            trader.verification_expiry = datetime.utcnow() + timedelta(days=self.VERIFICATION_VALIDITY_DAYS)
+            trader.verification_renewal_required = False
+        
         if notes:
             trader.trader_verification_notes = (trader.trader_verification_notes or '') + \
                 f'\n[{datetime.utcnow().strftime("%Y-%m-%d %H:%M")}] {status.upper()}: {notes}'
@@ -333,6 +453,233 @@ class ResellerDetector:
             db.session.rollback()
             logger.error(f"Error updating trader verification: {e}")
             return (False, str(e))
+    
+    # ===== DEVICE FINGERPRINTING =====
+    
+    def generate_device_fingerprint(self, request):
+        """Generate a device fingerprint from request headers"""
+        components = [
+            request.headers.get('User-Agent', ''),
+            request.headers.get('Accept-Language', ''),
+            request.headers.get('Accept-Encoding', ''),
+            request.remote_addr or ''
+        ]
+        fingerprint_string = '|'.join(components)
+        return hashlib.sha256(fingerprint_string.encode()).hexdigest()
+    
+    def record_device_fingerprint(self, user, request):
+        """Record device fingerprint for a user and check for collisions"""
+        from models import DeviceFingerprint, User
+        
+        fingerprint_hash = self.generate_device_fingerprint(request)
+        ip_address = request.remote_addr
+        user_agent = request.headers.get('User-Agent', '')[:500]
+        
+        # Check if this fingerprint exists for this user
+        existing = DeviceFingerprint.query.filter_by(
+            user_id=user.id,
+            fingerprint_hash=fingerprint_hash
+        ).first()
+        
+        if existing:
+            existing.last_seen = datetime.utcnow()
+            existing.times_seen += 1
+        else:
+            # New fingerprint for this user
+            new_fp = DeviceFingerprint(
+                fingerprint_hash=fingerprint_hash,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                user_id=user.id
+            )
+            db.session.add(new_fp)
+            
+            # Check for collisions with other users
+            collision = DeviceFingerprint.query.filter(
+                DeviceFingerprint.fingerprint_hash == fingerprint_hash,
+                DeviceFingerprint.user_id != user.id
+            ).first()
+            
+            if collision:
+                # Flag both accounts
+                user.fingerprint_flags = (user.fingerprint_flags or 0) + 1
+                collision_user = User.query.get(collision.user_id)
+                if collision_user:
+                    collision_user.fingerprint_flags = (collision_user.fingerprint_flags or 0) + 1
+                    
+                    # Update linked accounts
+                    linked = json.loads(user.linked_accounts or '[]')
+                    if collision.user_id not in linked:
+                        linked.append(collision.user_id)
+                        user.linked_accounts = json.dumps(linked)
+                    
+                    linked2 = json.loads(collision_user.linked_accounts or '[]')
+                    if user.id not in linked2:
+                        linked2.append(user.id)
+                        collision_user.linked_accounts = json.dumps(linked2)
+                
+                logger.warning(f"Device fingerprint collision: User {user.id} and User {collision.user_id}")
+        
+        # Record IP
+        if ip_address and not user.registration_ip:
+            user.registration_ip = ip_address
+        
+        # Update known IPs
+        known_ips = json.loads(user.known_ips or '[]')
+        if ip_address and ip_address not in known_ips:
+            known_ips.append(ip_address)
+            user.known_ips = json.dumps(known_ips[-10:])  # Keep last 10 IPs
+        
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error recording device fingerprint: {e}")
+    
+    def get_linked_accounts(self, user_id):
+        """Get accounts potentially linked to this user"""
+        from models import User
+        
+        user = User.query.get(user_id)
+        if not user or not user.linked_accounts:
+            return []
+        
+        linked_ids = json.loads(user.linked_accounts)
+        return User.query.filter(User.id.in_(linked_ids)).all()
+    
+    # ===== CONTINUOUS VERIFICATION =====
+    
+    def run_monthly_verification_check(self):
+        """Monthly batch job to check all verified traders for continued compliance
+        Returns dict with check results
+        """
+        from models import User
+        
+        results = {
+            'checked': 0,
+            'expired': [],
+            'inactive': [],
+            'flagged': [],
+            'ok': []
+        }
+        
+        # Get all verified traders
+        traders = User.query.filter(
+            User.role == 'buyer',
+            User.buyer_type == 'bulk_trader',
+            User.trader_verified == True
+        ).all()
+        
+        for trader in traders:
+            results['checked'] += 1
+            
+            # Check verification expiry
+            if trader.verification_expiry and datetime.utcnow() > trader.verification_expiry:
+                trader.verification_renewal_required = True
+                results['expired'].append(trader.id)
+                logger.info(f"Trader {trader.id} verification expired")
+            
+            # Check monthly activity
+            if (trader.monthly_logistics_count or 0) == 0 and (trader.monthly_purchase_count or 0) > 0:
+                # Made purchases but no logistics - potential flip pattern
+                trader.consecutive_inactive_months = (trader.consecutive_inactive_months or 0) + 1
+                if trader.consecutive_inactive_months >= 2:
+                    results['inactive'].append(trader.id)
+                    logger.warning(f"Trader {trader.id} inactive for {trader.consecutive_inactive_months} months")
+            else:
+                trader.consecutive_inactive_months = 0
+            
+            # Calculate fresh score
+            score, rules, _ = self.calculate_trader_score(trader)
+            if score >= 50:
+                results['flagged'].append(trader.id)
+            else:
+                results['ok'].append(trader.id)
+            
+            # Reset monthly counters
+            trader.monthly_logistics_count = 0
+            trader.monthly_purchase_count = 0
+        
+        try:
+            db.session.commit()
+            logger.info(f"Monthly verification check complete: {results}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error in monthly verification check: {e}")
+        
+        return results
+    
+    def process_farmer_feedback(self, farmer_id, trader_id, produce_id, rating_data):
+        """Process feedback from a farmer about a trader
+        Returns tuple: (success, message)
+        """
+        from models import User, TraderFeedback
+        
+        farmer = User.query.get(farmer_id)
+        trader = User.query.get(trader_id)
+        
+        if not farmer or not farmer.is_farmer():
+            return (False, 'Invalid farmer')
+        if not trader or not trader.is_trader():
+            return (False, 'Invalid trader')
+        
+        # Create feedback record
+        feedback = TraderFeedback(
+            farmer_id=farmer_id,
+            trader_id=trader_id,
+            produce_id=produce_id,
+            overall_rating=rating_data.get('overall_rating', 3),
+            payment_speed_rating=rating_data.get('payment_speed_rating'),
+            communication_rating=rating_data.get('communication_rating'),
+            fairness_rating=rating_data.get('fairness_rating'),
+            would_work_again=rating_data.get('would_work_again', True),
+            provided_transport=rating_data.get('provided_transport', False),
+            paid_upfront=rating_data.get('paid_upfront', False),
+            added_value=rating_data.get('added_value', True),
+            feedback_text=rating_data.get('feedback_text', '')
+        )
+        
+        db.session.add(feedback)
+        
+        # Update trader's average rating
+        all_feedback = TraderFeedback.query.filter_by(trader_id=trader_id).all()
+        total_rating = sum(f.overall_rating for f in all_feedback) + rating_data.get('overall_rating', 3)
+        count = len(all_feedback) + 1
+        
+        trader.average_rating = total_rating / count
+        trader.total_ratings = count
+        
+        # If rating is poor, increment direct farmer deals only if farmer would work again
+        if rating_data.get('would_work_again', True):
+            trader.direct_farmer_deals = (trader.direct_farmer_deals or 0) + 1
+        
+        # Check if added_value is False - this is serious
+        if not rating_data.get('added_value', True):
+            logger.warning(f"Farmer {farmer_id} reported trader {trader_id} did NOT add value")
+            # Increase reseller score
+            self.calculate_trader_score(trader)
+        
+        try:
+            db.session.commit()
+            logger.info(f"Farmer {farmer_id} rated trader {trader_id}: {rating_data.get('overall_rating')}/5")
+            return (True, 'Feedback recorded successfully')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error recording farmer feedback: {e}")
+            return (False, str(e))
+    
+    def get_traders_needing_renewal(self):
+        """Get traders whose verification is expiring soon or expired"""
+        from models import User
+        
+        soon = datetime.utcnow() + timedelta(days=14)  # 2 weeks warning
+        
+        return User.query.filter(
+            User.role == 'buyer',
+            User.buyer_type == 'bulk_trader',
+            User.trader_verified == True,
+            User.verification_expiry < soon
+        ).order_by(User.verification_expiry.asc()).all()
 
 
 reseller_detector = ResellerDetector()

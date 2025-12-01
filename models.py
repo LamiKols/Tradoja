@@ -75,6 +75,31 @@ class User(UserMixin, db.Model):
     direct_farmer_deals = db.Column(db.Integer, default=0)  # Deals with original farmers
     last_reseller_check = db.Column(db.DateTime)  # Last time reseller score was calculated
     
+    # CONTINUOUS VERIFICATION (Anti-Reseller Enhancement)
+    verification_expiry = db.Column(db.DateTime)  # When verification needs renewal (90 days)
+    last_activity_date = db.Column(db.DateTime)  # Last marketplace activity
+    monthly_logistics_count = db.Column(db.Integer, default=0)  # Logistics bookings this month
+    monthly_purchase_count = db.Column(db.Integer, default=0)  # Purchases this month
+    consecutive_inactive_months = db.Column(db.Integer, default=0)  # Months with no value-add activity
+    verification_renewal_required = db.Column(db.Boolean, default=False)  # Flag for renewal
+    
+    # DEVICE FINGERPRINTING (Anti-Collusion)
+    device_fingerprint = db.Column(db.String(64))  # SHA256 hash of device characteristics
+    user_agent_hash = db.Column(db.String(64))  # Hash of browser user agent
+    registration_ip = db.Column(db.String(45))  # IP at registration
+    known_ips = db.Column(db.Text)  # JSON list of known IP addresses
+    linked_accounts = db.Column(db.Text)  # JSON list of potentially linked user IDs
+    fingerprint_flags = db.Column(db.Integer, default=0)  # Number of fingerprint collisions
+    
+    # FARMER LISTING PREFERENCES (Farmer-First Control)
+    farmer_listing_preference = db.Column(db.String(30), default='all_buyers')  # 'all_buyers', 'verified_only', 'direct_only', 'sabibuy_only'
+    
+    # STAR RATINGS
+    average_rating = db.Column(db.Float, default=0.0)  # Average rating from transactions
+    total_ratings = db.Column(db.Integer, default=0)  # Number of ratings received
+    rating_as_seller = db.Column(db.Float, default=0.0)  # Rating when selling
+    rating_as_buyer = db.Column(db.Float, default=0.0)  # Rating when buying
+    
     # Relationship with produce
     produce_listings = db.relationship('Produce', foreign_keys='Produce.farmer_id', backref='farmer', lazy=True, cascade='all, delete-orphan')
     purchased_produce = db.relationship('Produce', foreign_keys='Produce.buyer_id', backref='buyer', lazy=True)
@@ -1838,3 +1863,151 @@ class SabiBuyerProfile(db.Model):
     
     def __repr__(self):
         return f'<SabiBuyerProfile {self.user.name if self.user else "Unknown"}: {self.tier}>'
+
+
+class TraderFeedback(db.Model):
+    """Feedback from farmers about traders - used for continuous verification"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Who is rating whom
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    trader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Related transaction
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    
+    # Ratings (1-5 stars)
+    overall_rating = db.Column(db.Integer, nullable=False)  # 1-5
+    payment_speed_rating = db.Column(db.Integer)  # How fast they paid
+    communication_rating = db.Column(db.Integer)  # Communication quality
+    fairness_rating = db.Column(db.Integer)  # Fair pricing/negotiation
+    
+    # Flags
+    would_work_again = db.Column(db.Boolean, default=True)
+    provided_transport = db.Column(db.Boolean, default=False)  # Did trader actually provide transport?
+    paid_upfront = db.Column(db.Boolean, default=False)  # Did trader pay before resale?
+    added_value = db.Column(db.Boolean, default=True)  # Overall - did trader add value?
+    
+    # Comments
+    feedback_text = db.Column(db.Text)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='given_feedback')
+    trader = db.relationship('User', foreign_keys=[trader_id], backref='received_feedback')
+    produce = db.relationship('Produce', backref='trader_feedback')
+    
+    def __repr__(self):
+        return f'<TraderFeedback {self.farmer_id} -> {self.trader_id}: {self.overall_rating}/5>'
+
+
+class Dispute(db.Model):
+    """Dispute/complaint system with tiered SLAs"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Parties
+    complainant_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    respondent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Related entities
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    logistics_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
+    sabibuy_id = db.Column(db.Integer, db.ForeignKey('sabi_buy.id'))
+    
+    # Dispute details
+    dispute_type = db.Column(db.String(50), nullable=False)  # 'quality', 'non_delivery', 'payment', 'fraud', 'other'
+    severity = db.Column(db.String(20), default='medium')  # 'low', 'medium', 'high', 'critical'
+    subject = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    evidence_files = db.Column(db.Text)  # JSON list of file paths
+    
+    # Status and SLA
+    status = db.Column(db.String(30), default='open')  # 'open', 'investigating', 'awaiting_response', 'resolved', 'escalated', 'closed'
+    sla_response_by = db.Column(db.DateTime)  # Must respond within 24hrs
+    sla_resolution_by = db.Column(db.DateTime)  # Must resolve within 72hrs
+    sla_breached = db.Column(db.Boolean, default=False)
+    
+    # Resolution
+    resolution_type = db.Column(db.String(50))  # 'refund_full', 'refund_partial', 'replacement', 'credit', 'dismissed', 'escalated'
+    resolution_amount = db.Column(db.Float)  # Refund amount if applicable
+    resolution_notes = db.Column(db.Text)
+    resolved_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    resolved_at = db.Column(db.DateTime)
+    
+    # Channel
+    source_channel = db.Column(db.String(20), default='web')  # 'web', 'sms', 'ussd', 'whatsapp'
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    complainant = db.relationship('User', foreign_keys=[complainant_id], backref='disputes_filed')
+    respondent = db.relationship('User', foreign_keys=[respondent_id], backref='disputes_received')
+    resolver = db.relationship('User', foreign_keys=[resolved_by])
+    produce = db.relationship('Produce', backref='disputes')
+    
+    def set_sla_deadlines(self):
+        """Set SLA deadlines based on severity"""
+        now = datetime.utcnow()
+        if self.severity == 'critical':
+            self.sla_response_by = now + timedelta(hours=4)
+            self.sla_resolution_by = now + timedelta(hours=24)
+        elif self.severity == 'high':
+            self.sla_response_by = now + timedelta(hours=12)
+            self.sla_resolution_by = now + timedelta(hours=48)
+        elif self.severity == 'medium':
+            self.sla_response_by = now + timedelta(hours=24)
+            self.sla_resolution_by = now + timedelta(hours=72)
+        else:  # low
+            self.sla_response_by = now + timedelta(hours=48)
+            self.sla_resolution_by = now + timedelta(days=7)
+    
+    def check_sla_breach(self):
+        """Check if SLA has been breached"""
+        now = datetime.utcnow()
+        if self.status == 'open' and self.sla_response_by and now > self.sla_response_by:
+            self.sla_breached = True
+        if self.status not in ['resolved', 'closed'] and self.sla_resolution_by and now > self.sla_resolution_by:
+            self.sla_breached = True
+        return self.sla_breached
+    
+    def get_status_badge(self):
+        """Get Bootstrap badge class for status"""
+        status_badges = {
+            'open': ('warning', 'Open'),
+            'investigating': ('info', 'Investigating'),
+            'awaiting_response': ('secondary', 'Awaiting Response'),
+            'resolved': ('success', 'Resolved'),
+            'escalated': ('danger', 'Escalated'),
+            'closed': ('dark', 'Closed')
+        }
+        return status_badges.get(self.status, ('secondary', 'Unknown'))
+    
+    def __repr__(self):
+        return f'<Dispute #{self.id}: {self.dispute_type} - {self.status}>'
+
+
+class DeviceFingerprint(db.Model):
+    """Track device fingerprints for anti-collusion detection"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    fingerprint_hash = db.Column(db.String(64), nullable=False, index=True)  # SHA256 hash
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(500))
+    
+    # Linked users
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Metadata
+    first_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    times_seen = db.Column(db.Integer, default=1)
+    
+    # Relationships
+    user = db.relationship('User', backref='device_fingerprints')
+    
+    def __repr__(self):
+        return f'<DeviceFingerprint {self.fingerprint_hash[:16]}... for user {self.user_id}>'
