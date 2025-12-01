@@ -356,7 +356,8 @@ class USSDService:
             if target_menu == 'list_produce':
                 if not user:
                     session.current_menu = 'register'
-                    return get_message('register_prompt', lang), True
+                    session.current_step = 0
+                    return "Register first to list produce.\nEnter your name:", True
                 return get_message('list_prompt', lang), True
             
             elif target_menu == 'check_prices':
@@ -399,25 +400,29 @@ class USSDService:
             elif target_menu == 'sabibuy_start':
                 if not user:
                     session.current_menu = 'register'
-                    return get_message('register_prompt', lang), True
+                    session.current_step = 0
+                    return "Register first to start SabiBuy.\nEnter your name:", True
                 return self._show_sabibuy_produce_selection(session, user, lang)
             
             elif target_menu == 'sabibuy_join':
                 if not user:
                     session.current_menu = 'register'
-                    return get_message('register_prompt', lang), True
+                    session.current_step = 0
+                    return "Register first to join SabiBuy.\nEnter your name:", True
                 return get_message('sabibuy_join_prompt', lang), True
             
             elif target_menu == 'sabibuy_my_campaigns':
                 if not user:
                     session.current_menu = 'register'
-                    return get_message('register_prompt', lang), True
+                    session.current_step = 0
+                    return "Register first to view campaigns.\nEnter your name:", True
                 return self._show_sabibuy_campaigns(session, user, lang)
             
             elif target_menu == 'sabibuy_earnings':
                 if not user:
                     session.current_menu = 'register'
-                    return get_message('register_prompt', lang), True
+                    session.current_step = 0
+                    return "Register first to view earnings.\nEnter your name:", True
                 return self._show_sabibuy_earnings(session, user, lang)
         
         return get_message('invalid_command', lang), True
@@ -433,7 +438,8 @@ class USSDService:
         
         if not user:
             session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
+            session.current_step = 0
+            return "Register first to list produce.\nEnter your name:", True
         
         data = session.get_session_data()
         step = session.current_step
@@ -585,7 +591,8 @@ class USSDService:
         
         if not user:
             session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
+            session.current_step = 0
+            return "Register first to view listings.\nEnter your name:", True
         
         listings = Produce.query.filter_by(
             farmer_id=user.id,
@@ -619,7 +626,8 @@ class USSDService:
         
         if not user:
             session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
+            session.current_step = 0
+            return "Register first to view balance.\nEnter your name:", True
         
         t2_balance = user.t2_wallet_balance or 0
         paystack_status = "Connected" if user.paystack_customer_code else "Not setup"
@@ -1676,7 +1684,8 @@ class USSDService:
         
         if not user:
             session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
+            session.current_step = 0
+            return "Register first to start SabiBuy.\nEnter your name:", True
         
         data = session.get_session_data()
         step = session.current_step
@@ -1792,7 +1801,8 @@ class USSDService:
         
         if not user:
             session.current_menu = 'register'
-            return get_message('register_prompt', lang), True
+            session.current_step = 0
+            return "Register first to join SabiBuy.\nEnter your name:", True
         
         data = session.get_session_data()
         step = session.current_step
@@ -1893,7 +1903,7 @@ class USSDService:
         """Show user's SabiBuy campaigns"""
         
         if not user:
-            return get_message('register_prompt', lang), False
+            return "Register first to view campaigns.", False
         
         campaigns = self.SabiBuy.query.filter_by(organizer_id=user.id).order_by(
             self.SabiBuy.created_at.desc()
@@ -1915,7 +1925,7 @@ class USSDService:
         """Show SabiBuy earnings summary"""
         
         if not user:
-            return get_message('register_prompt', lang), False
+            return "Register first to view earnings.", False
         
         total_profit = 0
         pending_profit = 0
