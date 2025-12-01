@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 class SabiBuyService:
     """
     Core SabiBuy service handling campaign creation, order processing,
-    batch management, logistics booking, and profit payouts
+    batch management, logistics booking, and profit payouts.
+    
+    Includes:
+    - Buyer escrow protection (payments held until delivery confirmed)
+    - Captain bond system (deposit required, forfeit on abandonment)
+    - Auto-cancellation with refunds for expired campaigns
     """
     
     CAPTAIN_FEE = 5000  # ₦5,000 one-time fee
@@ -24,6 +29,14 @@ class SabiBuyService:
         'min': 4000,  # ₦4,000 minimum suggested margin
         'max': 15000,  # ₦15,000 maximum suggested margin
         'default': 6000  # ₦6,000 default margin
+    }
+    
+    # Captain bond tiers based on batch size
+    BOND_TIERS = {
+        'small': {'max_quantity': 100, 'bond': 2000},   # ₦2,000 for up to 100 units
+        'medium': {'max_quantity': 300, 'bond': 5000},  # ₦5,000 for up to 300 units
+        'large': {'max_quantity': 500, 'bond': 8000},   # ₦8,000 for up to 500 units
+        'mega': {'max_quantity': 1000, 'bond': 10000}   # ₦10,000 for 500+ units
     }
     
     def __init__(self):
@@ -653,6 +666,350 @@ class SabiBuyService:
                 
         except Exception as e:
             logger.error(f"Failed to notify buyers: {e}")
+    
+    # ===== CAPTAIN BOND SYSTEM =====
+    
+    def calculate_bond_amount(self, maximum_quantity: int) -> int:
+        """Calculate required bond based on batch size"""
+        for tier_name, tier_config in self.BOND_TIERS.items():
+            if maximum_quantity <= tier_config['max_quantity']:
+                return tier_config['bond']
+        return self.BOND_TIERS['mega']['bond']
+    
+    def require_bond_for_campaign(self, campaign_id: int) -> Dict[str, Any]:
+        """Mark a campaign as requiring bond (for Captains with large batches)"""
+        self._lazy_load_models()
+        
+        try:
+            campaign = self.SabiBuy.query.get(campaign_id)
+            if not campaign:
+                return {'success': False, 'error': 'Campaign not found'}
+            
+            bond_amount = self.calculate_bond_amount(campaign.maximum_quantity)
+            
+            campaign.bond_required = True
+            campaign.bond_amount = bond_amount
+            campaign.bond_status = 'pending'
+            campaign.status = 'awaiting_bond'
+            
+            self.db.session.commit()
+            
+            return {
+                'success': True,
+                'bond_amount': bond_amount,
+                'message': f'Bond of ₦{bond_amount:,} required before campaign goes live'
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error setting bond requirement: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def pay_bond(self, campaign_id: int, payment_reference: str) -> Dict[str, Any]:
+        """Process bond payment for a campaign"""
+        self._lazy_load_models()
+        
+        try:
+            campaign = self.SabiBuy.query.get(campaign_id)
+            if not campaign:
+                return {'success': False, 'error': 'Campaign not found'}
+            
+            if not campaign.bond_required:
+                return {'success': False, 'error': 'No bond required for this campaign'}
+            
+            if campaign.bond_paid:
+                return {'success': False, 'error': 'Bond already paid'}
+            
+            campaign.bond_paid = True
+            campaign.bond_payment_ref = payment_reference
+            campaign.bond_status = 'held'
+            campaign.status = 'active'  # Activate campaign after bond paid
+            
+            self.db.session.commit()
+            
+            logger.info(f"Bond paid for campaign {campaign.code}")
+            
+            return {
+                'success': True,
+                'message': f'Bond of ₦{campaign.bond_amount:,} paid. Campaign is now active!'
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error processing bond payment: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def forfeit_bond(self, campaign_id: int, reason: str) -> Dict[str, Any]:
+        """Forfeit captain's bond due to abandonment or fraud"""
+        self._lazy_load_models()
+        
+        try:
+            campaign = self.SabiBuy.query.get(campaign_id)
+            if not campaign:
+                return {'success': False, 'error': 'Campaign not found'}
+            
+            if not campaign.bond_paid or campaign.bond_status == 'forfeited':
+                return {'success': False, 'error': 'No bond to forfeit'}
+            
+            campaign.bond_status = 'forfeited'
+            campaign.bond_forfeited_at = datetime.utcnow()
+            campaign.bond_forfeit_reason = reason
+            campaign.status = 'cancelled'
+            campaign.cancellation_reason = f'Bond forfeited: {reason}'
+            
+            # Refund all buyers
+            refund_result = self.cancel_and_refund_campaign(campaign_id, reason)
+            
+            self.db.session.commit()
+            
+            logger.warning(f"Bond forfeited for campaign {campaign.code}: {reason}")
+            
+            return {
+                'success': True,
+                'forfeited_amount': campaign.bond_amount,
+                'refunds': refund_result,
+                'message': f'Bond of ₦{campaign.bond_amount:,} forfeited. Buyers refunded.'
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error forfeiting bond: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def release_bond(self, campaign_id: int) -> Dict[str, Any]:
+        """Release captain's bond after successful delivery"""
+        self._lazy_load_models()
+        
+        try:
+            campaign = self.SabiBuy.query.get(campaign_id)
+            if not campaign:
+                return {'success': False, 'error': 'Campaign not found'}
+            
+            if campaign.status != 'delivered':
+                return {'success': False, 'error': 'Campaign must be delivered before bond release'}
+            
+            if campaign.bond_status != 'held':
+                return {'success': False, 'error': 'No bond held for this campaign'}
+            
+            campaign.bond_status = 'released'
+            
+            self.db.session.commit()
+            
+            logger.info(f"Bond released for campaign {campaign.code}")
+            
+            return {
+                'success': True,
+                'released_amount': campaign.bond_amount,
+                'message': f'Bond of ₦{campaign.bond_amount:,} released to your account'
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error releasing bond: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    # ===== AUTO-CANCELLATION & REFUNDS =====
+    
+    def check_expired_campaigns(self) -> Dict[str, Any]:
+        """Batch job to check and auto-cancel expired campaigns
+        Should be run daily by a scheduler
+        """
+        self._lazy_load_models()
+        
+        results = {
+            'checked': 0,
+            'expired': 0,
+            'refunded_total': 0.0,
+            'campaigns': []
+        }
+        
+        try:
+            expired = self.SabiBuy.query.filter(
+                self.SabiBuy.status == 'active',
+                self.SabiBuy.expires_at < datetime.utcnow()
+            ).all()
+            
+            results['checked'] = len(expired)
+            
+            for campaign in expired:
+                # Only auto-cancel if minimum not reached
+                if campaign.current_quantity < campaign.minimum_quantity:
+                    refund_result = self.cancel_and_refund_campaign(
+                        campaign.id,
+                        'Batch expired without reaching minimum quantity'
+                    )
+                    
+                    if refund_result.get('success'):
+                        results['expired'] += 1
+                        results['refunded_total'] += refund_result.get('total_refunded', 0)
+                        results['campaigns'].append({
+                            'code': campaign.code,
+                            'refunded': refund_result.get('total_refunded', 0)
+                        })
+                else:
+                    # Close the batch instead
+                    self._close_batch(campaign)
+            
+            self.db.session.commit()
+            logger.info(f"Expired campaigns check: {results}")
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error checking expired campaigns: {e}")
+            results['error'] = str(e)
+        
+        return results
+    
+    def cancel_and_refund_campaign(self, campaign_id: int, reason: str) -> Dict[str, Any]:
+        """Cancel a campaign and refund all paid orders"""
+        self._lazy_load_models()
+        
+        try:
+            campaign = self.SabiBuy.query.get(campaign_id)
+            if not campaign:
+                return {'success': False, 'error': 'Campaign not found'}
+            
+            if campaign.status in ['delivered', 'cancelled']:
+                return {'success': False, 'error': f'Campaign already {campaign.status}'}
+            
+            total_refunded = 0.0
+            refunded_orders = []
+            
+            # Process refunds for all paid orders
+            for order in campaign.orders.filter_by(payment_status='paid'):
+                refund_result = self._process_order_refund(order, reason)
+                if refund_result.get('success'):
+                    total_refunded += order.total_amount
+                    refunded_orders.append({
+                        'order_id': order.id,
+                        'phone': order.buyer_phone,
+                        'amount': order.total_amount
+                    })
+            
+            campaign.status = 'cancelled'
+            campaign.cancellation_reason = reason
+            campaign.auto_refunded = True
+            campaign.refund_initiated_at = datetime.utcnow()
+            campaign.total_refunded = total_refunded
+            
+            # Update organizer profile
+            profile = self.SabiBuyerProfile.query.filter_by(
+                user_id=campaign.organizer_id
+            ).first()
+            
+            if profile:
+                profile.active_campaigns_count = max(0, profile.active_campaigns_count - 1)
+            
+            self.db.session.commit()
+            
+            # Notify organizer and buyers
+            self._send_organizer_notification(campaign, 'campaign_cancelled')
+            self._notify_buyers_of_refund(campaign)
+            
+            logger.info(f"Campaign {campaign.code} cancelled and ₦{total_refunded:,.0f} refunded")
+            
+            return {
+                'success': True,
+                'total_refunded': total_refunded,
+                'orders_refunded': len(refunded_orders),
+                'message': f'Campaign cancelled. ₦{total_refunded:,.0f} refunded to {len(refunded_orders)} buyers.'
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Error cancelling campaign: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def _process_order_refund(self, order: 'SabiBuyOrder', reason: str) -> Dict[str, Any]:
+        """Process refund for a single order"""
+        try:
+            if order.payment_status != 'paid':
+                return {'success': False, 'error': 'Order not paid'}
+            
+            order.payment_status = 'refunded'
+            order.refund_amount = order.total_amount
+            order.refund_reason = reason
+            order.refunded_at = datetime.utcnow()
+            order.in_escrow = False
+            
+            # TODO: Integrate with Paystack refund API
+            # For now, mark as refunded and admin can process manually
+            order.refund_reference = f"REF-{order.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            logger.info(f"Order {order.id} refunded: ₦{order.total_amount:,.0f}")
+            
+            return {'success': True, 'refund_reference': order.refund_reference}
+            
+        except Exception as e:
+            logger.error(f"Error refunding order {order.id}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def _notify_buyers_of_refund(self, campaign: 'SabiBuy'):
+        """Notify all buyers in a cancelled campaign about their refund"""
+        try:
+            from sms_service import SMSService
+            from multilingual_service import get_message
+            
+            sms = SMSService()
+            
+            for order in campaign.orders.filter_by(payment_status='refunded'):
+                lang = order.preferred_language or 'en'
+                message = get_message('sabibuy_refund_notification', lang).format(
+                    code=campaign.code,
+                    amount=f"₦{order.total_amount:,.0f}",
+                    reason=campaign.cancellation_reason or 'Campaign cancelled'
+                )
+                sms.send_sms(order.buyer_phone, message)
+                
+        except Exception as e:
+            logger.error(f"Failed to notify buyers of refund: {e}")
+    
+    def get_escrow_summary(self) -> Dict[str, Any]:
+        """Get summary of all escrow funds across active campaigns"""
+        self._lazy_load_models()
+        
+        try:
+            active = self.SabiBuy.query.filter(
+                self.SabiBuy.status.in_(['active', 'closed', 'booked', 'in_transit']),
+                self.SabiBuy.escrow_released == False
+            ).all()
+            
+            total_escrow = sum(c.total_escrow for c in active)
+            held_bonds = self.SabiBuy.query.filter_by(bond_status='held').all()
+            total_bonds = sum(c.bond_amount for c in held_bonds)
+            
+            return {
+                'active_campaigns': len(active),
+                'total_escrow': total_escrow,
+                'held_bonds': len(held_bonds),
+                'total_bonds_held': total_bonds,
+                'total_protected_funds': total_escrow + total_bonds
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting escrow summary: {e}")
+            return {'error': str(e)}
+    
+    def get_pending_refunds(self) -> List[Dict[str, Any]]:
+        """Get list of orders marked for refund that need processing"""
+        self._lazy_load_models()
+        
+        orders = self.SabiBuyOrder.query.filter_by(
+            payment_status='refunded',
+            refund_reference=None
+        ).all()
+        
+        return [
+            {
+                'order_id': o.id,
+                'campaign_code': o.campaign.code,
+                'buyer_phone': o.buyer_phone,
+                'amount': o.total_amount,
+                'reason': o.refund_reason,
+                'marked_at': o.refunded_at.isoformat() if o.refunded_at else None
+            }
+            for o in orders
+        ]
 
 
 sabibuy_service = SabiBuyService()

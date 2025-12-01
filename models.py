@@ -1615,6 +1615,21 @@ class SabiBuy(db.Model):
     total_escrow = db.Column(db.Float, default=0.0)  # Total collected in escrow
     escrow_released = db.Column(db.Boolean, default=False)
     
+    # CAPTAIN BOND SYSTEM (forfeit on abandonment)
+    bond_required = db.Column(db.Boolean, default=False)  # Captain campaigns require bond
+    bond_amount = db.Column(db.Float, default=0.0)  # ₦2,000 - ₦10,000 based on batch size
+    bond_paid = db.Column(db.Boolean, default=False)
+    bond_payment_ref = db.Column(db.String(100))
+    bond_status = db.Column(db.String(20), default='none')  # none, held, released, forfeited
+    bond_forfeited_at = db.Column(db.DateTime)
+    bond_forfeit_reason = db.Column(db.String(200))
+    
+    # AUTO-CANCELLATION & REFUND
+    auto_refunded = db.Column(db.Boolean, default=False)  # True if batch expired and refunded
+    refund_initiated_at = db.Column(db.DateTime)
+    total_refunded = db.Column(db.Float, default=0.0)
+    cancellation_reason = db.Column(db.String(200))
+    
     # Logistics integration
     logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
     
@@ -1729,6 +1744,12 @@ class SabiBuyOrder(db.Model):
     # Escrow
     in_escrow = db.Column(db.Boolean, default=False)
     escrow_released_at = db.Column(db.DateTime)
+    
+    # Refund tracking
+    refund_amount = db.Column(db.Float)
+    refund_reference = db.Column(db.String(100))
+    refund_reason = db.Column(db.String(200))
+    refunded_at = db.Column(db.DateTime)
     
     # Delivery tracking
     delivered = db.Column(db.Boolean, default=False)
