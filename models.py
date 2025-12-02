@@ -2188,3 +2188,87 @@ class RegistrationPolicy(db.Model):
     
     def __repr__(self):
         return f'<RegistrationPolicy {self.role}: {self.display_name}>'
+
+
+class WalletTransaction(db.Model):
+    """T2 Wallet transaction log for SMS/USSD users"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'credit', 'debit', 'transfer_in', 'transfer_out'
+    amount = db.Column(db.Float, nullable=False)
+    balance_before = db.Column(db.Float, nullable=False)
+    balance_after = db.Column(db.Float, nullable=False)
+    
+    description = db.Column(db.String(500))
+    reference = db.Column(db.String(100), unique=True, nullable=False)
+    
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'completed', 'failed', 'reversed'
+    channel = db.Column(db.String(20), default='system')  # 'sms', 'ussd', 'web', 'system'
+    
+    related_transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'))
+    related_produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    related_escrow_id = db.Column(db.Integer, db.ForeignKey('escrow_hold.id'))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='wallet_transactions')
+    related_transaction = db.relationship('Transaction', backref='wallet_transactions')
+    related_produce = db.relationship('Produce', backref='wallet_transactions')
+    
+    def __repr__(self):
+        return f'<WalletTransaction {self.reference}: {self.transaction_type} N{self.amount}>'
+
+
+class EscrowHold(db.Model):
+    """Escrow holds for buyer protection"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    amount = db.Column(db.Float, nullable=False)
+    description = db.Column(db.String(500))
+    reference = db.Column(db.String(100), unique=True, nullable=False)
+    
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
+    sabibuy_order_id = db.Column(db.Integer, db.ForeignKey('sabi_buy_order.id'))
+    
+    status = db.Column(db.String(20), default='held')  # 'held', 'released', 'refunded', 'disputed'
+    hold_date = db.Column(db.DateTime, default=datetime.utcnow)
+    release_date = db.Column(db.DateTime)
+    released_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    dispute_reason = db.Column(db.Text)
+    admin_notes = db.Column(db.Text)
+    
+    user = db.relationship('User', foreign_keys=[user_id], backref='escrow_holds')
+    released_to = db.relationship('User', foreign_keys=[released_to_id])
+    produce = db.relationship('Produce', backref='escrow_holds')
+    logistics_request = db.relationship('LogisticsRequest', backref='escrow_holds')
+    
+    def __repr__(self):
+        return f'<EscrowHold {self.reference}: N{self.amount} ({self.status})>'
+
+
+class CaptainBond(db.Model):
+    """SabiBuy Captain bond deposits (N10,000 refundable)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    amount = db.Column(db.Float, nullable=False, default=10000.0)
+    reference = db.Column(db.String(100), unique=True, nullable=False)
+    
+    status = db.Column(db.String(20), default='active')  # 'active', 'refunded', 'forfeited'
+    collected_date = db.Column(db.DateTime, default=datetime.utcnow)
+    refunded_date = db.Column(db.DateTime)
+    
+    forfeit_reason = db.Column(db.Text)
+    admin_notes = db.Column(db.Text)
+    
+    campaigns_run = db.Column(db.Integer, default=0)
+    successful_campaigns = db.Column(db.Integer, default=0)
+    
+    user = db.relationship('User', backref='captain_bonds')
+    
+    def __repr__(self):
+        return f'<CaptainBond {self.user_id}: N{self.amount} ({self.status})>'

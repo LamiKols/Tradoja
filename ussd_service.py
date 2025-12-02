@@ -27,7 +27,7 @@ class USSDService:
                 '1': 'list_produce',
                 '2': 'check_prices',
                 '3': 'my_listings',
-                '4': 'balance',
+                '4': 'wallet',
                 '5': 'register',
                 '6': 'transport_jobs',
                 '7': 'register_buyer',
@@ -36,7 +36,9 @@ class USSDService:
                 '10': 'sabibuy_start',
                 '11': 'sabibuy_join',
                 '12': 'sabibuy_my_campaigns',
-                '13': 'sabibuy_earnings'
+                '13': 'sabibuy_earnings',
+                '14': 'pay_produce',
+                '15': 'captain_bond'
             }
         },
         'list_produce': {
@@ -120,6 +122,35 @@ class USSDService:
         },
         'sabibuy_join': {
             'steps': ['enter_code', 'enter_quantity', 'confirm_payment'],
+            'next': 'main'
+        },
+        'wallet': {
+            'options': {
+                '1': 'wallet_balance',
+                '2': 'wallet_topup',
+                '3': 'wallet_transfer',
+                '4': 'wallet_history'
+            },
+            'next': 'main'
+        },
+        'wallet_topup': {
+            'steps': ['enter_amount', 'select_bank', 'confirm'],
+            'next': 'wallet'
+        },
+        'wallet_transfer': {
+            'steps': ['enter_phone', 'enter_amount', 'confirm'],
+            'next': 'wallet'
+        },
+        'pay_produce': {
+            'steps': ['enter_listing_id', 'select_payment_method', 'confirm'],
+            'next': 'main'
+        },
+        'captain_bond': {
+            'options': {
+                '1': 'bond_pay',
+                '2': 'bond_status',
+                '3': 'bond_refund'
+            },
             'next': 'main'
         },
         'sabibuy_my_campaigns': {
@@ -323,6 +354,21 @@ class USSDService:
         elif session.current_menu == 'sabibuy_earnings':
             return self._show_sabibuy_earnings(session, user, lang)
         
+        elif session.current_menu == 'wallet':
+            return self._handle_wallet_menu(session, current_input, user, lang)
+        
+        elif session.current_menu == 'wallet_topup':
+            return self._handle_wallet_menu(session, current_input, user, lang)
+        
+        elif session.current_menu == 'wallet_transfer':
+            return self._handle_wallet_menu(session, current_input, user, lang)
+        
+        elif session.current_menu == 'pay_produce':
+            return self._handle_pay_produce(session, current_input, user, lang)
+        
+        elif session.current_menu == 'captain_bond':
+            return self._handle_captain_bond_menu(session, current_input, user, lang)
+        
         else:
             return self._show_main_menu(lang, user), True
     
@@ -424,6 +470,27 @@ class USSDService:
                     session.current_step = 0
                     return "Register first to view earnings.\nEnter your name:", True
                 return self._show_sabibuy_earnings(session, user, lang)
+            
+            elif target_menu == 'wallet':
+                if not user:
+                    session.current_menu = 'register'
+                    session.current_step = 0
+                    return "Register first to access wallet.\nEnter your name:", True
+                return self._show_wallet_menu(session, user, lang)
+            
+            elif target_menu == 'pay_produce':
+                if not user:
+                    session.current_menu = 'register'
+                    session.current_step = 0
+                    return "Register first to make payments.\nEnter your name:", True
+                return "Enter listing ID to pay for:", True
+            
+            elif target_menu == 'captain_bond':
+                if not user:
+                    session.current_menu = 'register'
+                    session.current_step = 0
+                    return "Register first to manage bond.\nEnter your name:", True
+                return self._show_captain_bond_menu(session, user, lang)
         
         return get_message('invalid_command', lang), True
     
@@ -1961,6 +2028,449 @@ class USSDService:
                          pending=f"{pending_profit:,.0f}",
                          total=f"{total_profit:,.0f}",
                          campaigns=campaign_count), False
+    
+    def _show_wallet_menu(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show wallet menu options"""
+        from wallet_service import wallet_service
+        
+        balance = wallet_service.get_balance(user)
+        
+        menu = (f"Wallet Balance: N{balance:,.0f}\n\n"
+                f"1. Check Balance\n"
+                f"2. Top Up Wallet\n"
+                f"3. Transfer Money\n"
+                f"4. Transaction History\n"
+                f"0. Back")
+        
+        return menu, True
+    
+    def _handle_wallet_menu(
+        self, 
+        session, 
+        user_input: str, 
+        user, 
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle wallet menu selections"""
+        from wallet_service import wallet_service
+        from payment_service import payment_service
+        
+        data = session.get_session_data()
+        step = session.current_step
+        current_submenu = data.get('wallet_action')
+        
+        if step == 0:
+            if user_input == '1':
+                balance = wallet_service.get_balance(user)
+                history = wallet_service.format_history_sms(user, 3)
+                return f"Balance: N{balance:,.0f}\n\n{history}", False
+            
+            elif user_input == '2':
+                session.current_step = 1
+                data['wallet_action'] = 'topup'
+                session.set_session_data(data)
+                return "Enter amount to add (min N100):", True
+            
+            elif user_input == '3':
+                session.current_step = 1
+                data['wallet_action'] = 'transfer'
+                session.set_session_data(data)
+                return "Enter recipient phone number:", True
+            
+            elif user_input == '4':
+                history = wallet_service.format_history_sms(user, 5)
+                balance = wallet_service.get_balance(user)
+                return f"Balance: N{balance:,.0f}\n\n{history}", False
+            
+            elif user_input == '0':
+                session.current_menu = 'main'
+                return self._show_main_menu(lang, user), True
+        
+        if current_submenu == 'topup':
+            if step == 1:
+                try:
+                    amount = float(user_input.replace(',', '').replace('N', ''))
+                    if amount < 100:
+                        return "Minimum is N100. Enter amount:", True
+                    if amount > 500000:
+                        return "Maximum is N500,000. Enter amount:", True
+                    
+                    data['topup_amount'] = amount
+                    session.update_session_data('topup_amount', amount)
+                    session.current_step = 2
+                    
+                    banks = payment_service.get_bank_ussd_codes()
+                    bank_list = "\n".join([f"{i+1}. {info['name']}" 
+                                          for i, (code, info) in enumerate(list(banks.items())[:6])])
+                    
+                    return f"Amount: N{amount:,.0f}\nSelect bank:\n{bank_list}", True
+                    
+                except ValueError:
+                    return "Invalid amount. Enter numbers only:", True
+            
+            elif step == 2:
+                try:
+                    bank_index = int(user_input) - 1
+                    banks = list(payment_service.get_bank_ussd_codes().items())
+                    
+                    if 0 <= bank_index < len(banks):
+                        bank_code, bank_info = banks[bank_index]
+                        amount = data.get('topup_amount', 0)
+                        
+                        ref = payment_service.generate_reference(f"USSD_TOPUP_{user.id}")
+                        email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@agrolink.ng"
+                        
+                        result = payment_service.charge_ussd(email, amount, ref, bank_code)
+                        
+                        session.current_menu = 'main'
+                        session.current_step = 0
+                        
+                        if result.get('success'):
+                            from models import Transaction
+                            from app import db
+                            
+                            transaction = Transaction(
+                                reference=ref,
+                                user_id=user.id,
+                                transaction_type='wallet_topup',
+                                base_amount=amount,
+                                platform_fee=0,
+                                total_amount=amount,
+                                payment_method='ussd',
+                                status='pending'
+                            )
+                            db.session.add(transaction)
+                            db.session.commit()
+                            
+                            return (f"Dial to complete:\n{result['ussd_code']}\n"
+                                   f"Amount: N{amount:,.0f}\n"
+                                   f"Ref: {ref}"), False
+                        else:
+                            return f"Failed: {result.get('message')}", False
+                    else:
+                        return "Invalid selection. Try again:", True
+                        
+                except ValueError:
+                    return "Enter bank number:", True
+        
+        elif current_submenu == 'transfer':
+            if step == 1:
+                to_phone = user_input.strip()
+                if not to_phone.startswith('+'):
+                    if to_phone.startswith('0'):
+                        to_phone = '+234' + to_phone[1:]
+                    else:
+                        to_phone = '+234' + to_phone
+                
+                from models import User
+                to_user = User.query.filter_by(phone_number=to_phone).first()
+                
+                if not to_user:
+                    return "User not found. Enter phone:", True
+                
+                if to_user.id == user.id:
+                    return "Cannot send to yourself. Enter phone:", True
+                
+                data['transfer_to_phone'] = to_phone
+                data['transfer_to_name'] = to_user.name
+                data['transfer_to_id'] = to_user.id
+                session.set_session_data(data)
+                session.current_step = 2
+                
+                return f"Send to: {to_user.name}\nEnter amount:", True
+            
+            elif step == 2:
+                try:
+                    amount = float(user_input.replace(',', '').replace('N', ''))
+                    balance = wallet_service.get_balance(user)
+                    
+                    if amount <= 0:
+                        return "Enter positive amount:", True
+                    if amount > balance:
+                        return f"Insufficient funds. Balance: N{balance:,.0f}", False
+                    
+                    data['transfer_amount'] = amount
+                    session.set_session_data(data)
+                    session.current_step = 3
+                    
+                    return (f"Confirm transfer:\n"
+                           f"To: {data.get('transfer_to_name')}\n"
+                           f"Amount: N{amount:,.0f}\n\n"
+                           f"1. Confirm\n2. Cancel"), True
+                    
+                except ValueError:
+                    return "Invalid amount:", True
+            
+            elif step == 3:
+                if user_input == '1':
+                    from models import User
+                    from app import db
+                    
+                    to_user = User.query.get(data.get('transfer_to_id'))
+                    amount = data.get('transfer_amount', 0)
+                    
+                    success, msg, ref = wallet_service.transfer(
+                        user, to_user, amount,
+                        "USSD transfer",
+                        db_session=db.session
+                    )
+                    
+                    session.current_menu = 'main'
+                    session.current_step = 0
+                    
+                    if success:
+                        db.session.commit()
+                        return (f"Sent N{amount:,.0f} to {to_user.name}\n"
+                               f"Ref: {ref}\n"
+                               f"Balance: N{wallet_service.get_balance(user):,.0f}"), False
+                    else:
+                        return f"Transfer failed: {msg}", False
+                else:
+                    session.current_menu = 'main'
+                    return "Transfer cancelled.\n" + self._show_main_menu(lang, user), True
+        
+        return get_message('error', lang), False
+    
+    def _show_captain_bond_menu(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show Captain bond status and options"""
+        from models import CaptainBond
+        from wallet_service import wallet_service
+        
+        active_bond = CaptainBond.query.filter_by(
+            user_id=user.id, status='active'
+        ).first()
+        
+        if active_bond:
+            menu = (f"Captain Bond: ACTIVE\n"
+                   f"Amount: N{active_bond.amount:,.0f}\n"
+                   f"Campaigns: {active_bond.campaigns_run}\n\n"
+                   f"1. View Status\n"
+                   f"2. Request Refund\n"
+                   f"0. Back")
+        else:
+            balance = wallet_service.get_balance(user)
+            menu = (f"No active Captain bond.\n"
+                   f"Bond Amount: N10,000 (refundable)\n"
+                   f"Your Balance: N{balance:,.0f}\n\n"
+                   f"1. Pay Captain Bond\n"
+                   f"0. Back")
+        
+        return menu, True
+    
+    def _handle_captain_bond_menu(
+        self, 
+        session, 
+        user_input: str, 
+        user, 
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle Captain bond menu selections"""
+        from models import CaptainBond, SabiBuy
+        from wallet_service import wallet_service
+        from app import db
+        
+        active_bond = CaptainBond.query.filter_by(
+            user_id=user.id, status='active'
+        ).first()
+        
+        if user_input == '0':
+            session.current_menu = 'main'
+            return self._show_main_menu(lang, user), True
+        
+        if active_bond:
+            if user_input == '1':
+                return (f"Bond Status: ACTIVE\n"
+                       f"Amount: N{active_bond.amount:,.0f}\n"
+                       f"Paid: {active_bond.collected_date.strftime('%Y-%m-%d')}\n"
+                       f"Campaigns: {active_bond.campaigns_run}\n"
+                       f"Successful: {active_bond.successful_campaigns}"), False
+            
+            elif user_input == '2':
+                active_campaigns = SabiBuy.query.filter_by(
+                    organizer_id=user.id
+                ).filter(SabiBuy.status.in_(['active', 'closed', 'booked', 'in_transit'])).count()
+                
+                if active_campaigns > 0:
+                    return f"Cannot refund: {active_campaigns} active campaign(s).\nComplete all first.", False
+                
+                success, msg = wallet_service.refund_captain_bond(user, db_session=db.session)
+                
+                session.current_menu = 'main'
+                session.current_step = 0
+                
+                if success:
+                    db.session.commit()
+                    return f"Bond refunded!\n{msg}\nBalance: N{wallet_service.get_balance(user):,.0f}", False
+                else:
+                    return f"Refund failed: {msg}", False
+        else:
+            if user_input == '1':
+                balance = wallet_service.get_balance(user)
+                bond_amount = wallet_service.CAPTAIN_BOND_AMOUNT
+                
+                if balance < bond_amount:
+                    return (f"Insufficient balance.\n"
+                           f"Need: N{bond_amount:,.0f}\n"
+                           f"Have: N{balance:,.0f}\n"
+                           f"Top up via 4 > 2"), False
+                
+                success, msg, ref = wallet_service.collect_captain_bond(user, db_session=db.session)
+                
+                session.current_menu = 'main'
+                session.current_step = 0
+                
+                if success:
+                    db.session.commit()
+                    return f"Bond paid!\nRef: {ref}\nYou can now start SabiBuy campaigns!", False
+                else:
+                    return f"Bond failed: {msg}", False
+        
+        return get_message('invalid_command', lang), True
+    
+    def _handle_pay_produce(
+        self, 
+        session, 
+        user_input: str, 
+        user, 
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle produce payment flow via USSD"""
+        from wallet_service import wallet_service
+        from payment_service import payment_service
+        from models import Produce, Transaction, EscrowHold
+        from app import db
+        
+        data = session.get_session_data()
+        step = session.current_step
+        
+        if step == 0:
+            try:
+                produce_id = int(user_input)
+                produce = Produce.query.get(produce_id)
+                
+                if not produce:
+                    return f"Listing #{produce_id} not found. Enter ID:", True
+                
+                if not produce.is_available:
+                    return f"#{produce_id} not available. Enter ID:", True
+                
+                if produce.farmer_id == user.id:
+                    return "Cannot buy own listing. Enter ID:", True
+                
+                user_type = 'farmer' if user.role == 'farmer' else ('verified_trader' if user.trader_verified else 'buyer')
+                fee_info = payment_service.calculate_tiered_fee(produce.price, user_type)
+                
+                data['produce_id'] = produce_id
+                data['amount'] = produce.price
+                data['fee'] = fee_info['platform_fee']
+                data['total'] = fee_info['total_amount']
+                session.set_session_data(data)
+                session.current_step = 1
+                
+                balance = wallet_service.get_balance(user)
+                
+                return (f"Item: {produce.name}\n"
+                       f"Qty: {produce.quantity}\n"
+                       f"Price: N{produce.price:,.0f}\n"
+                       f"Fee: N{fee_info['platform_fee']:,.0f}\n"
+                       f"Total: N{fee_info['total_amount']:,.0f}\n\n"
+                       f"Your balance: N{balance:,.0f}\n\n"
+                       f"1. Pay with Wallet\n"
+                       f"2. Pay with Bank USSD\n"
+                       f"0. Cancel"), True
+                
+            except ValueError:
+                return "Enter valid listing ID:", True
+        
+        elif step == 1:
+            produce_id = data.get('produce_id')
+            produce = Produce.query.get(produce_id)
+            total = data.get('total', 0)
+            
+            if user_input == '1':
+                balance = wallet_service.get_balance(user)
+                if balance < total:
+                    return (f"Insufficient balance.\n"
+                           f"Have: N{balance:,.0f}\n"
+                           f"Need: N{total:,.0f}\n"
+                           f"Top up via Menu 4 > 2"), False
+                
+                success, msg, ref = wallet_service.hold_escrow(
+                    user, total,
+                    f"Payment for {produce.name} (#{produce.id})",
+                    produce_id=produce.id,
+                    db_session=db.session
+                )
+                
+                session.current_menu = 'main'
+                session.current_step = 0
+                
+                if success:
+                    db.session.commit()
+                    return (f"Payment held in escrow!\n"
+                           f"Item: {produce.name}\n"
+                           f"Amount: N{total:,.0f}\n"
+                           f"Ref: {ref}\n"
+                           f"Seller notified."), False
+                else:
+                    return f"Payment failed: {msg}", False
+            
+            elif user_input == '2':
+                session.current_step = 2
+                banks = payment_service.get_bank_ussd_codes()
+                bank_list = "\n".join([f"{i+1}. {info['name']}" 
+                                      for i, (code, info) in enumerate(list(banks.items())[:6])])
+                return f"Select bank:\n{bank_list}", True
+            
+            elif user_input == '0':
+                session.current_menu = 'main'
+                return "Cancelled.\n" + self._show_main_menu(lang, user), True
+        
+        elif step == 2:
+            try:
+                bank_index = int(user_input) - 1
+                banks = list(payment_service.get_bank_ussd_codes().items())
+                
+                if 0 <= bank_index < len(banks):
+                    bank_code, bank_info = banks[bank_index]
+                    produce_id = data.get('produce_id')
+                    total = data.get('total', 0)
+                    
+                    ref = payment_service.generate_reference(f"USSD_PAY_{produce_id}")
+                    email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@agrolink.ng"
+                    
+                    result = payment_service.charge_ussd(email, total, ref, bank_code)
+                    
+                    session.current_menu = 'main'
+                    session.current_step = 0
+                    
+                    if result.get('success'):
+                        transaction = Transaction(
+                            reference=ref,
+                            user_id=user.id,
+                            transaction_type='produce_sale',
+                            base_amount=data.get('amount', 0),
+                            platform_fee=data.get('fee', 0),
+                            total_amount=total,
+                            payment_method='ussd',
+                            status='pending',
+                            produce_id=produce_id
+                        )
+                        db.session.add(transaction)
+                        db.session.commit()
+                        
+                        return (f"Dial to pay:\n{result['ussd_code']}\n"
+                               f"Amount: N{total:,.0f}\n"
+                               f"Ref: {ref}"), False
+                    else:
+                        return f"Failed: {result.get('message')}", False
+                else:
+                    return "Invalid bank. Try again:", True
+                    
+            except ValueError:
+                return "Enter bank number:", True
+        
+        return get_message('error', lang), False
 
 
 # Singleton instance

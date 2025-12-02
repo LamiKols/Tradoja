@@ -138,7 +138,139 @@ class PaymentService:
     def generate_reference(self, prefix="agrolink"):
         """Generate a unique transaction reference"""
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        return f"{prefix}_{timestamp}"
+        import uuid
+        unique_id = uuid.uuid4().hex[:6]
+        return f"{prefix}_{timestamp}_{unique_id}"
+    
+    def charge_ussd(self, email, amount, reference, bank_code, account_number=None):
+        """
+        Charge via Paystack USSD - generates a USSD code for rural users to dial
+        Supported banks: GTB (058), UBA (033), Zenith (057), First Bank (011), etc.
+        Returns: USSD code string that user dials to complete payment
+        """
+        if not self.paystack_secret_key:
+            raise Exception("Paystack credentials not configured")
+        
+        url = f"{self.base_url}/charge"
+        
+        amount_kobo = int(float(amount) * 100)
+        
+        data = {
+            'email': email,
+            'amount': amount_kobo,
+            'reference': reference,
+            'ussd': {
+                'type': bank_code
+            }
+        }
+        
+        if account_number:
+            data['ussd']['account_number'] = account_number
+        
+        try:
+            response = requests.post(url, json=data, headers=self.get_headers())
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('status') and result.get('data', {}).get('ussd_code'):
+                return {
+                    'success': True,
+                    'ussd_code': result['data']['ussd_code'],
+                    'reference': reference,
+                    'display_text': result['data'].get('display_text', ''),
+                    'message': f"Dial {result['data']['ussd_code']} to complete payment"
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': result.get('message', 'USSD charge failed')
+                }
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"USSD charge failed: {e}")
+            return {
+                'success': False,
+                'message': f"USSD charge failed: {str(e)}"
+            }
+    
+    def get_bank_ussd_codes(self):
+        """Get supported bank USSD codes for Paystack"""
+        return {
+            '058': {'name': 'GTBank', 'code': '*737#'},
+            '033': {'name': 'UBA', 'code': '*919#'},
+            '057': {'name': 'Zenith Bank', 'code': '*966#'},
+            '011': {'name': 'First Bank', 'code': '*894#'},
+            '044': {'name': 'Access Bank', 'code': '*901#'},
+            '050': {'name': 'Ecobank', 'code': '*326#'},
+            '070': {'name': 'Fidelity Bank', 'code': '*770#'},
+            '032': {'name': 'Union Bank', 'code': '*826#'},
+            '039': {'name': 'Stanbic IBTC', 'code': '*909#'},
+            '214': {'name': 'FCMB', 'code': '*329#'},
+            '035': {'name': 'Wema Bank', 'code': '*945#'},
+            '232': {'name': 'Sterling Bank', 'code': '*822#'},
+            '082': {'name': 'Keystone Bank', 'code': '*7111#'},
+            '076': {'name': 'Polaris Bank', 'code': '*833#'},
+            '221': {'name': 'Heritage Bank', 'code': '*322#'},
+            '215': {'name': 'Unity Bank', 'code': '*7799#'},
+        }
+    
+    def format_bank_list_sms(self):
+        """Format bank list for SMS response"""
+        banks = self.get_bank_ussd_codes()
+        lines = ["Banks for USSD payment:"]
+        for code, info in list(banks.items())[:8]:
+            lines.append(f"{info['name']}: Reply {code}")
+        return "\n".join(lines)
+    
+    def check_charge_status(self, reference):
+        """Check the status of a USSD charge"""
+        if not self.paystack_secret_key:
+            raise Exception("Paystack credentials not configured")
+        
+        url = f"{self.base_url}/charge/{reference}"
+        
+        try:
+            response = requests.get(url, headers=self.get_headers())
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('status'):
+                data = result.get('data', {})
+                return {
+                    'success': True,
+                    'status': data.get('status'),
+                    'gateway_response': data.get('gateway_response'),
+                    'reference': reference,
+                    'amount': data.get('amount', 0) / 100
+                }
+            return {'success': False, 'message': 'Charge not found'}
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Charge status check failed: {e}")
+            return {'success': False, 'message': str(e)}
+    
+    def calculate_tiered_fee(self, amount, user_type='farmer'):
+        """
+        Calculate tiered transaction fees based on user type
+        Farmer-direct: 2%, Verified trader: 3.5%, Unverified trader: 5%
+        """
+        fee_rates = {
+            'farmer': Decimal('0.02'),
+            'verified_trader': Decimal('0.035'),
+            'unverified_trader': Decimal('0.05'),
+            'buyer': Decimal('0.02')
+        }
+        
+        rate = fee_rates.get(user_type, Decimal('0.02'))
+        base_amount = Decimal(str(amount))
+        platform_fee = base_amount * rate
+        
+        return {
+            'base_amount': float(base_amount),
+            'platform_fee': float(platform_fee),
+            'fee_rate': float(rate * 100),
+            'total_amount': float(base_amount + platform_fee)
+        }
 
 # Initialize payment service
 payment_service = PaymentService()

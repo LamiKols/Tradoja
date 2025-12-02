@@ -1101,6 +1101,73 @@ def produce_detail(id):
     produce = Produce.query.get_or_404(id)
     return render_template('produce_detail.html', title=produce.name, produce=produce)
 
+@app.route('/produce/<int:id>/confirm-delivery', methods=['POST'])
+@login_required
+def confirm_delivery(id):
+    """Confirm delivery and release escrow funds to seller"""
+    from wallet_service import wallet_service
+    from models import EscrowHold
+    
+    produce = Produce.query.get_or_404(id)
+    
+    escrow = EscrowHold.query.filter_by(
+        produce_id=id,
+        status='held'
+    ).first()
+    
+    if not escrow:
+        flash('No payment found for this item.', 'warning')
+        return redirect(url_for('produce_detail', id=id))
+    
+    if escrow.user_id != current_user.id and not current_user.is_admin():
+        flash('Only the buyer can confirm delivery.', 'error')
+        return redirect(url_for('produce_detail', id=id))
+    
+    try:
+        success, msg = wallet_service.release_escrow(
+            escrow.reference,
+            produce.farmer,
+            db_session=db.session
+        )
+        
+        if success:
+            produce.is_available = False
+            produce.buyer_id = current_user.id
+            db.session.commit()
+            
+            if produce.farmer.phone_number and sms_service:
+                try:
+                    sms_service.send_sms(produce.farmer.phone_number,
+                        f"Payment released!\n"
+                        f"Item: {produce.name}\n"
+                        f"Amount: N{escrow.amount:,.0f}\n"
+                        f"Buyer: {current_user.name}\n"
+                        f"Balance: N{wallet_service.get_balance(produce.farmer):,.0f}")
+                except:
+                    pass
+            
+            if current_user.phone_number and sms_service:
+                try:
+                    sms_service.send_sms(current_user.phone_number,
+                        f"Delivery confirmed!\n"
+                        f"Item: {produce.name}\n"
+                        f"Amount: N{escrow.amount:,.0f}\n"
+                        f"Seller: {produce.farmer.name}\n"
+                        f"Thank you for using AgroLink!")
+                except:
+                    pass
+            
+            flash(f'Delivery confirmed! N{escrow.amount:,.0f} released to {produce.farmer.name}.', 'success')
+        else:
+            flash(f'Failed to release payment: {msg}', 'error')
+            
+    except Exception as e:
+        app.logger.error(f"Delivery confirmation error: {e}")
+        flash('Error processing delivery confirmation.', 'error')
+    
+    return redirect(url_for('produce_detail', id=id))
+
+
 @app.route('/produce/<int:id>/delete', methods=['POST'])
 @login_required
 def delete_produce(id):
@@ -2062,6 +2129,141 @@ def sms_webhook():
         
     except Exception as e:
         app.logger.error(f"SMS webhook error: {e}")
+        return jsonify({'status': 'error', 'message': 'Processing failed'}), 500
+
+
+@app.route('/payment/webhook/paystack', methods=['POST'])
+@csrf_exempt
+def paystack_payment_webhook():
+    """Handle Paystack payment webhook for wallet top-ups and produce payments"""
+    import hmac
+    import hashlib
+    
+    try:
+        paystack_secret = os.environ.get('PAYSTACK_SECRET_KEY', '')
+        
+        if paystack_secret:
+            signature = request.headers.get('x-paystack-signature')
+            
+            if not signature:
+                app.logger.warning("Missing Paystack webhook signature")
+                return jsonify({'status': 'error', 'message': 'Signature required'}), 401
+            
+            expected_sig = hmac.new(
+                paystack_secret.encode(),
+                request.data,
+                hashlib.sha512
+            ).hexdigest()
+            
+            if not hmac.compare_digest(signature, expected_sig):
+                app.logger.warning("Invalid Paystack webhook signature")
+                return jsonify({'status': 'error', 'message': 'Invalid signature'}), 401
+        else:
+            app.logger.warning("Paystack webhook called without secret key configured - rejecting")
+            return jsonify({'status': 'error', 'message': 'Webhook not configured'}), 503
+        
+        payload = request.get_json()
+        
+        event = payload.get('event')
+        data = payload.get('data', {})
+        
+        if event == 'charge.success':
+            reference = data.get('reference', '')
+            amount = data.get('amount', 0) / 100
+            
+            transaction = Transaction.query.filter_by(reference=reference).first()
+            
+            if transaction and transaction.status == 'pending':
+                transaction.status = 'successful'
+                transaction.payment_date = datetime.utcnow()
+                transaction.paystack_reference = data.get('id')
+                
+                user = User.query.get(transaction.user_id)
+                
+                if transaction.transaction_type == 'wallet_topup':
+                    from wallet_service import wallet_service
+                    
+                    success, msg, ref = wallet_service.credit_wallet(
+                        user, amount,
+                        f"Paystack top-up (Ref: {reference})",
+                        f"PS_{reference}",
+                        db_session=db.session
+                    )
+                    
+                    if success:
+                        db.session.commit()
+                        
+                        if user.phone_number and sms_service:
+                            try:
+                                balance = wallet_service.get_balance(user)
+                                sms_service.send_sms(user.phone_number,
+                                    f"Wallet credited!\n"
+                                    f"Amount: N{amount:,.0f}\n"
+                                    f"Ref: {reference}\n"
+                                    f"Balance: N{balance:,.0f}")
+                            except Exception as e:
+                                app.logger.error(f"SMS notification error: {e}")
+                        
+                        app.logger.info(f"Wallet top-up successful: {reference}")
+                    else:
+                        app.logger.error(f"Wallet credit failed: {msg}")
+                
+                elif transaction.transaction_type == 'produce_sale':
+                    from wallet_service import wallet_service
+                    from models import EscrowHold
+                    
+                    produce = Produce.query.get(transaction.produce_id)
+                    
+                    if produce:
+                        escrow = EscrowHold(
+                            user_id=user.id,
+                            amount=amount,
+                            description=f"Payment for {produce.name}",
+                            reference=f"ESC_{reference}",
+                            produce_id=produce.id,
+                            status='held'
+                        )
+                        db.session.add(escrow)
+                        db.session.commit()
+                        
+                        if user.phone_number and sms_service:
+                            try:
+                                sms_service.send_sms(user.phone_number,
+                                    f"Payment confirmed!\n"
+                                    f"Item: {produce.name}\n"
+                                    f"Amount: N{amount:,.0f}\n"
+                                    f"Ref: {reference}\n"
+                                    f"Funds held in escrow.")
+                            except:
+                                pass
+                        
+                        if produce.farmer.phone_number and sms_service:
+                            try:
+                                sms_service.send_sms(produce.farmer.phone_number,
+                                    f"Payment received!\n"
+                                    f"Item: {produce.name}\n"
+                                    f"Amount: N{amount:,.0f}\n"
+                                    f"Buyer: {user.name}\n"
+                                    f"Contact: {user.phone_number}")
+                            except:
+                                pass
+                        
+                        app.logger.info(f"Produce payment successful: {reference}")
+                
+                else:
+                    db.session.commit()
+                    app.logger.info(f"Payment verified: {reference}")
+            
+            else:
+                if not transaction:
+                    app.logger.warning(f"Transaction not found: {reference}")
+                else:
+                    app.logger.info(f"Transaction already processed: {reference}")
+        
+        return jsonify({'status': 'success'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Paystack webhook error: {e}")
         return jsonify({'status': 'error', 'message': 'Processing failed'}), 500
 
 

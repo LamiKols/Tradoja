@@ -161,6 +161,18 @@ class SMSService:
                 return self._handle_rating(phone_number, command_parts)
             elif command == 'STATUS':
                 return self._handle_status_check(phone_number, command_parts)
+            elif command == 'PAY':
+                return self._handle_pay_command(phone_number, command_parts)
+            elif command == 'WALLET':
+                return self._handle_wallet_command(phone_number, command_parts)
+            elif command == 'TOPUP' or command == 'ADDMONEY':
+                return self._handle_topup_command(phone_number, command_parts)
+            elif command == 'BOND':
+                return self._handle_bond_command(phone_number, command_parts)
+            elif command == 'HISTORY' or command == 'TXN':
+                return self._handle_transaction_history(phone_number)
+            elif command == 'CONFIRM':
+                return self._handle_delivery_confirmation(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -1846,6 +1858,554 @@ class SMSService:
             f"Open orders: {open_orders}\n"
             f"Open disputes: {open_disputes}\n"
             f"{rating_info}")
+    
+    def _handle_pay_command(self, phone_number, command_parts):
+        """Handle PAY command for produce purchases or logistics payments
+        
+        Formats:
+        - PAY [listing_id] [amount] - Pay for produce listing
+        - PAY [listing_id] WALLET - Pay using T2 wallet
+        - PAY [listing_id] BANK [bank_code] - Generate USSD code for bank payment
+        - PAY SABIBUY [code] [amount] - Pay for SabiBuy order
+        
+        Examples:
+        - PAY 123 50000
+        - PAY 123 WALLET
+        - PAY 123 BANK 058 (GTBank)
+        - PAY SABIBUY SB-RICE-001 25000
+        """
+        from wallet_service import wallet_service
+        from payment_service import payment_service
+        from models import Produce, Transaction, EscrowHold
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "Payment format:\n"
+                "PAY [listing_id] WALLET - use wallet\n"
+                "PAY [listing_id] BANK [code] - bank USSD\n"
+                "Reply BANKS for bank codes")
+        
+        target = command_parts[1]
+        
+        if target == 'BANKS':
+            return self.send_sms(phone_number, payment_service.format_bank_list_sms())
+        
+        if target == 'SABIBUY' or target == 'SB':
+            return self._handle_sabibuy_payment(phone_number, command_parts[2:], user)
+        
+        try:
+            produce_id = int(target)
+            produce = Produce.query.get(produce_id)
+            
+            if not produce:
+                return self.send_sms(phone_number, f"Listing #{produce_id} not found")
+            
+            if not produce.is_available:
+                return self.send_sms(phone_number, f"Listing #{produce_id} is no longer available")
+            
+            if produce.farmer_id == user.id:
+                return self.send_sms(phone_number, "You cannot buy your own listing")
+            
+            amount = produce.price
+            user_type = 'farmer' if user.role == 'farmer' else ('verified_trader' if user.trader_verified else 'buyer')
+            fee_info = payment_service.calculate_tiered_fee(amount, user_type)
+            total = fee_info['total_amount']
+            
+            if len(command_parts) >= 3:
+                payment_method = command_parts[2].upper()
+                
+                if payment_method == 'WALLET':
+                    wallet_balance = wallet_service.get_balance(user)
+                    if wallet_balance < total:
+                        return self.send_sms(phone_number,
+                            f"Insufficient wallet balance.\n"
+                            f"Balance: N{wallet_balance:,.0f}\n"
+                            f"Required: N{total:,.0f}\n"
+                            f"Top up: TOPUP [amount]")
+                    
+                    success, msg, ref = wallet_service.hold_escrow(
+                        user, total,
+                        f"Payment for {produce.name} (#{produce.id})",
+                        produce_id=produce.id,
+                        db_session=db.session
+                    )
+                    
+                    if success:
+                        db.session.commit()
+                        self._notify_seller_payment(produce.farmer, produce, user, total)
+                        return self.send_sms(phone_number,
+                            f"Payment held in escrow!\n"
+                            f"Item: {produce.name}\n"
+                            f"Amount: N{total:,.0f}\n"
+                            f"Ref: {ref}\n"
+                            f"Seller notified. Await delivery.")
+                    else:
+                        return self.send_sms(phone_number, f"Payment failed: {msg}")
+                
+                elif payment_method == 'BANK':
+                    if len(command_parts) < 4:
+                        return self.send_sms(phone_number,
+                            "Specify bank code.\n"
+                            "Reply BANKS for codes.\n"
+                            "Example: PAY 123 BANK 058")
+                    
+                    bank_code = command_parts[3]
+                    ref = payment_service.generate_reference(f"SMS_{produce.id}")
+                    
+                    email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+                    
+                    result = payment_service.charge_ussd(email, total, ref, bank_code)
+                    
+                    if result.get('success'):
+                        transaction = Transaction(
+                            reference=ref,
+                            user_id=user.id,
+                            transaction_type='produce_sale',
+                            base_amount=amount,
+                            platform_fee=fee_info['platform_fee'],
+                            total_amount=total,
+                            payment_method='ussd',
+                            status='pending',
+                            produce_id=produce.id
+                        )
+                        db.session.add(transaction)
+                        db.session.commit()
+                        
+                        return self.send_sms(phone_number,
+                            f"Dial to pay:\n"
+                            f"{result['ussd_code']}\n"
+                            f"Amount: N{total:,.0f}\n"
+                            f"Ref: {ref}\n"
+                            f"Check: STATUS {ref}")
+                    else:
+                        return self.send_sms(phone_number,
+                            f"USSD failed: {result.get('message')}\n"
+                            f"Try: PAY {produce_id} WALLET")
+            
+            return self.send_sms(phone_number,
+                f"Confirm payment:\n"
+                f"Item: {produce.name}\n"
+                f"Qty: {produce.quantity}\n"
+                f"Price: N{amount:,.0f}\n"
+                f"Fee: N{fee_info['platform_fee']:,.0f}\n"
+                f"Total: N{total:,.0f}\n\n"
+                f"Reply:\n"
+                f"PAY {produce_id} WALLET - from balance\n"
+                f"PAY {produce_id} BANK [code] - via bank")
+            
+        except ValueError:
+            return self.send_sms(phone_number,
+                f"Invalid listing ID: {target}\n"
+                f"Use: PAY [listing_id] WALLET")
+        except Exception as e:
+            current_app.logger.error(f"Pay command error: {e}")
+            return self.send_sms(phone_number, "Payment failed. Try again later.")
+    
+    def _handle_sabibuy_payment(self, phone_number, command_parts, user):
+        """Handle SabiBuy order payment via SMS"""
+        from wallet_service import wallet_service
+        from models import SabiBuy, SabiBuyOrder
+        
+        if len(command_parts) < 1:
+            return self.send_sms(phone_number,
+                "Format: PAY SABIBUY [campaign_code]\n"
+                "Example: PAY SABIBUY SB-RICE-001")
+        
+        campaign_code = command_parts[0].upper()
+        
+        campaign = SabiBuy.query.filter(
+            db.func.upper(SabiBuy.campaign_code) == campaign_code
+        ).first()
+        
+        if not campaign:
+            return self.send_sms(phone_number, f"Campaign {campaign_code} not found")
+        
+        if campaign.status != 'active':
+            return self.send_sms(phone_number,
+                f"Campaign {campaign_code} is {campaign.status}")
+        
+        order = SabiBuyOrder.query.filter_by(
+            campaign_id=campaign.id,
+            buyer_phone=phone_number,
+            payment_status='pending'
+        ).first()
+        
+        if not order:
+            return self.send_sms(phone_number,
+                f"No pending order for {campaign_code}\n"
+                f"First join: {campaign_code} [quantity]")
+        
+        wallet_balance = wallet_service.get_balance(user)
+        if wallet_balance < order.total_amount:
+            return self.send_sms(phone_number,
+                f"Insufficient balance.\n"
+                f"Balance: N{wallet_balance:,.0f}\n"
+                f"Order: N{order.total_amount:,.0f}\n"
+                f"Top up: TOPUP [amount]")
+        
+        success, msg, ref = wallet_service.debit_wallet(
+            user, order.total_amount,
+            f"SabiBuy order: {campaign.campaign_code}",
+            db_session=db.session
+        )
+        
+        if success:
+            order.payment_status = 'paid'
+            order.payment_reference = ref
+            order.payment_date = datetime.utcnow()
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"SabiBuy payment confirmed!\n"
+                f"Campaign: {campaign.campaign_code}\n"
+                f"Amount: N{order.total_amount:,.0f}\n"
+                f"Qty: {order.quantity}\n"
+                f"Track: TRACK {campaign.campaign_code}")
+        else:
+            return self.send_sms(phone_number, f"Payment failed: {msg}")
+    
+    def _handle_wallet_command(self, phone_number, command_parts):
+        """Handle WALLET command - view balance and recent transactions
+        
+        Formats:
+        - WALLET - show balance and recent transactions
+        - WALLET SEND [phone] [amount] - transfer to another user
+        """
+        from wallet_service import wallet_service
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) > 1 and command_parts[1] == 'SEND':
+            if len(command_parts) < 4:
+                return self.send_sms(phone_number,
+                    "Format: WALLET SEND [phone] [amount]\n"
+                    "Example: WALLET SEND 08012345678 5000")
+            
+            to_phone = self._normalize_phone_number(command_parts[2])
+            try:
+                amount = float(command_parts[3].replace(',', ''))
+            except ValueError:
+                return self.send_sms(phone_number, "Invalid amount")
+            
+            to_user = User.query.filter_by(phone_number=to_phone).first()
+            if not to_user:
+                return self.send_sms(phone_number,
+                    f"User {command_parts[2]} not found on AgroLink")
+            
+            if to_user.id == user.id:
+                return self.send_sms(phone_number, "Cannot transfer to yourself")
+            
+            success, msg, ref = wallet_service.transfer(
+                user, to_user, amount,
+                "SMS wallet transfer",
+                db_session=db.session
+            )
+            
+            if success:
+                db.session.commit()
+                self.send_sms(to_phone,
+                    f"Received N{amount:,.0f} from {user.name}\n"
+                    f"New balance: N{wallet_service.get_balance(to_user):,.0f}")
+                return self.send_sms(phone_number,
+                    f"Sent N{amount:,.0f} to {to_user.name}\n"
+                    f"Ref: {ref}\n"
+                    f"Balance: N{wallet_service.get_balance(user):,.0f}")
+            else:
+                return self.send_sms(phone_number, msg)
+        
+        balance = wallet_service.get_balance(user)
+        history = wallet_service.format_history_sms(user, 3)
+        
+        return self.send_sms(phone_number,
+            f"T2 Wallet Balance: N{balance:,.0f}\n\n"
+            f"{history}\n\n"
+            f"WALLET SEND [phone] [amt] - transfer\n"
+            f"TOPUP [amount] - add funds")
+    
+    def _handle_topup_command(self, phone_number, command_parts):
+        """Handle TOPUP command - add funds to wallet via Paystack USSD
+        
+        Formats:
+        - TOPUP [amount] - show bank options
+        - TOPUP [amount] [bank_code] - generate USSD code
+        """
+        from payment_service import payment_service
+        from models import Transaction
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "Format: TOPUP [amount] [bank_code]\n"
+                "Example: TOPUP 10000 058\n"
+                "Reply BANKS for bank codes")
+        
+        try:
+            amount = float(command_parts[1].replace(',', '').replace('N', ''))
+        except ValueError:
+            return self.send_sms(phone_number, "Invalid amount")
+        
+        if amount < 100:
+            return self.send_sms(phone_number, "Minimum top-up is N100")
+        
+        if amount > 500000:
+            return self.send_sms(phone_number, "Maximum top-up is N500,000")
+        
+        if len(command_parts) < 3:
+            banks = payment_service.get_bank_ussd_codes()
+            bank_list = "\n".join([f"{info['name']}: {code}" for code, info in list(banks.items())[:6]])
+            return self.send_sms(phone_number,
+                f"Top-up N{amount:,.0f}\n"
+                f"Select bank code:\n{bank_list}\n"
+                f"Reply: TOPUP {int(amount)} [code]")
+        
+        bank_code = command_parts[2]
+        ref = payment_service.generate_reference(f"TOPUP_{user.id}")
+        
+        email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+        
+        result = payment_service.charge_ussd(email, amount, ref, bank_code)
+        
+        if result.get('success'):
+            transaction = Transaction(
+                reference=ref,
+                user_id=user.id,
+                transaction_type='wallet_topup',
+                base_amount=amount,
+                platform_fee=0,
+                total_amount=amount,
+                payment_method='ussd',
+                status='pending',
+                transaction_metadata=f'{{"phone":"{phone_number}","bank":"{bank_code}"}}'
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"Dial to top up:\n"
+                f"{result['ussd_code']}\n"
+                f"Amount: N{amount:,.0f}\n"
+                f"Ref: {ref}")
+        else:
+            return self.send_sms(phone_number,
+                f"Failed: {result.get('message')}\n"
+                f"Try a different bank")
+    
+    def _handle_bond_command(self, phone_number, command_parts):
+        """Handle BOND command for SabiBuy Captain bond management
+        
+        Formats:
+        - BOND - check bond status
+        - BOND PAY - pay Captain bond from wallet
+        - BOND REFUND - request bond refund (if eligible)
+        """
+        from wallet_service import wallet_service
+        from models import CaptainBond
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        active_bond = CaptainBond.query.filter_by(
+            user_id=user.id, status='active'
+        ).first()
+        
+        if len(command_parts) < 2:
+            if active_bond:
+                return self.send_sms(phone_number,
+                    f"Captain Bond: ACTIVE\n"
+                    f"Amount: N{active_bond.amount:,.0f}\n"
+                    f"Campaigns: {active_bond.campaigns_run}\n"
+                    f"Ref: {active_bond.reference}\n\n"
+                    f"To refund: BOND REFUND")
+            else:
+                return self.send_sms(phone_number,
+                    f"No active Captain bond.\n"
+                    f"Captain bond = N10,000 (refundable)\n"
+                    f"Required to start SabiBuy campaigns.\n\n"
+                    f"To pay: BOND PAY")
+        
+        action = command_parts[1].upper()
+        
+        if action == 'PAY':
+            if active_bond:
+                return self.send_sms(phone_number,
+                    f"You already have an active bond (N{active_bond.amount:,.0f})")
+            
+            balance = wallet_service.get_balance(user)
+            bond_amount = wallet_service.CAPTAIN_BOND_AMOUNT
+            
+            if balance < bond_amount:
+                return self.send_sms(phone_number,
+                    f"Insufficient balance.\n"
+                    f"Balance: N{balance:,.0f}\n"
+                    f"Bond required: N{bond_amount:,.0f}\n"
+                    f"Top up: TOPUP {int(bond_amount - balance)}")
+            
+            success, msg, ref = wallet_service.collect_captain_bond(user, db_session=db.session)
+            
+            if success:
+                db.session.commit()
+                return self.send_sms(phone_number,
+                    f"Captain bond paid!\n"
+                    f"Amount: N{bond_amount:,.0f}\n"
+                    f"Ref: {ref}\n"
+                    f"You can now start SabiBuy campaigns!")
+            else:
+                return self.send_sms(phone_number, f"Bond payment failed: {msg}")
+        
+        elif action == 'REFUND':
+            if not active_bond:
+                return self.send_sms(phone_number, "No active bond to refund")
+            
+            from models import SabiBuy
+            active_campaigns = SabiBuy.query.filter_by(
+                organizer_id=user.id
+            ).filter(SabiBuy.status.in_(['active', 'closed', 'booked', 'in_transit'])).count()
+            
+            if active_campaigns > 0:
+                return self.send_sms(phone_number,
+                    f"Cannot refund: {active_campaigns} active campaign(s).\n"
+                    f"Complete all campaigns first.")
+            
+            success, msg = wallet_service.refund_captain_bond(user, db_session=db.session)
+            
+            if success:
+                db.session.commit()
+                return self.send_sms(phone_number,
+                    f"Bond refunded!\n"
+                    f"{msg}\n"
+                    f"Balance: N{wallet_service.get_balance(user):,.0f}")
+            else:
+                return self.send_sms(phone_number, f"Refund failed: {msg}")
+        
+        return self.send_sms(phone_number,
+            "Bond commands:\n"
+            "BOND - check status\n"
+            "BOND PAY - pay bond\n"
+            "BOND REFUND - request refund")
+    
+    def _handle_transaction_history(self, phone_number):
+        """Handle HISTORY/TXN command - show recent transactions"""
+        from wallet_service import wallet_service
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        history = wallet_service.format_history_sms(user, 5)
+        balance = wallet_service.get_balance(user)
+        
+        return self.send_sms(phone_number,
+            f"Balance: N{balance:,.0f}\n\n{history}")
+    
+    def _notify_seller_payment(self, seller, produce, buyer, amount):
+        """Notify seller when payment is received"""
+        try:
+            if seller.phone_number:
+                self.send_sms(seller.phone_number,
+                    f"Payment received!\n"
+                    f"Item: {produce.name}\n"
+                    f"Amount: N{amount:,.0f}\n"
+                    f"Buyer: {buyer.name}\n"
+                    f"Phone: {buyer.phone_number}\n"
+                    f"Funds held in escrow until delivery confirmed.")
+        except Exception as e:
+            current_app.logger.error(f"Seller notification error: {e}")
+    
+    def _handle_delivery_confirmation(self, phone_number, command_parts):
+        """Handle CONFIRM command to release escrow after delivery
+        
+        Format: CONFIRM [escrow_ref or produce_id]
+        Examples:
+        - CONFIRM ESC_20231201_ABC123
+        - CONFIRM 456 (produce ID)
+        """
+        from wallet_service import wallet_service
+        from models import EscrowHold, Produce
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            escrows = EscrowHold.query.filter_by(
+                user_id=user.id,
+                status='held'
+            ).all()
+            
+            if not escrows:
+                return self.send_sms(phone_number, "No pending deliveries to confirm.")
+            
+            lines = ["Pending deliveries:"]
+            for e in escrows[:5]:
+                produce = Produce.query.get(e.produce_id) if e.produce_id else None
+                name = produce.name if produce else "Item"
+                lines.append(f"- {name}: CONFIRM {e.reference}")
+            
+            return self.send_sms(phone_number, "\n".join(lines))
+        
+        identifier = command_parts[1]
+        
+        escrow = EscrowHold.query.filter(
+            (EscrowHold.reference == identifier) | 
+            (EscrowHold.produce_id == int(identifier) if identifier.isdigit() else False)
+        ).filter_by(user_id=user.id, status='held').first()
+        
+        if not escrow:
+            return self.send_sms(phone_number,
+                f"Order {identifier} not found or already confirmed.")
+        
+        produce = Produce.query.get(escrow.produce_id) if escrow.produce_id else None
+        seller = produce.farmer if produce else None
+        
+        if not seller:
+            return self.send_sms(phone_number, "Seller not found.")
+        
+        success, msg = wallet_service.release_escrow(
+            escrow.reference,
+            seller,
+            db_session=db.session
+        )
+        
+        if success:
+            if produce:
+                produce.is_available = False
+                produce.buyer_id = user.id
+            db.session.commit()
+            
+            if seller.phone_number:
+                try:
+                    self.send_sms(seller.phone_number,
+                        f"Payment released!\n"
+                        f"Item: {produce.name if produce else 'Item'}\n"
+                        f"Amount: N{escrow.amount:,.0f}\n"
+                        f"Buyer: {user.name}\n"
+                        f"Balance: N{wallet_service.get_balance(seller):,.0f}")
+                except:
+                    pass
+            
+            return self.send_sms(phone_number,
+                f"Delivery confirmed!\n"
+                f"Released: N{escrow.amount:,.0f}\n"
+                f"To: {seller.name}\n"
+                f"Thank you!")
+        else:
+            return self.send_sms(phone_number, f"Confirmation failed: {msg}")
 
 
 # SMS Templates for future multilingual support
