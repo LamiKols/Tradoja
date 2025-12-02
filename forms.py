@@ -1005,3 +1005,113 @@ class EnhancedLogisticsRequestForm(FlaskForm):
         Optional(),
         Length(max=500, message="Notes cannot exceed 500 characters")
     ], render_kw={'rows': 3})
+
+
+class PhoneLookupForm(FlaskForm):
+    """Form for looking up LITE accounts by phone number"""
+    phone_number = StringField('Phone Number', validators=[
+        DataRequired(),
+        Length(min=10, max=15, message="Please enter a valid phone number")
+    ], render_kw={'placeholder': '+234 XXX XXX XXXX'})
+
+
+class CompleteRegistrationForm(FlaskForm):
+    """Form for completing LITE registration to get VERIFIED status"""
+    phone_number = HiddenField('Phone Number', validators=[DataRequired()])
+    
+    name = StringField('Full Name', validators=[
+        DataRequired(),
+        Length(min=2, max=100, message="Name must be between 2 and 100 characters")
+    ])
+    
+    email = StringField('Email Address', validators=[
+        DataRequired(),
+        Email(message="Please enter a valid email address")
+    ])
+    
+    password = PasswordField('Create Password', validators=[
+        DataRequired(),
+        Length(min=6, message="Password must be at least 6 characters")
+    ])
+    
+    password2 = PasswordField('Confirm Password', validators=[
+        DataRequired(),
+        EqualTo('password', message="Passwords must match")
+    ])
+    
+    location = StringField('Location (Town/City)', validators=[
+        DataRequired(),
+        Length(min=2, max=200, message="Please enter your location")
+    ])
+    
+    role = SelectField('Your Role', choices=[
+        ('farmer', 'Farmer - I grow/produce crops'),
+        ('buyer', 'Buyer - I buy produce for personal/business use'),
+        ('bulk_trader', 'Trader - I buy to resell (requires verification)'),
+        ('aggregator', 'Aggregator - I aggregate from multiple farmers'),
+        ('transport_company', 'Transporter - I provide logistics services')
+    ], validators=[DataRequired()])
+    
+    buyer_type = SelectField('Buyer Category (if Buyer)', choices=[
+        ('retail_buyer', 'Retail Buyer (personal/household)'),
+        ('institutional_buyer', 'Institutional (restaurant, hotel, school)'),
+        ('bulk_trader', 'Bulk Trader (for resale)'),
+        ('agro_processor', 'Agro Processor (food processing)')
+    ], validators=[Optional()])
+    
+    main_crop = StringField('Main Crop/Produce', validators=[
+        Optional(),
+        Length(max=100)
+    ], render_kw={'placeholder': 'e.g., Rice, Tomatoes, Yam'})
+    
+    farm_size = StringField('Farm Size (for farmers)', validators=[
+        Optional(),
+        Length(max=50)
+    ], render_kw={'placeholder': 'e.g., 2 hectares, 5 acres'})
+    
+    def validate_email(self, email):
+        """Check if email is already used by another account"""
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            # Allow if it's the same account (LITE account using temp email)
+            if '@sms.agrolink.com' in user.email or '@ussd.agrolink.com' in user.email:
+                return
+            raise ValidationError('This email is already registered.')
+
+
+class AgentCompleteRegistrationForm(FlaskForm):
+    """Form for agents to complete LITE farmer registrations"""
+    farmer_phone = StringField('Farmer Phone Number', validators=[
+        DataRequired(),
+        Length(min=10, max=15)
+    ], render_kw={'placeholder': '+234 XXX XXX XXXX'})
+    
+    name = StringField('Farmer Full Name', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ])
+    
+    email = StringField('Email (optional)', validators=[
+        Optional(),
+        Email(message="Please enter a valid email address")
+    ])
+    
+    location = StringField('Location (Town/LGA)', validators=[
+        DataRequired(),
+        Length(min=2, max=200)
+    ])
+    
+    main_crop = StringField('Main Crop/Produce', validators=[
+        DataRequired(),
+        Length(max=100)
+    ])
+    
+    farm_size = StringField('Farm Size', validators=[
+        Optional(),
+        Length(max=50)
+    ], render_kw={'placeholder': 'e.g., 2 hectares'})
+    
+    notes = TextAreaField('Additional Notes', validators=[
+        Optional(),
+        Length(max=500)
+    ], render_kw={'rows': 3})

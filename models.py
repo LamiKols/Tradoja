@@ -29,6 +29,14 @@ class User(UserMixin, db.Model):
     location = db.Column(db.String(200))  # Auto-filled from cell tower or manual
     registered_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # If agent-assisted
     
+    # REGISTRATION STATUS (Lite vs Verified)
+    # lite = SMS/USSD quick registration, verified = completed full web registration
+    registration_status = db.Column(db.String(20), default='verified')  # 'lite', 'pending', 'verified'
+    lite_registration_date = db.Column(db.DateTime)  # When lite account was created
+    full_registration_date = db.Column(db.DateTime)  # When full registration was completed
+    verified_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Agent who helped complete registration
+    verification_completed_date = db.Column(db.DateTime)  # When verification was completed
+    
     # Subscription fields
     is_premium = db.Column(db.Boolean, default=False)
     subscription_start_date = db.Column(db.DateTime)
@@ -168,6 +176,32 @@ class User(UserMixin, db.Model):
     def is_trader(self):
         """Check if user is a trader (bulk_trader buyer type)"""
         return self.role == 'buyer' and self.buyer_type == 'bulk_trader'
+    
+    def is_lite_account(self):
+        """Check if this is a lite (SMS/USSD) account needing full registration"""
+        return self.registration_status == 'lite'
+    
+    def is_verified_account(self):
+        """Check if account has completed full registration"""
+        return self.registration_status == 'verified'
+    
+    def upgrade_to_verified(self, verified_by_agent_id=None):
+        """Upgrade lite account to verified status"""
+        from datetime import datetime
+        self.registration_status = 'verified'
+        self.full_registration_date = datetime.utcnow()
+        self.verification_completed_date = datetime.utcnow()
+        if verified_by_agent_id:
+            self.verified_by_agent_id = verified_by_agent_id
+    
+    def get_registration_status_display(self):
+        """Get human-readable registration status"""
+        statuses = {
+            'lite': 'Lite Account (SMS/USSD)',
+            'pending': 'Pending Verification',
+            'verified': 'Verified ✓'
+        }
+        return statuses.get(self.registration_status, 'Unknown')
     
     def get_value_services_list(self):
         """Get list of declared value-add services"""
@@ -2032,3 +2066,125 @@ class DeviceFingerprint(db.Model):
     
     def __repr__(self):
         return f'<DeviceFingerprint {self.fingerprint_hash[:16]}... for user {self.user_id}>'
+
+
+class RegistrationPolicy(db.Model):
+    """Admin-configurable registration requirements per role"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Role this policy applies to
+    role = db.Column(db.String(30), nullable=False, unique=True)  # farmer, buyer, trader, transporter, agent
+    
+    # Display settings
+    display_name = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Required fields (JSON list of field names)
+    required_fields = db.Column(db.Text, default='["name", "phone_number", "location"]')
+    
+    # Document requirements (JSON list)
+    required_documents = db.Column(db.Text, default='[]')  # e.g., ["id_card", "business_registration"]
+    
+    # Verification settings
+    requires_admin_approval = db.Column(db.Boolean, default=False)
+    requires_agent_verification = db.Column(db.Boolean, default=False)
+    auto_approve_lite = db.Column(db.Boolean, default=True)  # Auto-approve LITE accounts to start trading
+    
+    # Fee settings
+    transaction_fee_percent = db.Column(db.Float, default=2.0)  # Default 2%
+    
+    # Trader-specific settings
+    requires_value_add_proof = db.Column(db.Boolean, default=False)  # For traders
+    requires_captain_bond = db.Column(db.Boolean, default=False)  # For SabiBuy captains
+    bond_amount = db.Column(db.Float, default=10000.0)  # Captain bond in Naira
+    
+    # Verification expiry
+    verification_expiry_days = db.Column(db.Integer, default=90)  # 90 days for traders
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    def get_required_fields_list(self):
+        """Get list of required fields"""
+        import json
+        try:
+            return json.loads(self.required_fields or '[]')
+        except:
+            return []
+    
+    def get_required_documents_list(self):
+        """Get list of required documents"""
+        import json
+        try:
+            return json.loads(self.required_documents or '[]')
+        except:
+            return []
+    
+    def set_required_fields(self, fields_list):
+        """Set required fields from list"""
+        import json
+        self.required_fields = json.dumps(fields_list)
+    
+    def set_required_documents(self, docs_list):
+        """Set required documents from list"""
+        import json
+        self.required_documents = json.dumps(docs_list)
+    
+    @staticmethod
+    def get_default_policies():
+        """Get default policies for each role"""
+        return {
+            'farmer': {
+                'display_name': 'Farmer',
+                'description': 'Farmers who grow and sell produce',
+                'required_fields': '["name", "phone_number", "location"]',
+                'required_documents': '[]',
+                'requires_admin_approval': False,
+                'auto_approve_lite': True,
+                'transaction_fee_percent': 1.5
+            },
+            'buyer': {
+                'display_name': 'Direct Buyer',
+                'description': 'Buyers who purchase for personal/business use',
+                'required_fields': '["name", "phone_number", "email"]',
+                'required_documents': '[]',
+                'requires_admin_approval': False,
+                'auto_approve_lite': True,
+                'transaction_fee_percent': 2.0
+            },
+            'bulk_trader': {
+                'display_name': 'Trader/Aggregator',
+                'description': 'Traders who buy to resell - requires value-add verification',
+                'required_fields': '["name", "phone_number", "email", "location", "business_name"]',
+                'required_documents': '["business_registration", "value_add_proof"]',
+                'requires_admin_approval': True,
+                'requires_value_add_proof': True,
+                'auto_approve_lite': False,
+                'transaction_fee_percent': 3.5,
+                'verification_expiry_days': 90
+            },
+            'transport_company': {
+                'display_name': 'Transporter',
+                'description': 'Logistics and transport service providers',
+                'required_fields': '["name", "phone_number", "email", "company_name"]',
+                'required_documents': '["vehicle_registration", "drivers_license"]',
+                'requires_admin_approval': True,
+                'auto_approve_lite': False,
+                'transaction_fee_percent': 2.0
+            },
+            'agent': {
+                'display_name': 'Field Agent',
+                'description': 'Agents who help register rural farmers',
+                'required_fields': '["name", "phone_number", "email", "location"]',
+                'required_documents': '["id_card"]',
+                'requires_admin_approval': True,
+                'auto_approve_lite': False,
+                'transaction_fee_percent': 0
+            }
+        }
+    
+    def __repr__(self):
+        return f'<RegistrationPolicy {self.role}: {self.display_name}>'

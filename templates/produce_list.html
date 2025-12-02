@@ -121,6 +121,9 @@
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-truncate">
                                     {{ produce.farmer.name }}
+                                    {% if produce.farmer.is_verified_account() %}
+                                    <i class="fas fa-check-circle text-primary" title="Verified Account"></i>
+                                    {% endif %}
                                     <span class="badge bg-success ms-1" title="Direct from farmer - no middleman markup">
                                         <i class="fas fa-leaf me-1"></i>Farmer
                                     </span>
@@ -128,6 +131,9 @@
                                 <small class="text-muted">
                                     <i class="fas fa-clock me-1"></i>
                                     {{ produce.date_listed.strftime('%b %d, %Y') }}
+                                    {% if produce.farmer.is_lite_account() %}
+                                    <span class="badge bg-warning text-dark ms-1" title="LITE account - pending full verification">LITE</span>
+                                    {% endif %}
                                 </small>
                             </div>
                             {% else %}
@@ -135,6 +141,9 @@
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-truncate">
                                     {{ produce.farmer.name }}
+                                    {% if produce.farmer.is_verified_account() %}
+                                    <i class="fas fa-check-circle text-primary" title="Verified Account"></i>
+                                    {% endif %}
                                     {% if produce.farmer.trader_verified %}
                                     <span class="badge bg-info ms-1" title="Verified value-add trader">
                                         <i class="fas fa-check-circle me-1"></i>Aggregator
@@ -148,6 +157,9 @@
                                 <small class="text-muted">
                                     <i class="fas fa-clock me-1"></i>
                                     {{ produce.date_listed.strftime('%b %d, %Y') }}
+                                    {% if produce.farmer.is_lite_account() %}
+                                    <span class="badge bg-warning text-dark ms-1" title="LITE account - pending full verification">LITE</span>
+                                    {% endif %}
                                 </small>
                             </div>
                             {% endif %}

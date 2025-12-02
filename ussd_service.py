@@ -648,11 +648,14 @@ class USSDService:
         user, 
         lang: str
     ) -> Tuple[str, bool]:
-        """Handle user registration flow (3-step)"""
+        """Handle user registration flow (3-step) - Creates LITE account"""
         from werkzeug.security import generate_password_hash
+        import secrets
         
         if user:
             session.current_menu = 'main'
+            if user.is_lite_account():
+                return "Already registered (LITE). Visit agrolink.com to get VERIFIED!", False
             return get_message('already_registered', lang), False
         
         data = session.get_session_data()
@@ -673,11 +676,11 @@ class USSDService:
             return "Enter your main crop (e.g., Rice, Yam, Tomatoes):", True
         
         elif step == 2:
-            # Step 3: Main crop and complete registration
+            # Step 3: Main crop and complete LITE registration
             data['main_crop'] = user_input.strip().title()
             
             try:
-                # Create user account
+                # Create LITE user account (USSD registration)
                 new_user = self.User(
                     name=data['name'],
                     phone_number=session.phone_number,
@@ -687,9 +690,13 @@ class USSDService:
                     is_ussd_user=True,
                     preferred_language=lang,
                     sms_enabled=True,
-                    sms_registration_date=datetime.utcnow()
+                    sms_registration_date=datetime.utcnow(),
+                    source_channel='ussd',
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
-                new_user.password_hash = generate_password_hash('ussd_user_temp')
+                temp_password = secrets.token_hex(8)
+                new_user.password_hash = generate_password_hash(temp_password)
                 
                 self.db.session.add(new_user)
                 self.db.session.commit()
@@ -700,7 +707,7 @@ class USSDService:
                 session.current_menu = 'main'
                 session.current_step = 0
                 
-                success_msg = get_message('registration_success', lang)
+                success_msg = f"Welcome {data['name']}! You're registered (LITE). Visit agrolink.com for VERIFIED status!"
                 return success_msg, False
                 
             except Exception as e:
@@ -852,7 +859,9 @@ class USSDService:
                         is_ussd_user=True,
                         source_channel='ussd',
                         preferred_language=lang,
-                        location=location
+                        location=location,
+                        registration_status='lite',
+                        lite_registration_date=datetime.utcnow()
                     )
                     new_user.password_hash = generate_password_hash('ussd_transporter_temp')
                     self.db.session.add(new_user)
@@ -955,7 +964,9 @@ class USSDService:
                         is_ussd_user=True,
                         source_channel='ussd',
                         preferred_language=lang,
-                        location=location
+                        location=location,
+                        registration_status='lite',
+                        lite_registration_date=datetime.utcnow()
                     )
                     new_user.password_hash = generate_password_hash('ussd_buyer_temp')
                     self.db.session.add(new_user)
@@ -1029,7 +1040,9 @@ class USSDService:
                         is_ussd_user=True,
                         source_channel='ussd',
                         preferred_language=lang,
-                        location=lga
+                        location=lga,
+                        registration_status='lite',
+                        lite_registration_date=datetime.utcnow()
                     )
                     new_user.password_hash = generate_password_hash('ussd_agent_temp')
                     self.db.session.add(new_user)
@@ -1166,7 +1179,9 @@ class USSDService:
                     source_channel='agent',
                     preferred_language=lang,
                     location=farmer_location,
-                    registered_by_agent_id=user.id
+                    registered_by_agent_id=user.id,
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
                 new_farmer.password_hash = generate_password_hash('agent_farmer_temp')
                 self.db.session.add(new_farmer)
@@ -1237,7 +1252,9 @@ class USSDService:
                     source_channel='agent',
                     preferred_language=lang,
                     location=buyer_location,
-                    registered_by_agent_id=user.id
+                    registered_by_agent_id=user.id,
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
                 new_buyer.password_hash = generate_password_hash('agent_buyer_temp')
                 self.db.session.add(new_buyer)

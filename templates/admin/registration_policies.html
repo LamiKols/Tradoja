@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-user-cog text-primary me-2"></i>Registration Policies</h2>
+            <p class="text-muted mb-0">Manage registration requirements and view LITE vs VERIFIED statistics</p>
+        </div>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Admin
+        </a>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.total }}</h3>
+                    <small>Total Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.verified }}</h3>
+                    <small>Verified ({{ stats.verified_percent }}%)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.lite }}</h3>
+                    <small>LITE Accounts ({{ stats.lite_percent }}%)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.pending }}</h3>
+                    <small>Pending Verification</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Left: Policies -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <i class="fas fa-cogs me-2"></i>Role-Based Registration Policies
+                </div>
+                <div class="card-body p-0">
+                    <div class="accordion" id="policiesAccordion">
+                        {% for policy in policies %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button {% if loop.index > 1 %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#policy{{ policy.id }}">
+                                    <span class="me-3">
+                                        {% if policy.is_active %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                        {% endif %}
+                                    </span>
+                                    <strong>{{ policy.display_name or policy.role|title }}</strong>
+                                    <span class="badge bg-secondary ms-2">{{ policy.role }}</span>
+                                    {% if policy.requires_admin_approval %}
+                                    <span class="badge bg-warning text-dark ms-1">Requires Approval</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="policy{{ policy.id }}" class="accordion-collapse collapse {% if loop.index == 1 %}show{% endif %}">
+                                <div class="accordion-body">
+                                    <form method="POST" action="{{ url_for('update_registration_policy', policy_id=policy.id) }}">
+                                        <p class="text-muted small">{{ policy.description }}</p>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Display Name</label>
+                                                <input type="text" name="display_name" class="form-control form-control-sm" value="{{ policy.display_name }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Transaction Fee (%)</label>
+                                                <input type="number" step="0.1" name="transaction_fee_percent" class="form-control form-control-sm" value="{{ policy.transaction_fee_percent }}">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="is_active" id="active{{ policy.id }}" {% if policy.is_active %}checked{% endif %}>
+                                                    <label class="form-check-label" for="active{{ policy.id }}">Active</label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="requires_admin_approval" id="approval{{ policy.id }}" {% if policy.requires_admin_approval %}checked{% endif %}>
+                                                    <label class="form-check-label" for="approval{{ policy.id }}">Requires Admin Approval</label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="auto_approve_lite" id="lite{{ policy.id }}" {% if policy.auto_approve_lite %}checked{% endif %}>
+                                                    <label class="form-check-label" for="lite{{ policy.id }}">Auto-Approve LITE</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="requires_agent_verification" id="agent{{ policy.id }}" {% if policy.requires_agent_verification %}checked{% endif %}>
+                                                    <label class="form-check-label" for="agent{{ policy.id }}">Requires Agent Verification</label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="requires_value_add_proof" id="valueadd{{ policy.id }}" {% if policy.requires_value_add_proof %}checked{% endif %}>
+                                                    <label class="form-check-label" for="valueadd{{ policy.id }}">Requires Value-Add Proof</label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="requires_captain_bond" id="bond{{ policy.id }}" {% if policy.requires_captain_bond %}checked{% endif %}>
+                                                    <label class="form-check-label" for="bond{{ policy.id }}">Requires Captain Bond</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if policy.requires_captain_bond or policy.role == 'bulk_trader' %}
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Bond Amount (Naira)</label>
+                                                <input type="number" name="bond_amount" class="form-control form-control-sm" value="{{ policy.bond_amount }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Verification Expiry (Days)</label>
+                                                <input type="number" name="verification_expiry_days" class="form-control form-control-sm" value="{{ policy.verification_expiry_days }}">
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-save me-1"></i>Save Changes
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right: Recent Activity -->
+        <div class="col-lg-5">
+            <!-- Recent LITE Registrations -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-clock me-2"></i>Recent LITE Accounts (Pending Verification)
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_lite %}
+                    <div class="list-group list-group-flush">
+                        {% for user in recent_lite %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ user.name }}</strong>
+                                <br><small class="text-muted">{{ user.phone_number }} | {{ user.role }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ 'success' if user.source_channel == 'ussd' else 'info' }}">
+                                    {{ user.source_channel|upper }}
+                                </span>
+                                <br>
+                                <small class="text-muted">
+                                    {{ user.lite_registration_date.strftime('%b %d') if user.lite_registration_date else '-' }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <p class="mb-0">No pending LITE accounts</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if recent_lite %}
+                <div class="card-footer">
+                    <a href="{{ url_for('agent_complete_registration') }}" class="btn btn-warning btn-sm w-100">
+                        <i class="fas fa-user-check me-1"></i>Complete LITE Registrations
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Recent Verifications -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-check-circle me-2"></i>Recent Verifications
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_verified %}
+                    <div class="list-group list-group-flush">
+                        {% for user in recent_verified %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ user.name }}</strong>
+                                <i class="fas fa-check-circle text-primary"></i>
+                                <br><small class="text-muted">{{ user.role }}</small>
+                            </div>
+                            <div class="text-end">
+                                {% if user.verified_by_agent_id %}
+                                <span class="badge bg-info">Agent Verified</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Self</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">
+                                    {{ user.verification_completed_date.strftime('%b %d, %H:%M') if user.verification_completed_date else '-' }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <p class="mb-0">No recent verifications</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

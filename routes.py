@@ -196,6 +196,90 @@ def logout():
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('home'))
 
+
+@app.route('/complete-registration', methods=['GET', 'POST'])
+def complete_registration():
+    """Complete LITE registration to get VERIFIED status"""
+    from forms import PhoneLookupForm, CompleteRegistrationForm
+    
+    lookup_form = PhoneLookupForm()
+    complete_form = CompleteRegistrationForm()
+    user_to_verify = None
+    
+    # Step 1: Look up LITE account by phone number
+    if lookup_form.validate_on_submit() and 'lookup' in request.form:
+        phone = lookup_form.phone_number.data.strip()
+        # Normalize phone number
+        if not phone.startswith('+'):
+            if phone.startswith('0'):
+                phone = '+234' + phone[1:]
+            else:
+                phone = '+' + phone
+        
+        user_to_verify = User.query.filter_by(phone_number=phone).first()
+        
+        if not user_to_verify:
+            flash('No account found with this phone number. Please register first via SMS or USSD.', 'warning')
+        elif user_to_verify.is_verified_account():
+            flash(f'This account ({user_to_verify.name}) is already verified!', 'info')
+            return redirect(url_for('login'))
+        else:
+            # Pre-fill the complete form
+            complete_form.phone_number.data = phone
+            complete_form.name.data = user_to_verify.name
+            complete_form.location.data = user_to_verify.location or ''
+            complete_form.role.data = user_to_verify.role
+    
+    # Step 2: Complete the registration
+    if complete_form.validate_on_submit() and 'complete' in request.form:
+        phone = complete_form.phone_number.data
+        user_to_verify = User.query.filter_by(phone_number=phone).first()
+        
+        if not user_to_verify:
+            flash('Account not found. Please try again.', 'danger')
+        elif user_to_verify.is_verified_account():
+            flash('This account is already verified!', 'info')
+            return redirect(url_for('login'))
+        else:
+            try:
+                # Update user profile with complete information
+                user_to_verify.name = complete_form.name.data
+                user_to_verify.email = complete_form.email.data.lower()
+                user_to_verify.set_password(complete_form.password.data)
+                user_to_verify.location = complete_form.location.data
+                user_to_verify.role = complete_form.role.data
+                
+                if complete_form.role.data == 'buyer' and complete_form.buyer_type.data:
+                    user_to_verify.buyer_type = complete_form.buyer_type.data
+                
+                # Upgrade to VERIFIED status
+                user_to_verify.upgrade_to_verified()
+                
+                # Capture device fingerprint
+                client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+                if client_ip and ',' in client_ip:
+                    client_ip = client_ip.split(',')[0].strip()
+                user_to_verify.registration_ip = client_ip
+                user_to_verify.last_ip = client_ip
+                
+                db.session.commit()
+                
+                flash(f'Registration complete! You are now VERIFIED. Welcome, {user_to_verify.name}!', 'success')
+                login_user(user_to_verify)
+                return redirect(url_for('home'))
+                
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Complete registration error: {e}")
+                flash('Failed to complete registration. Please try again.', 'danger')
+    
+    return render_template('complete_registration.html', 
+                         title='Complete Your Registration',
+                         lookup_form=lookup_form,
+                         complete_form=complete_form,
+                         user_to_verify=user_to_verify)
+
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -2164,7 +2248,7 @@ def agent_register_farmer():
                 flash(f'Phone number already registered to {existing.name}.', 'warning')
                 return redirect(url_for('agent_register_farmer'))
             
-            # Create new farmer
+            # Create new farmer with VERIFIED status (agent-assisted = verified)
             new_farmer = User(
                 name=name.title(),
                 phone_number=phone,
@@ -2177,9 +2261,14 @@ def agent_register_farmer():
                 sms_enabled=True,
                 sms_registration_date=datetime.utcnow(),
                 registered_by_agent_id=current_user.id,
-                agent_verified=True  # Agent-registered farmers are verified
+                agent_verified=True,
+                registration_status='verified',
+                full_registration_date=datetime.utcnow(),
+                verified_by_agent_id=current_user.id,
+                verification_completed_date=datetime.utcnow()
             )
-            new_farmer.password_hash = generate_password_hash('farmer_temp_pass')
+            import secrets
+            new_farmer.password_hash = generate_password_hash(secrets.token_hex(8))
             
             # Store GPS coordinates if captured by agent
             if gps_lat and gps_lng:
@@ -2248,6 +2337,82 @@ def agent_register_farmer():
                          title='Register Farmer',
                          languages=languages,
                          channels=channels)
+
+
+@app.route('/agent/complete-registration', methods=['GET', 'POST'])
+@login_required
+def agent_complete_registration():
+    """Agent helps complete LITE farmer registrations to get VERIFIED status"""
+    if not (current_user.is_admin() or current_user.role == 'agent'):
+        flash('Access denied. Agent privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get all LITE farmers for agent to help
+    lite_farmers = User.query.filter_by(registration_status='lite').order_by(User.lite_registration_date.desc()).all()
+    farmer_to_complete = None
+    
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+        
+        if action == 'lookup':
+            # Look up a specific LITE farmer by phone
+            phone = request.form.get('phone', '').strip()
+            if not phone.startswith('+'):
+                if phone.startswith('0'):
+                    phone = '+234' + phone[1:]
+                else:
+                    phone = '+' + phone
+            
+            farmer_to_complete = User.query.filter_by(phone_number=phone).first()
+            
+            if not farmer_to_complete:
+                flash('No farmer found with this phone number.', 'warning')
+            elif farmer_to_complete.is_verified_account():
+                flash(f'{farmer_to_complete.name} is already verified!', 'info')
+                farmer_to_complete = None
+        
+        elif action == 'complete':
+            # Complete the LITE registration
+            farmer_id = request.form.get('farmer_id')
+            farmer_to_complete = User.query.get(farmer_id)
+            
+            if farmer_to_complete and farmer_to_complete.is_lite_account():
+                try:
+                    # Update farmer details
+                    farmer_to_complete.name = request.form.get('name', farmer_to_complete.name).strip().title()
+                    farmer_to_complete.location = request.form.get('location', '').strip().title()
+                    
+                    email = request.form.get('email', '').strip()
+                    if email and '@' in email:
+                        farmer_to_complete.email = email.lower()
+                    
+                    # Upgrade to VERIFIED
+                    farmer_to_complete.upgrade_to_verified(verified_by_agent_id=current_user.id)
+                    farmer_to_complete.agent_verified = True
+                    
+                    db.session.commit()
+                    
+                    flash(f'{farmer_to_complete.name} is now VERIFIED!', 'success')
+                    
+                    # Send confirmation SMS
+                    if sms_service:
+                        try:
+                            msg = f"Congratulations {farmer_to_complete.name}! Your AgroLink account is now VERIFIED. You have more buyer trust!"
+                            sms_service.send_sms(farmer_to_complete.phone_number, msg)
+                        except:
+                            pass
+                    
+                    return redirect(url_for('agent_complete_registration'))
+                    
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Agent complete registration error: {e}")
+                    flash('Failed to complete registration. Please try again.', 'error')
+    
+    return render_template('agent/complete_registration.html',
+                         title='Complete LITE Registrations',
+                         lite_farmers=lite_farmers,
+                         farmer_to_complete=farmer_to_complete)
 
 
 @app.route('/agent/bulk-register', methods=['GET', 'POST'])
@@ -2506,6 +2671,115 @@ def request_agent_call(flag_id):
             flash('Failed to request agent call.', 'danger')
     
     return redirect(url_for('admin_scam_dashboard'))
+
+
+@app.route('/admin/registration-policies')
+@login_required
+def admin_registration_policies():
+    """Admin dashboard for managing registration policies and LITE/VERIFIED stats"""
+    if not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('home'))
+    
+    from models import RegistrationPolicy
+    
+    # Get existing policies or create defaults
+    policies = RegistrationPolicy.query.all()
+    
+    if not policies:
+        # Create default policies
+        defaults = RegistrationPolicy.get_default_policies()
+        for role, settings in defaults.items():
+            policy = RegistrationPolicy(role=role, **settings)
+            db.session.add(policy)
+        db.session.commit()
+        policies = RegistrationPolicy.query.all()
+    
+    # Get user statistics
+    total_users = User.query.count()
+    lite_users = User.query.filter_by(registration_status='lite').count()
+    verified_users = User.query.filter_by(registration_status='verified').count()
+    pending_users = User.query.filter_by(registration_status='pending').count()
+    
+    # Get breakdown by role
+    role_stats = db.session.query(
+        User.role,
+        User.registration_status,
+        db.func.count(User.id)
+    ).group_by(User.role, User.registration_status).all()
+    
+    # Recent LITE registrations
+    recent_lite = User.query.filter_by(registration_status='lite').order_by(
+        User.lite_registration_date.desc()
+    ).limit(10).all()
+    
+    # Recent verifications
+    recent_verified = User.query.filter(
+        User.registration_status == 'verified',
+        User.verification_completed_date.isnot(None)
+    ).order_by(User.verification_completed_date.desc()).limit(10).all()
+    
+    stats = {
+        'total': total_users,
+        'lite': lite_users,
+        'verified': verified_users,
+        'pending': pending_users,
+        'lite_percent': round(lite_users / total_users * 100, 1) if total_users else 0,
+        'verified_percent': round(verified_users / total_users * 100, 1) if total_users else 0
+    }
+    
+    return render_template('admin/registration_policies.html',
+                         title='Registration Policies',
+                         policies=policies,
+                         stats=stats,
+                         role_stats=role_stats,
+                         recent_lite=recent_lite,
+                         recent_verified=recent_verified)
+
+
+@app.route('/admin/registration-policies/<int:policy_id>/update', methods=['POST'])
+@login_required
+def update_registration_policy(policy_id):
+    """Update a registration policy"""
+    if not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('home'))
+    
+    from models import RegistrationPolicy
+    
+    policy = RegistrationPolicy.query.get_or_404(policy_id)
+    
+    try:
+        policy.display_name = request.form.get('display_name', policy.display_name)
+        policy.description = request.form.get('description', policy.description)
+        policy.is_active = 'is_active' in request.form
+        policy.requires_admin_approval = 'requires_admin_approval' in request.form
+        policy.requires_agent_verification = 'requires_agent_verification' in request.form
+        policy.auto_approve_lite = 'auto_approve_lite' in request.form
+        policy.requires_value_add_proof = 'requires_value_add_proof' in request.form
+        policy.requires_captain_bond = 'requires_captain_bond' in request.form
+        
+        fee = request.form.get('transaction_fee_percent', '')
+        if fee:
+            policy.transaction_fee_percent = float(fee)
+        
+        bond = request.form.get('bond_amount', '')
+        if bond:
+            policy.bond_amount = float(bond)
+        
+        expiry = request.form.get('verification_expiry_days', '')
+        if expiry:
+            policy.verification_expiry_days = int(expiry)
+        
+        db.session.commit()
+        flash(f'Policy for {policy.role} updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Policy update error: {e}")
+        flash('Failed to update policy.', 'danger')
+    
+    return redirect(url_for('admin_registration_policies'))
 
 
 # AI Matchmaking Routes

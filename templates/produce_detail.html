@@ -7,7 +7,13 @@
             <div class="card">
                 <div class="card-header">
                     <h4>{{ produce.name }}</h4>
-                    <small class="text-muted">Listed by {{ produce.farmer.name }}</small>
+                    <small class="text-muted">Listed by {{ produce.farmer.name }}
+                        {% if produce.farmer.is_verified_account() %}
+                        <i class="fas fa-check-circle text-primary" title="Verified Account"></i>
+                        {% elif produce.farmer.is_lite_account() %}
+                        <span class="badge bg-warning text-dark ms-1">LITE</span>
+                        {% endif %}
+                    </small>
                 </div>
                 <div class="card-body">
                     <div class="row mb-4">
@@ -18,9 +24,33 @@
                             <p><strong>Listed:</strong> {{ produce.date_listed.strftime('%B %d, %Y') }}</p>
                         </div>
                         <div class="col-md-6">
-                            <h6>Farmer Information</h6>
-                            <p><strong>Name:</strong> {{ produce.farmer.name }}</p>
+                            <h6>Seller Information</h6>
+                            <p>
+                                <strong>Name:</strong> {{ produce.farmer.name }}
+                                {% if produce.farmer.is_verified_account() %}
+                                <i class="fas fa-check-circle text-primary" title="Verified Account"></i>
+                                <span class="badge bg-success ms-1">Verified</span>
+                                {% elif produce.farmer.is_lite_account() %}
+                                <span class="badge bg-warning text-dark ms-1">LITE</span>
+                                {% endif %}
+                            </p>
                             <p><strong>Role:</strong> {{ produce.farmer.role.title() }}</p>
+                            {% if produce.farmer.location %}
+                            <p><strong>Location:</strong> {{ produce.farmer.location }}</p>
+                            {% endif %}
+                            {% if produce.farmer.average_rating > 0 %}
+                            <p>
+                                <strong>Rating:</strong>
+                                {% for i in range(5) %}
+                                    {% if i < produce.farmer.average_rating|int %}
+                                    <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                ({{ produce.farmer.total_ratings }} reviews)
+                            </p>
+                            {% endif %}
                         </div>
                     </div>
                     

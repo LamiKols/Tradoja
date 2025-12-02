@@ -169,16 +169,19 @@ class SMSService:
             self._send_error_message(phone_number)
     
     def _handle_registration(self, phone_number, command_parts):
-        """Handle farmer registration via SMS"""
+        """Handle farmer registration via SMS - creates LITE account"""
         # Check if user already exists
         existing_user = User.query.filter_by(phone_number=phone_number).first()
         if existing_user:
+            if existing_user.is_lite_account():
+                return self.send_sms(phone_number, 
+                    f"Welcome back {existing_user.name}! Complete registration at agrolink.com to get verified. Send HELP for commands.")
             return self.send_sms(phone_number, 
-                f"Welcome back {existing_user.name}! You're already registered. Send HELP for commands.")
+                f"Welcome back {existing_user.name}! You're verified. Send HELP for commands.")
         
         if len(command_parts) == 1:
             # Initial JOIN command - ask for details
-            message = ("Welcome to AgroLink! 🌾\n"
+            message = ("Welcome to AgroLink!\n"
                       "Reply with: JOIN [your name] [location] [main crop]\n"
                       "Example: JOIN John Lagos Tomatoes")
             return self.send_sms(phone_number, message)
@@ -195,27 +198,34 @@ class SMSService:
         main_crop = ' '.join(command_parts[3:])
         
         try:
-            # Create new user account
+            # Create LITE user account (SMS/USSD registration)
             user = User(
                 name=name,
                 phone_number=phone_number,
                 email=f"{phone_number.replace('+', '')}@sms.agrolink.com",  # Temporary email
                 role='farmer',
                 sms_enabled=True,
-                sms_registration_date=datetime.utcnow()
+                sms_registration_date=datetime.utcnow(),
+                source_channel='sms',
+                location=location,
+                registration_status='lite',  # LITE account - not yet verified
+                lite_registration_date=datetime.utcnow()
             )
             
-            # Set a temporary password (they'll use SMS only)
+            # Set a temporary password (they'll use SMS only initially)
             from werkzeug.security import generate_password_hash
-            user.password_hash = generate_password_hash('sms_user_temp')
+            import secrets
+            temp_password = secrets.token_hex(8)
+            user.password_hash = generate_password_hash(temp_password)
             
             db.session.add(user)
             db.session.commit()
             
+            # Welcome message with verification prompt
             welcome_message = (f"Welcome {name}!\n"
-                             f"You're registered as a farmer.\n"
+                             f"You're registered (LITE).\n"
                              f"Commands: LIST, PRICE, HELP\n"
-                             f"Example: LIST TOMATOES 5T 150000")
+                             f"Get VERIFIED at agrolink.com for more trust!")
             
             return self.send_sms(phone_number, welcome_message)
             
@@ -677,7 +687,9 @@ class SMSService:
                     sms_enabled=True,
                     sms_registration_date=datetime.utcnow(),
                     source_channel='sms',
-                    location=location
+                    location=location,
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_transporter_temp')
                 db.session.add(user)
@@ -758,7 +770,9 @@ class SMSService:
                     buyer_type='retail_buyer',
                     sms_enabled=True,
                     source_channel='sms',
-                    location=location
+                    location=location,
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_buyer_temp')
                 db.session.add(user)
@@ -827,7 +841,9 @@ class SMSService:
                     role='agent',
                     sms_enabled=True,
                     source_channel='sms',
-                    location=location
+                    location=location,
+                    registration_status='lite',
+                    lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_agent_temp')
                 db.session.add(user)
@@ -1069,7 +1085,9 @@ class SMSService:
                 source_channel='agent',
                 location=location,
                 registered_by_agent_id=user.id,
-                agent_verified=True
+                agent_verified=True,
+                registration_status='lite',
+                lite_registration_date=datetime.utcnow()
             )
             farmer.password_hash = generate_password_hash('agent_registered_temp')
             
