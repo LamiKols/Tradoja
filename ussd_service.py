@@ -38,8 +38,13 @@ class USSDService:
                 '12': 'sabibuy_my_campaigns',
                 '13': 'sabibuy_earnings',
                 '14': 'pay_produce',
-                '15': 'captain_bond'
+                '15': 'captain_bond',
+                '16': 'trader_verify'
             }
+        },
+        'trader_verify': {
+            'steps': ['select_services', 'confirm_application'],
+            'next': 'main'
         },
         'list_produce': {
             'steps': ['crop_name', 'quantity', 'price', 'confirm'],
@@ -369,6 +374,9 @@ class USSDService:
         elif session.current_menu == 'captain_bond':
             return self._handle_captain_bond_menu(session, current_input, user, lang)
         
+        elif session.current_menu == 'trader_verify':
+            return self._handle_trader_verify(session, current_input, user, lang)
+        
         else:
             return self._show_main_menu(lang, user), True
     
@@ -491,6 +499,17 @@ class USSDService:
                     session.current_step = 0
                     return "Register first to manage bond.\nEnter your name:", True
                 return self._show_captain_bond_menu(session, user, lang)
+            
+            elif target_menu == 'trader_verify':
+                if not user:
+                    session.current_menu = 'register'
+                    session.current_step = 0
+                    return "Register first for trader verification.\nEnter your name:", True
+                if user.role != 'buyer' or not user.is_trader():
+                    return "Trader verification is for bulk traders only.", False
+                if user.trader_verified:
+                    return f"Already verified trader!\nStatus: {user.trader_verification_status}", False
+                return self._show_trader_verify_menu(session, user, lang)
         
         return get_message('invalid_command', lang), True
     
@@ -2469,6 +2488,112 @@ class USSDService:
                     
             except ValueError:
                 return "Enter bank number:", True
+        
+        return get_message('error', lang), False
+    
+    def _show_trader_verify_menu(self, session, user, lang: str) -> Tuple[str, bool]:
+        """Show trader verification menu with value-add services"""
+        session.current_step = 0
+        
+        status = user.trader_verification_status or 'not_applied'
+        if status == 'pending':
+            return (f"Application pending review.\n"
+                   f"Submitted services will be verified within 24-48 hours.\n"
+                   f"0. Back"), True
+        
+        return ("Trader Verification\n"
+                "Select value-add services you provide:\n"
+                "1. Transport (own/hire vehicles)\n"
+                "2. Storage (warehouse/cold storage)\n"
+                "3. Aggregation (collect from farmers)\n"
+                "4. Processing (cleaning/grading)\n"
+                "5. Working Capital (pay farmers upfront)\n"
+                "6. Quality Grading (certification)\n"
+                "\nEnter numbers separated by comma\n"
+                "Example: 1,2,5\n"
+                "0. Cancel"), True
+    
+    def _handle_trader_verify(
+        self, 
+        session, 
+        user_input: str, 
+        user, 
+        lang: str
+    ) -> Tuple[str, bool]:
+        """Handle trader verification flow"""
+        step = session.current_step
+        data = session.get_session_data()
+        
+        if user_input == '0':
+            session.current_menu = 'main'
+            session.current_step = 0
+            return "Cancelled.\n" + self._show_main_menu(lang, user), True
+        
+        if step == 0:
+            service_map = {
+                '1': 'transport',
+                '2': 'storage',
+                '3': 'aggregation',
+                '4': 'processing',
+                '5': 'working_capital',
+                '6': 'quality_grading'
+            }
+            
+            selections = [s.strip() for s in user_input.split(',')]
+            selected_services = []
+            
+            for s in selections:
+                if s in service_map:
+                    selected_services.append(service_map[s])
+            
+            if not selected_services:
+                return "Select at least one service (1-6):", True
+            
+            data['services'] = selected_services
+            session.update_session_data('services', selected_services)
+            session.current_step = 1
+            
+            service_names = {
+                'transport': 'Transport',
+                'storage': 'Storage',
+                'aggregation': 'Aggregation',
+                'processing': 'Processing',
+                'working_capital': 'Working Capital',
+                'quality_grading': 'Quality Grading'
+            }
+            
+            names = [service_names.get(s, s) for s in selected_services]
+            return (f"Confirm verification application:\n"
+                   f"Services: {', '.join(names)}\n\n"
+                   f"Note: You may need to upload proof documents via web or agent.\n\n"
+                   f"1. Submit Application\n"
+                   f"0. Cancel"), True
+        
+        elif step == 1:
+            if user_input == '1':
+                services = data.get('services', [])
+                
+                try:
+                    user.set_value_services(services)
+                    user.trader_verification_status = 'pending'
+                    user.trader_verification_date = datetime.utcnow()
+                    db.session.commit()
+                    
+                    session.current_menu = 'main'
+                    session.current_step = 0
+                    
+                    return (f"Application submitted!\n"
+                           f"Services: {len(services)} selected\n"
+                           f"Review: 24-48 hours\n\n"
+                           f"Upload proof docs via web or agent to speed up approval."), False
+                           
+                except Exception as e:
+                    current_app.logger.error(f"Trader verify error: {e}")
+                    return "Failed to submit. Try again later.", False
+            else:
+                session.current_menu = 'main'
+                session.current_step = 0
+                return "Cancelled.\n" + self._show_main_menu(lang, user), True
         
         return get_message('error', lang), False
 
