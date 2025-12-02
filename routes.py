@@ -5450,7 +5450,7 @@ def ussd_simulator_api():
 @app.route('/simulator/sms/api', methods=['POST'])
 @csrf_exempt
 def sms_simulator_api():
-    """API endpoint for SMS simulator"""
+    """API endpoint for SMS simulator - simulates responses without real SMS API"""
     from sms_service import sms_service
     
     data = request.get_json(silent=True) or {}
@@ -5458,8 +5458,8 @@ def sms_simulator_api():
     message = data.get('message', '')
     
     try:
-        response = sms_service.process_incoming_sms(phone_number, message)
-        return jsonify({'response': response or 'Message processed successfully'})
+        response = sms_service.simulate_incoming_sms(phone_number, message)
+        return jsonify({'response': response or 'Message processed'})
     except Exception as e:
         app.logger.error(f"SMS simulator error: {e}")
-        return jsonify({'response': f'Error processing message. Please try again.'})
+        return jsonify({'response': f'Error processing message: {str(e)}'})

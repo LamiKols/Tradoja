@@ -16,6 +16,7 @@ class SMSService:
         """Initialize Africa's Talking SMS service"""
         self.username = username
         self.api_key = api_key
+        self._simulation_mode = False
         
         # Check if credentials are properly configured
         if not username or not api_key or len(api_key) < 20:
@@ -24,12 +25,22 @@ class SMSService:
         africastalking.initialize(username, api_key)
         self.sms = africastalking.SMS
         
-    def send_sms(self, phone_number, message):
-        """Send SMS to phone number"""
+    def send_sms(self, phone_number, message, simulate=False):
+        """Send SMS to phone number (or simulate for demo)"""
         try:
             # Format phone number for Africa's Talking (ensure it starts with +)
             if not phone_number.startswith('+'):
                 phone_number = f'+{phone_number}'
+            
+            # In simulation mode, just return the message
+            if simulate:
+                self._log_sms_interaction(
+                    phone_number=phone_number,
+                    message_type='outgoing',
+                    content=message,
+                    status='simulated'
+                )
+                return message
                 
             response = self.sms.send(message, [phone_number])
             
@@ -50,7 +61,26 @@ class SMSService:
                 content=message,
                 status='failed'
             )
-            return None
+            return message
+    
+    def simulate_incoming_sms(self, phone_number, message):
+        """Simulate incoming SMS for demo - returns the response text without sending real SMS"""
+        self._simulation_mode = True
+        try:
+            result = self.process_incoming_sms(phone_number, message)
+            return result
+        finally:
+            self._simulation_mode = False
+    
+    def _send_simulated(self, phone_number, message):
+        """Return message for simulation without using real API"""
+        self._log_sms_interaction(
+            phone_number=phone_number,
+            message_type='outgoing',
+            content=message,
+            status='simulated'
+        )
+        return message
     
     def process_incoming_sms(self, phone_number, message):
         """Process incoming SMS commands"""
