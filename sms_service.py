@@ -72,6 +72,32 @@ class SMSService:
         finally:
             self._simulation_mode = False
     
+    def _apply_device_fingerprint(self, user, phone_number):
+        """Apply device fingerprinting to a user during SMS/USSD registration"""
+        import hashlib
+        import json
+        
+        metadata = getattr(self, '_current_metadata', {})
+        if metadata:
+            fingerprint_data = {
+                'channel': metadata.get('channel', 'sms'),
+                'network_code': metadata.get('network_code', ''),
+                'phone_prefix': phone_number[:7] if phone_number else '',
+                'registration_time': datetime.utcnow().strftime('%Y-%m-%d')
+            }
+            fingerprint_hash = hashlib.sha256(
+                json.dumps(fingerprint_data, sort_keys=True).encode()
+            ).hexdigest()[:32]
+            
+            user.device_fingerprint = fingerprint_hash
+            user.registration_ip = metadata.get('gateway_ip', '')
+            user.user_agent_hash = hashlib.sha256(
+                metadata.get('user_agent', '').encode()
+            ).hexdigest()[:32] if metadata.get('user_agent') else None
+            
+            if metadata.get('gateway_ip'):
+                user.known_ips = json.dumps([metadata.get('gateway_ip')])
+    
     def _send_simulated(self, phone_number, message):
         """Return message for simulation without using real API"""
         self._log_sms_interaction(
@@ -82,9 +108,12 @@ class SMSService:
         )
         return message
     
-    def process_incoming_sms(self, phone_number, message):
+    def process_incoming_sms(self, phone_number, message, metadata=None):
         """Process incoming SMS commands"""
         try:
+            # Store metadata for handlers to use
+            self._current_metadata = metadata or {}
+            
             # Clean and normalize the message
             message = message.strip().upper()
             phone_number = self._normalize_phone_number(phone_number)
@@ -173,6 +202,12 @@ class SMSService:
                 return self._handle_transaction_history(phone_number)
             elif command == 'CONFIRM':
                 return self._handle_delivery_confirmation(phone_number, command_parts)
+            elif command == 'SUBSCRIBE' or command == 'SUB' or command == 'PREMIUM':
+                return self._handle_subscribe_command(phone_number, command_parts)
+            elif command == 'SETTLE':
+                return self._handle_transport_settlement(phone_number, command_parts)
+            elif command == 'CREATE':
+                return self._handle_sabibuy_create(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -223,6 +258,9 @@ class SMSService:
                 registration_status='lite',  # LITE account - not yet verified
                 lite_registration_date=datetime.utcnow()
             )
+            
+            # Capture device fingerprinting for anti-collusion detection
+            self._apply_device_fingerprint(user, phone_number)
             
             # Set a temporary password (they'll use SMS only initially)
             from werkzeug.security import generate_password_hash
@@ -704,6 +742,7 @@ class SMSService:
                     lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_transporter_temp')
+                self._apply_device_fingerprint(user, phone_number)
                 db.session.add(user)
                 db.session.flush()
             
@@ -787,6 +826,7 @@ class SMSService:
                     lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_buyer_temp')
+                self._apply_device_fingerprint(user, phone_number)
                 db.session.add(user)
             
             db.session.commit()
@@ -858,6 +898,7 @@ class SMSService:
                     lite_registration_date=datetime.utcnow()
                 )
                 user.password_hash = generate_password_hash('sms_agent_temp')
+                self._apply_device_fingerprint(user, phone_number)
                 db.session.add(user)
                 db.session.flush()
             
@@ -2406,6 +2447,291 @@ class SMSService:
                 f"Thank you!")
         else:
             return self.send_sms(phone_number, f"Confirmation failed: {msg}")
+    
+    def _handle_subscribe_command(self, phone_number, command_parts):
+        """Handle subscription enrollment via SMS
+        
+        Format: SUBSCRIBE [plan]
+        Plans:
+        - FREE - Basic access (default)
+        - CAPTAIN - SabiBuy organizer (₦2,500/month)
+        - PREMIUM - Full features (₦5,000/month)
+        """
+        from wallet_service import wallet_service
+        from payment_service import payment_service
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            current_plan = user.subscription_plan_code or 'free'
+            is_active = user.is_premium and user.subscription_end_date and user.subscription_end_date > datetime.utcnow()
+            
+            return self.send_sms(phone_number,
+                f"Current: {current_plan.upper()}\n"
+                f"Status: {'Active' if is_active else 'Inactive'}\n\n"
+                f"Plans:\n"
+                f"SUBSCRIBE CAPTAIN - N2,500/mo\n"
+                f"SUBSCRIBE PREMIUM - N5,000/mo\n"
+                f"SUBSCRIBE FREE - Cancel")
+        
+        plan = command_parts[1].upper()
+        
+        plan_prices = {
+            'CAPTAIN': 2500,
+            'PREMIUM': 5000,
+            'FREE': 0
+        }
+        
+        if plan not in plan_prices:
+            return self.send_sms(phone_number,
+                f"Invalid plan: {plan}\n"
+                f"Options: CAPTAIN, PREMIUM, FREE")
+        
+        if plan == 'FREE':
+            user.is_premium = False
+            user.subscription_plan_code = 'free'
+            db.session.commit()
+            return self.send_sms(phone_number, "Subscription cancelled. You're now on FREE plan.")
+        
+        amount = plan_prices[plan]
+        balance = wallet_service.get_balance(user)
+        
+        if balance >= amount:
+            success, msg, ref = wallet_service.debit_wallet(
+                user, amount,
+                f"Subscription: {plan} plan",
+                f"SUB_{plan}_{datetime.utcnow().strftime('%Y%m%d')}",
+                db_session=db.session
+            )
+            
+            if success:
+                user.is_premium = True
+                user.subscription_plan_code = plan.lower()
+                user.subscription_start_date = datetime.utcnow()
+                user.subscription_end_date = datetime.utcnow() + timedelta(days=30)
+                db.session.commit()
+                
+                return self.send_sms(phone_number,
+                    f"Subscribed to {plan}!\n"
+                    f"Amount: N{amount:,.0f}\n"
+                    f"Valid: 30 days\n"
+                    f"Balance: N{wallet_service.get_balance(user):,.0f}")
+            else:
+                return self.send_sms(phone_number, f"Subscription failed: {msg}")
+        else:
+            shortfall = amount - balance
+            
+            email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+            ref = payment_service.generate_reference(f"SUB_{plan}")
+            
+            result = payment_service.charge_ussd(email, amount, ref, '737')
+            
+            if result.get('success'):
+                from models import Transaction
+                transaction = Transaction(
+                    reference=ref,
+                    user_id=user.id,
+                    transaction_type='subscription',
+                    base_amount=amount,
+                    total_amount=amount,
+                    payment_method='ussd',
+                    status='pending'
+                )
+                db.session.add(transaction)
+                db.session.commit()
+                
+                return self.send_sms(phone_number,
+                    f"Dial to subscribe:\n{result['ussd_code']}\n"
+                    f"Amount: N{amount:,.0f}\n"
+                    f"Plan: {plan}")
+            else:
+                return self.send_sms(phone_number,
+                    f"Low balance: N{balance:,.0f}\n"
+                    f"Need: N{amount:,.0f}\n"
+                    f"Top up: TOPUP {shortfall}")
+    
+    def _handle_transport_settlement(self, phone_number, command_parts):
+        """Handle transport trip settlement via SMS
+        
+        Format: SETTLE [trip_id]
+        Examples:
+        - SETTLE - View pending settlements
+        - SETTLE 123 - Settle specific trip
+        """
+        from wallet_service import wallet_service
+        from models import LogisticsRequest, TransportProfile
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        transport = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not transport:
+            return self.send_sms(phone_number,
+                "Register as transporter first. Dial *712*55# > 6 > 2")
+        
+        completed_trips = LogisticsRequest.query.filter_by(
+            assigned_transport_id=transport.id,
+            status='delivered'
+        ).filter(LogisticsRequest.payment_status != 'settled').all()
+        
+        if len(command_parts) < 2:
+            if not completed_trips:
+                return self.send_sms(phone_number, "No pending settlements.")
+            
+            lines = ["Pending settlements:"]
+            total = 0
+            for trip in completed_trips[:5]:
+                amount = trip.agreed_price or trip.estimated_cost or 0
+                total += amount
+                lines.append(f"#{trip.id}: N{amount:,.0f}")
+            
+            lines.append(f"\nTotal: N{total:,.0f}")
+            lines.append(f"SETTLE [id] to claim")
+            
+            return self.send_sms(phone_number, "\n".join(lines))
+        
+        try:
+            trip_id = int(command_parts[1])
+        except ValueError:
+            return self.send_sms(phone_number, "Invalid trip ID. Use: SETTLE [number]")
+        
+        trip = LogisticsRequest.query.filter_by(
+            id=trip_id,
+            assigned_transport_id=transport.id,
+            status='delivered'
+        ).first()
+        
+        if not trip:
+            return self.send_sms(phone_number,
+                f"Trip #{trip_id} not found or not eligible for settlement.")
+        
+        if trip.payment_status == 'settled':
+            return self.send_sms(phone_number,
+                f"Trip #{trip_id} already settled.")
+        
+        amount = trip.agreed_price or trip.estimated_cost or 0
+        platform_fee = amount * 0.05
+        net_amount = amount - platform_fee
+        
+        success, msg, ref = wallet_service.credit_wallet(
+            user, net_amount,
+            f"Trip #{trip_id} settlement",
+            f"SETTLE_{trip_id}_{datetime.utcnow().strftime('%Y%m%d')}",
+            db_session=db.session
+        )
+        
+        if success:
+            trip.payment_status = 'settled'
+            trip.settlement_date = datetime.utcnow()
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"Trip #{trip_id} settled!\n"
+                f"Amount: N{amount:,.0f}\n"
+                f"Fee: N{platform_fee:,.0f}\n"
+                f"Net: N{net_amount:,.0f}\n"
+                f"Balance: N{wallet_service.get_balance(user):,.0f}")
+        else:
+            return self.send_sms(phone_number, f"Settlement failed: {msg}")
+    
+    def _handle_sabibuy_create(self, phone_number, command_parts):
+        """Handle SabiBuy campaign creation via SMS
+        
+        Format: CREATE SABIBUY [crop] [price] [min_qty]
+        Examples:
+        - CREATE SABIBUY RICE 48000 50
+        - CREATE SABIBUY TOMATO 25000 100
+        """
+        from wallet_service import wallet_service
+        from models import CaptainBond, SabiBuy
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "CREATE SABIBUY [crop] [price] [min_qty]\n"
+                "Example: CREATE SABIBUY RICE 48000 50\n"
+                "Note: Requires N10,000 Captain bond")
+        
+        if command_parts[1].upper() != 'SABIBUY':
+            return self.send_sms(phone_number,
+                "Use: CREATE SABIBUY [crop] [price] [min_qty]")
+        
+        bond = CaptainBond.query.filter_by(
+            user_id=user.id,
+            status='active'
+        ).first()
+        
+        if not bond:
+            return self.send_sms(phone_number,
+                "Captain bond required (N10,000).\n"
+                "Send: BOND PAY\n"
+                "Or dial *712*55# > 15")
+        
+        if len(command_parts) < 5:
+            return self.send_sms(phone_number,
+                "Format: CREATE SABIBUY [crop] [price] [min_qty]\n"
+                "Example: CREATE SABIBUY RICE 48000 50")
+        
+        try:
+            crop = command_parts[2].upper()
+            price = float(command_parts[3])
+            min_qty = int(command_parts[4])
+        except (ValueError, IndexError):
+            return self.send_sms(phone_number,
+                "Invalid format.\n"
+                "Use: CREATE SABIBUY RICE 48000 50")
+        
+        if price < 1000 or price > 10000000:
+            return self.send_sms(phone_number, "Price must be N1,000 - N10,000,000")
+        
+        if min_qty < 5 or min_qty > 10000:
+            return self.send_sms(phone_number, "Minimum quantity must be 5 - 10,000")
+        
+        name_part = user.name.split()[0].upper()[:4]
+        code = f"{name_part}-SABIBUY-{int(price/1000)}K"
+        
+        existing = SabiBuy.query.filter_by(campaign_code=code).first()
+        counter = 1
+        while existing:
+            code = f"{name_part}-SABIBUY-{int(price/1000)}K-{counter}"
+            existing = SabiBuy.query.filter_by(campaign_code=code).first()
+            counter += 1
+        
+        try:
+            campaign = SabiBuy(
+                campaign_code=code,
+                organizer_id=user.id,
+                produce_name=crop,
+                unit_price=price,
+                minimum_quantity=min_qty,
+                current_quantity=0,
+                status='active',
+                source_channel='sms'
+            )
+            db.session.add(campaign)
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"SabiBuy created!\n"
+                f"Code: {code}\n"
+                f"Crop: {crop}\n"
+                f"Price: N{price:,.0f}\n"
+                f"Min: {min_qty} units\n\n"
+                f"Share code with buyers!")
+                
+        except Exception as e:
+            current_app.logger.error(f"SabiBuy create error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number, "Failed to create campaign. Try again.")
 
 
 # SMS Templates for future multilingual support

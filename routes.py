@@ -2122,8 +2122,18 @@ def sms_webhook():
             app.logger.error("Missing phone number or message in SMS webhook")
             return jsonify({'status': 'error', 'message': 'Invalid SMS data'}), 400
         
-        # Process the SMS
-        sms_service.process_incoming_sms(phone_number, message)
+        # Capture metadata for device fingerprinting (anti-collusion)
+        metadata = {
+            'gateway_ip': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', ''),
+            'link_id': request.form.get('linkId', ''),
+            'network_code': request.form.get('networkCode', ''),
+            'date': request.form.get('date', ''),
+            'channel': 'sms'
+        }
+        
+        # Process the SMS with metadata
+        sms_service.process_incoming_sms(phone_number, message, metadata=metadata)
         
         return jsonify({'status': 'success', 'message': 'SMS processed'}), 200
         
