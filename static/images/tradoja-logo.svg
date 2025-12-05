@@ -7,28 +7,22 @@
       <stop offset="60%" style="stop-color:#fd7e14" />
       <stop offset="100%" style="stop-color:#fd7e14" />
     </linearGradient>
-    <linearGradient id="bubbleGradMain" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#28a745" />
-      <stop offset="100%" style="stop-color:#fd7e14" />
-    </linearGradient>
   </defs>
   
-  <!-- Single chat bubble with exchange arrows (Option 2 style as main) -->
-  <g transform="translate(5, 3)">
-    <!-- Chat bubble -->
-    <path d="M4,10 Q4,2 14,2 L34,2 Q44,2 44,10 L44,26 Q44,34 34,34 L18,34 L8,42 L8,34 Q4,34 4,26 Z" 
-          fill="url(#bubbleGradMain)"/>
+  <!-- Option 5: Minimal - single rounded chat bubble -->
+  <g transform="translate(5, 5)">
+    <!-- Simple rounded chat bubble -->
+    <path d="M5,10 Q5,3 15,3 L30,3 Q40,3 40,10 L40,22 Q40,29 30,29 L18,29 L10,37 L10,29 Q5,29 5,22 Z" 
+          fill="#28a745"/>
     
-    <!-- Exchange arrows inside -->
-    <path d="M12,15 L28,15" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-    <polygon points="26,12 32,15 26,18" fill="white"/>
-    
-    <path d="M32,23 L16,23" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-    <polygon points="18,20 12,23 18,26" fill="white"/>
+    <!-- Three dots - two white, one orange accent -->
+    <circle cx="15" cy="16" r="2.5" fill="white"/>
+    <circle cx="22.5" cy="16" r="2.5" fill="white"/>
+    <circle cx="30" cy="16" r="2.5" fill="#fd7e14"/>
   </g>
   
   <!-- Tradoja text - Inter/modern sans-serif style -->
-  <text x="55" y="34" font-family="Inter, Segoe UI, sans-serif" font-size="26" font-weight="600" letter-spacing="0.5" fill="url(#textGradMain)">
+  <text x="52" y="34" font-family="Inter, Segoe UI, sans-serif" font-size="26" font-weight="600" letter-spacing="0.5" fill="url(#textGradMain)">
     Tradoja
   </text>
 </svg>
