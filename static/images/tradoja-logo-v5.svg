@@ -21,8 +21,8 @@
     <circle cx="30" cy="16" r="2.5" fill="#fd7e14"/>
   </g>
   
-  <!-- Tradoja text -->
-  <text x="52" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGrad5)">
+  <!-- Tradoja text - Inter/modern sans-serif style -->
+  <text x="52" y="34" font-family="Inter, Segoe UI, sans-serif" font-size="26" font-weight="600" letter-spacing="0.5" fill="url(#textGrad5)">
     Tradoja
   </text>
 </svg>

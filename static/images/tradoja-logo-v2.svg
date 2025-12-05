@@ -27,8 +27,8 @@
     <polygon points="18,20 12,23 18,26" fill="white"/>
   </g>
   
-  <!-- Tradoja text -->
-  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGrad2)">
+  <!-- Tradoja text - Inter/modern sans-serif style -->
+  <text x="55" y="34" font-family="Inter, Segoe UI, sans-serif" font-size="26" font-weight="600" letter-spacing="0.5" fill="url(#textGrad2)">
     Tradoja
   </text>
 </svg>
