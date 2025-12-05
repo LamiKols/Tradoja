@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 50" width="240" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50" width="220" height="50">
   <defs>
     <linearGradient id="greenOrangeMain" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
@@ -9,44 +9,25 @@
     </linearGradient>
   </defs>
   
-  <!-- Trade/Exchange circular arrows icon -->
-  <g transform="translate(5, 5)">
-    <!-- Outer circle made of small arrows pointing clockwise -->
-    <!-- Top section - arrows pointing right -->
-    <polygon points="8,4 12,2 12,6" fill="#28a745" />
-    <polygon points="16,2 20,0 20,4" fill="#28a745" />
-    <polygon points="24,2 28,0 28,4" fill="#20c997" />
+  <!-- Simple phone with trade arrows -->
+  <g transform="translate(8, 3)">
+    <!-- Phone outline -->
+    <rect x="5" y="0" width="22" height="40" rx="3" ry="3" fill="none" stroke="#28a745" stroke-width="2.5"/>
+    <!-- Phone screen -->
+    <rect x="8" y="5" width="16" height="26" rx="1" fill="none" stroke="#20c997" stroke-width="1"/>
+    <!-- Phone button -->
+    <circle cx="16" cy="36" r="2" fill="#fd7e14"/>
     
-    <!-- Right section - arrows pointing down -->
-    <polygon points="34,8 36,12 32,12" fill="#20c997" />
-    <polygon points="36,16 38,20 34,20" fill="#fd7e14" />
-    <polygon points="36,24 38,28 34,28" fill="#fd7e14" />
+    <!-- Trade arrows on screen - simple exchange -->
+    <path d="M11,14 L21,14" stroke="#28a745" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="19,11 23,14 19,17" fill="#28a745"/>
     
-    <!-- Bottom section - arrows pointing left -->
-    <polygon points="28,36 24,38 24,34" fill="#fd7e14" />
-    <polygon points="20,38 16,40 16,36" fill="#fd7e14" />
-    <polygon points="12,36 8,38 8,34" fill="#20c997" />
-    
-    <!-- Left section - arrows pointing up -->
-    <polygon points="2,28 0,24 4,24" fill="#20c997" />
-    <polygon points="0,20 -2,16 2,16" fill="#28a745" />
-    <polygon points="2,12 0,8 4,8" fill="#28a745" />
-    
-    <!-- Central bidirectional trade arrows -->
-    <!-- Right-pointing arrow (green) -->
-    <path d="M10,16 L18,12 L18,14 L28,14 L28,18 L18,18 L18,20 Z" fill="#28a745" />
-    <!-- Left-pointing arrow (orange) -->
-    <path d="M28,24 L20,28 L20,26 L10,26 L10,22 L20,22 L20,20 Z" fill="#fd7e14" />
-    
-    <!-- Connecting lines from outer arrows to center -->
-    <line x1="12" y1="6" x2="14" y2="13" stroke="#28a745" stroke-width="1" opacity="0.6" />
-    <line x1="34" y1="12" x2="28" y2="15" stroke="#20c997" stroke-width="1" opacity="0.6" />
-    <line x1="34" y1="28" x2="28" y2="25" stroke="#fd7e14" stroke-width="1" opacity="0.6" />
-    <line x1="4" y1="28" x2="10" y2="25" stroke="#20c997" stroke-width="1" opacity="0.6" />
+    <path d="M21,22 L11,22" stroke="#fd7e14" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="13,19 9,22 13,25" fill="#fd7e14"/>
   </g>
   
   <!-- Tradoja text - 'd' is the fade transition point -->
-  <text x="52" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrangeMain)">
+  <text x="48" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrangeMain)">
     Tradoja
   </text>
 </svg>
