@@ -1,27 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50" width="220" height="50">
   <defs>
-    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="greenOrangeMain" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="stallGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
     </linearGradient>
   </defs>
   
   <!-- Market stall icon -->
-  <g transform="translate(5, 8)">
-    <!-- Roof -->
-    <path d="M0 12 L15 0 L30 12 Z" fill="url(#logoGradient)" />
-    <!-- Stall base -->
-    <rect x="3" y="12" width="24" height="18" fill="url(#logoGradient)" rx="2" />
-    <!-- Counter opening -->
-    <rect x="6" y="16" width="18" height="10" fill="#1a1a1a" rx="1" />
-    <!-- Produce dots -->
-    <circle cx="10" cy="21" r="2" fill="#ffc107" />
-    <circle cx="15" cy="21" r="2" fill="#dc3545" />
-    <circle cx="20" cy="21" r="2" fill="#28a745" />
+  <g transform="translate(5, 5)">
+    <!-- Stall roof -->
+    <path d="M2 12 L20 2 L38 12 L35 14 L20 6 L5 14 Z" fill="url(#stallGrad)" />
+    
+    <!-- Stall counter/table -->
+    <rect x="5" y="16" width="30" height="4" rx="1" fill="url(#stallGrad)" />
+    
+    <!-- Stall legs -->
+    <rect x="8" y="20" width="3" height="18" fill="#28a745" />
+    <rect x="29" y="20" width="3" height="18" fill="#fd7e14" />
+    
+    <!-- Produce dots on counter -->
+    <circle cx="12" cy="14" r="3" fill="#ff6b35" />
+    <circle cx="20" cy="13" r="3" fill="#ffc107" />
+    <circle cx="28" cy="14" r="3" fill="#dc3545" />
   </g>
   
-  <!-- Tradoja text -->
-  <text x="45" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#logoGradient)">
-    Trad<tspan fill="#ffc107">oja</tspan>
+  <!-- Tradoja text with green-to-orange gradient -->
+  <text x="50" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrangeMain)">
+    Tradoja
   </text>
 </svg>

@@ -1,23 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50" width="220" height="50">
   <defs>
-    <linearGradient id="textGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="greenOrange1" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
     </linearGradient>
   </defs>
   
   <!-- Minimalist connected T-O logo mark -->
   <g transform="translate(5, 5)">
     <!-- T shape -->
-    <path d="M0 3 H18 V7 H11 V35 H7 V7 H0 Z" fill="url(#textGrad1)" />
+    <path d="M0 3 H18 V7 H11 V35 H7 V7 H0 Z" fill="#28a745" />
     <!-- O shape connecting to T -->
-    <ellipse cx="28" cy="20" rx="12" ry="15" fill="none" stroke="url(#textGrad1)" stroke-width="4" />
+    <ellipse cx="28" cy="20" rx="12" ry="15" fill="none" stroke="#fd7e14" stroke-width="4" />
     <!-- Connection line -->
-    <rect x="11" y="18" width="5" height="4" fill="url(#textGrad1)" />
+    <rect x="11" y="18" width="5" height="4" fill="#20c997" />
   </g>
   
-  <!-- Tradoja text -->
-  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#textGrad1)">
-    Trad<tspan fill="#ffc107">oja</tspan>
+  <!-- Tradoja text with green-to-orange gradient -->
+  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrange1)">
+    Tradoja
   </text>
 </svg>

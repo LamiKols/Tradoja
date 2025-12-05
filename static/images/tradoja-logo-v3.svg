@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50" width="220" height="50">
   <defs>
-    <linearGradient id="basketGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="greenOrange3" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="basketGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
     </linearGradient>
   </defs>
   
   <!-- Traditional woven basket with produce -->
   <g transform="translate(5, 3)">
     <!-- Basket body with woven pattern -->
-    <path d="M5 20 L10 38 L30 38 L35 20 Z" fill="url(#basketGrad)" />
+    <path d="M5 20 L10 38 L30 38 L35 20 Z" fill="url(#basketGrad3)" />
     
     <!-- Woven pattern lines -->
     <line x1="10" y1="24" x2="30" y2="24" stroke="#1a1a1a" stroke-width="1" opacity="0.3" />
@@ -17,7 +22,7 @@
     <line x1="12" y1="32" x2="28" y2="32" stroke="#1a1a1a" stroke-width="1" opacity="0.3" />
     
     <!-- Basket handle -->
-    <path d="M12 20 Q20 5 28 20" fill="none" stroke="url(#basketGrad)" stroke-width="3" />
+    <path d="M12 20 Q20 5 28 20" fill="none" stroke="url(#basketGrad3)" stroke-width="3" />
     
     <!-- Produce items peeking out -->
     <circle cx="13" cy="18" r="4" fill="#ff6b35" /> <!-- Orange -->
@@ -26,8 +31,8 @@
     <ellipse cx="20" cy="12" rx="3" ry="4" fill="#28a745" /> <!-- Green leaf -->
   </g>
   
-  <!-- Tradoja text -->
-  <text x="48" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#basketGrad)">
-    Trad<tspan fill="#ffc107">oja</tspan>
+  <!-- Tradoja text with green-to-orange gradient -->
+  <text x="48" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrange3)">
+    Tradoja
   </text>
 </svg>

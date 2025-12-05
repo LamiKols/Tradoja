@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50" width="220" height="50">
   <defs>
-    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="greenOrange4" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20c997;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="leafGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#28a745;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fd7e14;stop-opacity:1" />
     </linearGradient>
   </defs>
   
   <!-- Leaf + Handshake combination -->
   <g transform="translate(3, 5)">
     <!-- Large leaf background -->
-    <path d="M20 2 Q35 8 38 25 Q35 38 20 42 Q5 38 2 25 Q5 8 20 2 Z" fill="url(#leafGrad)" />
+    <path d="M20 2 Q35 8 38 25 Q35 38 20 42 Q5 38 2 25 Q5 8 20 2 Z" fill="url(#leafGrad4)" />
     
     <!-- Leaf vein -->
     <path d="M20 8 L20 36" stroke="#1a1a1a" stroke-width="1.5" opacity="0.3" />
@@ -25,8 +30,8 @@
     </g>
   </g>
   
-  <!-- Tradoja text -->
-  <text x="48" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#leafGrad)">
-    Trad<tspan fill="#ffc107">oja</tspan>
+  <!-- Tradoja text with green-to-orange gradient -->
+  <text x="48" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#greenOrange4)">
+    Tradoja
   </text>
 </svg>
