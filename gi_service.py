@@ -1,5 +1,5 @@
 """
-Geographical Indications (GI) service for AgroLink
+Geographical Indications (GI) service for Tradoja
 Manages Nigerian geographical indications registry and certification
 """
 from typing import Dict, List, Optional

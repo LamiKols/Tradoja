@@ -1,5 +1,5 @@
 """
-Logistics Service for AgroLink
+Logistics Service for Tradoja
 Handles transporter matching, cold chain verification, and logistics notifications
 """
 import os

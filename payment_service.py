@@ -135,7 +135,7 @@ class PaymentService:
             logger.error(f"Failed to initialize subscription: {e}")
             raise Exception(f"Subscription initialization failed: {str(e)}")
     
-    def generate_reference(self, prefix="agrolink"):
+    def generate_reference(self, prefix="tradoja"):
         """Generate a unique transaction reference"""
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         import uuid

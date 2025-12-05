@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if title %}{{ title }} - AgroLink Lagos{% else %}AgroLink Lagos{% endif %}</title>
+    <title>{% if title %}{{ title }} - Tradoja{% else %}Tradoja - Africa's Digital Marketplace{% endif %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
@@ -52,8 +52,8 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('home') }}">
-                <i class="fas fa-seedling me-2"></i>AgroLink
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='images/tradoja-logo.svg') }}" alt="Tradoja" height="32" class="me-2">
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -226,8 +226,8 @@
     <footer class="bg-dark text-light py-3 mt-4">
         <div class="container text-center">
             <small>
-                &copy; 2025 AgroLink &middot; Africa's Digital Agriculture Marketplace &middot; 
-                <a href="mailto:support@agrolink.com" class="text-light text-decoration-underline">Contact Support</a>
+                &copy; 2025 Tradoja &middot; Africa's Digital Marketplace &middot; 
+                <a href="mailto:askme@tradoja.com" class="text-light text-decoration-underline">Contact Support</a>
             </small>
         </div>
     </footer>

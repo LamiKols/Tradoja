@@ -1074,7 +1074,7 @@ class CompleteRegistrationForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user:
             # Allow if it's the same account (LITE account using temp email)
-            if '@sms.agrolink.com' in user.email or '@ussd.agrolink.com' in user.email:
+            if '@sms.tradoja.com' in user.email or '@ussd.tradoja.com' in user.email:
                 return
             raise ValidationError('This email is already registered.')
 

@@ -1,5 +1,5 @@
 """
-Dispute Resolution Service for AgroLink
+Dispute Resolution Service for Tradoja
 Handles complaints with tiered SLAs: Critical (4hr), High (12hr), Medium (24hr), Low (48hr)
 """
 

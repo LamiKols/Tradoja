@@ -97,7 +97,7 @@ def home():
     ]
     
     return render_template('home.html', 
-                         title='Welcome to AgroLink',
+                         title='Welcome to Tradoja',
                          featured_produce=featured_produce,
                          image_map=PRODUCE_IMAGE_MAP,
                          default_image=DEFAULT_PRODUCE_IMAGE)
@@ -157,7 +157,7 @@ def register():
             if scam_detector and scam_score >= 50:
                 scam_detector.flag_new_user(user, scam_reason, scam_score, client_ip)
             
-            flash(f'Registration successful! Welcome to AgroLink Lagos, {user.name}!', 'success')
+            flash(f'Registration successful! Welcome to Tradoja Lagos, {user.name}!', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             db.session.rollback()
@@ -1153,7 +1153,7 @@ def confirm_delivery(id):
                         f"Item: {produce.name}\n"
                         f"Amount: N{escrow.amount:,.0f}\n"
                         f"Seller: {produce.farmer.name}\n"
-                        f"Thank you for using AgroLink!")
+                        f"Thank you for using Tradoja!")
                 except:
                     pass
             
@@ -2464,7 +2464,7 @@ def agent_register_farmer():
             new_farmer = User(
                 name=name.title(),
                 phone_number=phone,
-                email=f"{phone.replace('+', '')}@agent.agrolink.com",
+                email=f"{phone.replace('+', '')}@agent.tradoja.com",
                 role='farmer',
                 location=location.title() if location else None,
                 preferred_language=language,
@@ -2518,7 +2518,7 @@ def agent_register_farmer():
             # Send welcome SMS if service available
             if sms_service and channel in ['sms', 'agent']:
                 try:
-                    welcome_msg = f"Welcome to AgroLink, {name}! You've been registered. Send HELP for commands or LIST to add your produce."
+                    welcome_msg = f"Welcome to Tradoja, {name}! You've been registered. Send HELP for commands or LIST to add your produce."
                     sms_service.send_sms(phone, welcome_msg)
                 except Exception as sms_err:
                     app.logger.warning(f"Failed to send welcome SMS: {sms_err}")
@@ -2609,7 +2609,7 @@ def agent_complete_registration():
                     # Send confirmation SMS
                     if sms_service:
                         try:
-                            msg = f"Congratulations {farmer_to_complete.name}! Your AgroLink account is now VERIFIED. You have more buyer trust!"
+                            msg = f"Congratulations {farmer_to_complete.name}! Your Tradoja account is now VERIFIED. You have more buyer trust!"
                             sms_service.send_sms(farmer_to_complete.phone_number, msg)
                         except:
                             pass
@@ -2678,7 +2678,7 @@ def agent_bulk_register():
                     new_farmer = User(
                         name=name.title(),
                         phone_number=phone,
-                        email=f"{phone.replace('+', '')}@bulk.agrolink.com",
+                        email=f"{phone.replace('+', '')}@bulk.tradoja.com",
                         role='farmer',
                         location=location.title() if location else None,
                         preferred_language=language,
@@ -3382,7 +3382,7 @@ def export_analytics_report(report_type):
         
         # Create response
         response = make_response(csv_data)
-        response.headers["Content-Disposition"] = f"attachment; filename=agrolink_{report_type}_{datetime.now().strftime('%Y%m%d')}.csv"
+        response.headers["Content-Disposition"] = f"attachment; filename=tradoja_{report_type}_{datetime.now().strftime('%Y%m%d')}.csv"
         response.headers["Content-type"] = "text/csv"
         
         return response
@@ -3712,7 +3712,7 @@ def subscription_callback():
                 db.session.add(subscription)
                 db.session.commit()
                 
-                flash('Premium subscription activated! Welcome to AgroLink Premium.', 'success')
+                flash('Premium subscription activated! Welcome to Tradoja Premium.', 'success')
                 return redirect(url_for('farmer_dashboard' if user.is_farmer() else 'buyer_dashboard'))
             else:
                 transaction.status = 'failed'
@@ -4741,7 +4741,7 @@ def boi_loan_application(loan_id):
             form.supporting_docs_file.data.save(filepath)
             loan_app.supporting_docs_file = filepath
         
-        # Generate AgroLink data snapshot
+        # Generate Tradoja data snapshot
         snapshot_data = generate_agrolink_data_snapshot(current_user.id)
         loan_app.set_agrolink_data_snapshot(snapshot_data)
         
@@ -4769,7 +4769,7 @@ def boi_loan_application(loan_id):
 
 
 def generate_agrolink_data_snapshot(user_id):
-    """Generate AgroLink data snapshot for loan applications"""
+    """Generate Tradoja data snapshot for loan applications"""
     try:
         # Get transaction history (last 12 months)
         cutoff_date = datetime.utcnow() - timedelta(days=365)
@@ -4810,7 +4810,7 @@ def generate_agrolink_data_snapshot(user_id):
         
         return snapshot
     except Exception as e:
-        app.logger.error(f"Error generating AgroLink data snapshot: {e}")
+        app.logger.error(f"Error generating Tradoja data snapshot: {e}")
         return {
             'snapshot_date': datetime.utcnow().isoformat(),
             'error': 'Unable to generate complete snapshot',

@@ -1,5 +1,5 @@
 """
-Africa's Talking SMS Service for AgroLink
+Africa's Talking SMS Service for Tradoja
 Enables farmers to access platform features via SMS commands
 """
 
@@ -222,13 +222,13 @@ class SMSService:
         if existing_user:
             if existing_user.is_lite_account():
                 return self.send_sms(phone_number, 
-                    f"Welcome back {existing_user.name}! Complete registration at agrolink.com to get verified. Send HELP for commands.")
+                    f"Welcome back {existing_user.name}! Complete registration at tradoja.com to get verified. Send HELP for commands.")
             return self.send_sms(phone_number, 
                 f"Welcome back {existing_user.name}! You're verified. Send HELP for commands.")
         
         if len(command_parts) == 1:
             # Initial JOIN command - ask for details
-            message = ("Welcome to AgroLink!\n"
+            message = ("Welcome to Tradoja!\n"
                       "Reply with: JOIN [your name] [location] [main crop]\n"
                       "Example: JOIN John Lagos Tomatoes")
             return self.send_sms(phone_number, message)
@@ -249,7 +249,7 @@ class SMSService:
             user = User(
                 name=name,
                 phone_number=phone_number,
-                email=f"{phone_number.replace('+', '')}@sms.agrolink.com",  # Temporary email
+                email=f"{phone_number.replace('+', '')}@sms.tradoja.com",  # Temporary email
                 role='farmer',
                 sms_enabled=True,
                 sms_registration_date=datetime.utcnow(),
@@ -275,7 +275,7 @@ class SMSService:
             welcome_message = (f"Welcome {name}!\n"
                              f"You're registered (LITE).\n"
                              f"Commands: LIST, PRICE, HELP\n"
-                             f"Get VERIFIED at agrolink.com for more trust!")
+                             f"Get VERIFIED at tradoja.com for more trust!")
             
             return self.send_sms(phone_number, welcome_message)
             
@@ -488,7 +488,7 @@ class SMSService:
             db.session.commit()
         
         return self.send_sms(phone_number, 
-            "You've been unsubscribed from AgroLink SMS. Send JOIN to re-register.")
+            "You've been unsubscribed from Tradoja SMS. Send JOIN to re-register.")
     
     def _handle_transport_bid(self, phone_number, command_parts):
         """Handle transport bid via SMS
@@ -507,7 +507,7 @@ class SMSService:
         profile = TransportProfile.query.filter_by(user_id=user.id).first()
         if not profile:
             return self.send_sms(phone_number,
-                "You're not registered as a transporter. Visit agrolink.ng/transport to register.")
+                "You're not registered as a transporter. Visit tradoja.com/transport to register.")
         
         if len(command_parts) < 3:
             return self.send_sms(phone_number,
@@ -575,7 +575,7 @@ class SMSService:
         profile = TransportProfile.query.filter_by(user_id=user.id).first()
         if not profile:
             return self.send_sms(phone_number,
-                "You're not registered as a transporter. Visit agrolink.ng/transport to register.")
+                "You're not registered as a transporter. Visit tradoja.com/transport to register.")
         
         # Get available jobs
         jobs = LogisticsRequest.query.filter(
@@ -732,7 +732,7 @@ class SMSService:
                 user = User(
                     name=name,
                     phone_number=phone_number,
-                    email=f"{phone_number.replace('+', '').replace('-', '')}@transport.agrolink.ng",
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@transport.tradoja.com",
                     role='transport_company',
                     sms_enabled=True,
                     sms_registration_date=datetime.utcnow(),
@@ -816,7 +816,7 @@ class SMSService:
                 user = User(
                     name=name,
                     phone_number=phone_number,
-                    email=f"{phone_number.replace('+', '').replace('-', '')}@buyer.agrolink.ng",
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@buyer.tradoja.com",
                     role='buyer',
                     buyer_type='retail_buyer',
                     sms_enabled=True,
@@ -889,7 +889,7 @@ class SMSService:
                 user = User(
                     name=name,
                     phone_number=phone_number,
-                    email=f"{phone_number.replace('+', '').replace('-', '')}@agent.agrolink.ng",
+                    email=f"{phone_number.replace('+', '').replace('-', '')}@agent.tradoja.com",
                     role='agent',
                     sms_enabled=True,
                     source_channel='sms',
@@ -920,7 +920,7 @@ class SMSService:
             approval_msg = "Auto-approved! Start registering now!" if is_nysc else "Approval in 24 hrs."
             
             return self.send_sms(phone_number,
-                f"You are now an AgroLink Agent!\n"
+                f"You are now an Tradoja Agent!\n"
                 f"Your ID: {agent_id}\n"
                 f"You will earn ₦200 airtime for every 10 farmers you register.\n"
                 f"{approval_msg}\n"
@@ -954,7 +954,7 @@ class SMSService:
                             f"- Get higher job ranking\n"
                             f"- Earn cold-chain bonus (15%)\n"
                             f"- Upload documents\n\n"
-                            f"Visit: agrolink.ng/transport/complete\n"
+                            f"Visit: tradoja.com/transport/complete\n"
                             f"Or call agent: 08012345678\n"
                             f"Your ID: {profile.transporter_id}")
         
@@ -1131,7 +1131,7 @@ class SMSService:
             farmer = User(
                 name=farmer_name,
                 phone_number=farmer_phone,
-                email=f"{farmer_phone.replace('+', '')}@agent.agrolink.ng",
+                email=f"{farmer_phone.replace('+', '')}@agent.tradoja.com",
                 role='farmer',
                 sms_enabled=True,
                 sms_registration_date=datetime.utcnow(),
@@ -1153,7 +1153,7 @@ class SMSService:
             db.session.commit()
             
             self.send_sms(farmer_phone,
-                f"Welcome to AgroLink!\n"
+                f"Welcome to Tradoja!\n"
                 f"Agent {user.name} registered you.\n"
                 f"Text HELP for commands.\n"
                 f"Your crop: {main_crop}")
@@ -1217,7 +1217,7 @@ class SMSService:
         transport_profile = TransportProfile.query.filter_by(user_id=user.id).first() if user else None
         agent_profile = AgentProfile.query.filter_by(user_id=user.id).first() if user else None
         
-        help_message = ("AgroLink SMS Commands:\n\n"
+        help_message = ("Tradoja SMS Commands:\n\n"
                        "REGISTRATION:\n"
                        "JOIN [name] [loc] [crop]\n"
                        "JOIN BUYER [name] [loc]\n"
@@ -1297,7 +1297,7 @@ class SMSService:
         try:
             user = User.query.filter_by(phone_number=phone_number).first()
             if user and user.sms_enabled:
-                alert_message = f"AgroLink Alert ({alert_type.title()}):\n{message}"
+                alert_message = f"Tradoja Alert ({alert_type.title()}):\n{message}"
                 return self.send_sms(phone_number, alert_message)
         except Exception as e:
             current_app.logger.error(f"Alert sending error: {e}")
@@ -1396,7 +1396,7 @@ class SMSService:
             message = (f"Delivery complete!\n"
                       f"Job #{job_id}\n"
                       f"Payment: N{amount:,.0f} releasing\n"
-                      f"Thank you for using AgroLink!")
+                      f"Thank you for using Tradoja!")
             return self.send_sms(farmer_phone, message)
         except Exception as e:
             current_app.logger.error(f"Delivery complete notification error: {e}")
@@ -1473,7 +1473,7 @@ class SMSService:
         if action == 'START':
             return self.send_sms(phone_number,
                 "To start SabiBuy, dial *712*55# > 10\n"
-                "Or visit agrolink.ng/sabibuy")
+                "Or visit tradoja.com/sabibuy")
         
         if action == 'EARNINGS':
             campaigns = SabiBuy.query.filter_by(organizer_id=user.id).all()
@@ -1998,7 +1998,7 @@ class SMSService:
                     bank_code = command_parts[3]
                     ref = payment_service.generate_reference(f"SMS_{produce.id}")
                     
-                    email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+                    email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@tradoja.com"
                     
                     result = payment_service.charge_ussd(email, total, ref, bank_code)
                     
@@ -2139,7 +2139,7 @@ class SMSService:
             to_user = User.query.filter_by(phone_number=to_phone).first()
             if not to_user:
                 return self.send_sms(phone_number,
-                    f"User {command_parts[2]} not found on AgroLink")
+                    f"User {command_parts[2]} not found on Tradoja")
             
             if to_user.id == user.id:
                 return self.send_sms(phone_number, "Cannot transfer to yourself")
@@ -2214,7 +2214,7 @@ class SMSService:
         bank_code = command_parts[2]
         ref = payment_service.generate_reference(f"TOPUP_{user.id}")
         
-        email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+        email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@tradoja.com"
         
         result = payment_service.charge_ussd(email, amount, ref, bank_code)
         
@@ -2524,7 +2524,7 @@ class SMSService:
         else:
             shortfall = amount - balance
             
-            email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@agrolink.ng"
+            email = user.email if '@sms.' not in user.email else f"sms_{phone_number.replace('+', '')}@tradoja.com"
             ref = payment_service.generate_reference(f"SUB_{plan}")
             
             result = payment_service.charge_ussd(email, amount, ref, '737')
@@ -2737,7 +2737,7 @@ class SMSService:
 # SMS Templates for future multilingual support
 SMS_TEMPLATES = {
     'en': {
-        'welcome': "Welcome to AgroLink! 🌾 Reply with: JOIN [name] [location] [crop]",
+        'welcome': "Welcome to Tradoja! 🌾 Reply with: JOIN [name] [location] [crop]",
         'registration_success': "Welcome {name}! You're registered for {crop} in {location}.",
         'invalid_format': "Invalid format. Send HELP for commands.",
         'help': "Commands: JOIN, LIST, PRICE, TRACK, RATE, COMPLAINT, STATUS, HELP, STOP",

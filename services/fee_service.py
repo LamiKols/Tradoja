@@ -1,5 +1,5 @@
 """
-Transaction Fee Service for AgroLink
+Transaction Fee Service for Tradoja
 Implements tiered fees: lower for farmer-direct, higher for trader transactions
 """
 

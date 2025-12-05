@@ -1,5 +1,5 @@
 """
-Multilingual Message Templates Service for AgroLink
+Multilingual Message Templates Service for Tradoja
 Supports English (en), Yoruba (yo), Hausa (ha), Pidgin (pcm), and Igbo (ig)
 Used across USSD, SMS, and WhatsApp channels for rural farmer accessibility
 """
@@ -19,15 +19,15 @@ class MultilingualService:
     TEMPLATES = {
         'en': {
             # Welcome and Registration
-            'welcome': "Welcome to AgroLink! Nigeria's Agricultural Marketplace.",
+            'welcome': "Welcome to Tradoja! Nigeria's Agricultural Marketplace.",
             'welcome_back': "Welcome back, {name}!",
             'register_prompt': "To register, reply: JOIN [name] [location] [crop]",
             'registration_success': "You're registered as a farmer! Commands: LIST, PRICE, HELP",
             'already_registered': "You're already registered. Send HELP for commands.",
             
             # USSD Main Menu
-            'ussd_main_menu': "AgroLink\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register\n6. Transport Jobs\n7. Register as Buyer\n8. Become Agent\n9. Agent Menu",
-            'ussd_welcome': "Welcome to AgroLink USSD",
+            'ussd_main_menu': "Tradoja\n1. List Produce\n2. Check Prices\n3. My Listings\n4. Balance\n5. Register\n6. Transport Jobs\n7. Register as Buyer\n8. Become Agent\n9. Agent Menu",
+            'ussd_welcome': "Welcome to Tradoja USSD",
             
             # Produce Listing
             'list_prompt': "Enter: [crop] [quantity] [price]\nExample: RICE 50BAGS 45000",
@@ -45,7 +45,7 @@ class MultilingualService:
             'listing_item': "{num}. {crop} - {quantity} @ ₦{price}",
             
             # Balance and Payments
-            'balance': "Your AgroLink Balance:\nT2 Wallet: ₦{t2_balance}\nPaystack: {paystack_status}",
+            'balance': "Your Tradoja Balance:\nT2 Wallet: ₦{t2_balance}\nPaystack: {paystack_status}",
             'payment_received': "Payment received: ₦{amount} for {produce}",
             'payment_pending': "Pending payment: ₦{amount}",
             
@@ -82,7 +82,7 @@ class MultilingualService:
             'register_transporter_success': "Thank you {name}!\nYou are now registered as transporter.\nID: {transporter_id}\nYou will receive jobs immediately.\nSend DOC to complete profile later.",
             'already_transporter': "You are already registered as transporter.\nID: {transporter_id}",
             'transport_balance': "Transporter ID: {transporter_id}\nWallet Balance: ₦{balance}",
-            'doc_response': "Complete your profile to get higher ranking and cold-chain bonus.\nVisit: agrolink.ng/transport/complete\nOr call agent: 08012345678",
+            'doc_response': "Complete your profile to get higher ranking and cold-chain bonus.\nVisit: tradoja.com/transport/complete\nOr call agent: 08012345678",
             
             # Buyer LITE Registration
             'register_buyer_first': "Please register as buyer first.\nDial *712*55# > 7 or text JOIN BUYER [name] [location]",
@@ -97,7 +97,7 @@ class MultilingualService:
             'register_agent_name': "Enter your full name:",
             'register_agent_location': "Enter your location/LGA:",
             'register_agent_referral': "Enter referral code or NYSC State Code\n(Press 0 to skip):",
-            'register_agent_success': "You are now an AgroLink Agent!\nYour ID: {agent_id}\nYou will earn ₦200 airtime for every 10 farmers you register.\nApproval in 24 hrs. Start registering now!",
+            'register_agent_success': "You are now an Tradoja Agent!\nYour ID: {agent_id}\nYou will earn ₦200 airtime for every 10 farmers you register.\nApproval in 24 hrs. Start registering now!",
             'already_agent': "You are already an agent.\nID: {agent_id}",
             'agent_menu': "AGENT MENU ({agent_id})\nStatus: {status}\n1. Register Farmer\n2. Register Buyer\n3. My Farmers\n4. My Earnings\n0. Back",
             'agent_pending_approval': "Your agent account is pending approval.\nApproval in 24 hrs. You will be notified via SMS.",
@@ -153,14 +153,14 @@ class MultilingualService:
         },
         
         'yo': {  # Yoruba
-            'welcome': "Kaabo si AgroLink! Oja Ogbin Nigeria.",
+            'welcome': "Kaabo si Tradoja! Oja Ogbin Nigeria.",
             'welcome_back': "Kaabo pada, {name}!",
             'register_prompt': "Lati forukọsilẹ, fesi: JOIN [orukọ] [ipo] [irugbin]",
             'registration_success': "O ti forukọsilẹ bi agbe! Awọn aṣẹ: LIST, PRICE, HELP",
             'already_registered': "O ti forukọsilẹ tẹlẹ. Fi HELP ranṣẹ fun awọn aṣẹ.",
             
-            'ussd_main_menu': "AgroLink\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ\n6. Awọn Iṣẹ Gbigbe\n7. Forukọsilẹ bi Olura\n8. Di Aṣoju\n9. Akojọ Aṣoju",
-            'ussd_welcome': "Kaabo si AgroLink USSD",
+            'ussd_main_menu': "Tradoja\n1. Fi Ẹfọ Silẹ\n2. Wo Owo\n3. Awọn Iṣe Mi\n4. Iwontunwonsi\n5. Forukọsilẹ\n6. Awọn Iṣẹ Gbigbe\n7. Forukọsilẹ bi Olura\n8. Di Aṣoju\n9. Akojọ Aṣoju",
+            'ussd_welcome': "Kaabo si Tradoja USSD",
             
             'list_prompt': "Tẹ: [irugbin] [iye] [owo]\nApẹẹrẹ: IRESI 50BAGS 45000",
             'list_success': "Ti a fi silẹ: {quantity} {crop} ni ₦{price}",
@@ -174,7 +174,7 @@ class MultilingualService:
             'listings_header': "Awọn Atokọ Ti N Ṣiṣẹ:",
             'listing_item': "{num}. {crop} - {quantity} @ ₦{price}",
             
-            'balance': "Iwontunwonsi AgroLink Rẹ:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
+            'balance': "Iwontunwonsi Tradoja Rẹ:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
             
             'invalid_command': "Aṣẹ ti ko tọ. Fi HELP ranṣẹ fun awọn aṣayan.",
             'error': "Ẹ ma binu, aṣiṣe kan ṣẹlẹ. Jọwọ gbiyanju lẹẹkansi.",
@@ -195,7 +195,7 @@ class MultilingualService:
             'register_transporter_success': "O ṣeun {name}!\nO ti forukọsilẹ bi awakọ.\nID: {transporter_id}\nIwọ yoo gba iṣẹ lẹsẹkẹsẹ.\nFi DOC ranṣẹ lati pari profaili rẹ.",
             'already_transporter': "O ti forukọsilẹ bi awakọ.\nID: {transporter_id}",
             'transport_balance': "ID Awakọ: {transporter_id}\nIwontunwonsi: ₦{balance}",
-            'doc_response': "Pari profaili rẹ lati ni ipo giga ati bonus firiji.\nṢabẹwo: agrolink.ng/transport/complete",
+            'doc_response': "Pari profaili rẹ lati ni ipo giga ati bonus firiji.\nṢabẹwo: tradoja.com/transport/complete",
             
             # Buyer LITE Registration
             'register_buyer_first': "Jọwọ forukọsilẹ bi olura.\nPe *712*55# > 7 tabi fi JOIN BUYER [orukọ] [ipo] ranṣẹ",
@@ -210,7 +210,7 @@ class MultilingualService:
             'register_agent_name': "Tẹ orukọ rẹ ni kikun:",
             'register_agent_location': "Tẹ ipo/LGA rẹ:",
             'register_agent_referral': "Tẹ koodu itọkasi tabi koodu NYSC\n(Tẹ 0 lati fo):",
-            'register_agent_success': "O ti di Aṣoju AgroLink!\nID Rẹ: {agent_id}\nIwọ yoo gba ₦200 airtime fun agbe 10 ti o forukọsilẹ.\nIfọwọsi ni wakati 24. Bẹrẹ forukọsilẹ bayi!",
+            'register_agent_success': "O ti di Aṣoju Tradoja!\nID Rẹ: {agent_id}\nIwọ yoo gba ₦200 airtime fun agbe 10 ti o forukọsilẹ.\nIfọwọsi ni wakati 24. Bẹrẹ forukọsilẹ bayi!",
             'already_agent': "O ti jẹ aṣoju tẹlẹ.\nID: {agent_id}",
             'agent_menu': "AKOJỌ AṢOJU ({agent_id})\nIpo: {status}\n1. Forukọsilẹ Agbe\n2. Forukọsilẹ Olura\n3. Awọn Agbe Mi\n4. Ere Mi\n0. Pada",
             'agent_pending_approval': "Akọọlẹ aṣoju rẹ n duro de ifọwọsi.\nIfọwọsi ni wakati 24.",
@@ -253,14 +253,14 @@ class MultilingualService:
         },
         
         'ha': {  # Hausa
-            'welcome': "Barka da zuwa AgroLink! Kasuwar Noma ta Nigeria.",
+            'welcome': "Barka da zuwa Tradoja! Kasuwar Noma ta Nigeria.",
             'welcome_back': "Barka da dawowa, {name}!",
             'register_prompt': "Don rajista, amsa: JOIN [suna] [wuri] [amfani]",
             'registration_success': "An yi rajista a matsayin manomi! Umarni: LIST, PRICE, HELP",
             'already_registered': "An riga an yi maka rajista. Aika HELP don umarni.",
             
-            'ussd_main_menu': "AgroLink\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista\n6. Aikin Mota\n7. Rajista a matsayin Mai Saya\n8. Zama Wakili\n9. Akwatin Wakili",
-            'ussd_welcome': "Barka da zuwa AgroLink USSD",
+            'ussd_main_menu': "Tradoja\n1. Jera Amfanin Gona\n2. Duba Farashi\n3. Jerin Nawa\n4. Ma'auni\n5. Rajista\n6. Aikin Mota\n7. Rajista a matsayin Mai Saya\n8. Zama Wakili\n9. Akwatin Wakili",
+            'ussd_welcome': "Barka da zuwa Tradoja USSD",
             
             'list_prompt': "Shigar: [amfani] [adadi] [farashi]\nMisali: SHINKAFA 50BAGS 45000",
             'list_success': "An jera: {quantity} {crop} a ₦{price}",
@@ -274,7 +274,7 @@ class MultilingualService:
             'listings_header': "Jerin Aikinka:",
             'listing_item': "{num}. {crop} - {quantity} @ ₦{price}",
             
-            'balance': "Ma'aunin AgroLink Naka:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
+            'balance': "Ma'aunin Tradoja Naka:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
             
             'invalid_command': "Umarnin da ba daidai ba. Aika HELP don zaɓuɓɓuka.",
             'error': "Yi hakuri, kuskure ya faru. Don Allah sake gwadawa.",
@@ -295,7 +295,7 @@ class MultilingualService:
             'register_transporter_success': "Na gode {name}!\nAn yi muku rajista a matsayin direba.\nID: {transporter_id}\nZa ku sami aiyuka nan da nan.\nAika DOC don kammala bayananku.",
             'already_transporter': "An riga an yi muku rajista a matsayin direba.\nID: {transporter_id}",
             'transport_balance': "ID Direba: {transporter_id}\nMa'auni: ₦{balance}",
-            'doc_response': "Kammala bayananku don samun matsayi mafi girma da bonus firiji.\nZiyarci: agrolink.ng/transport/complete",
+            'doc_response': "Kammala bayananku don samun matsayi mafi girma da bonus firiji.\nZiyarci: tradoja.com/transport/complete",
             
             # Buyer LITE Registration
             'register_buyer_first': "Da fatan za a yi rajista a matsayin mai saya.\nKira *712*55# > 7 ko aika JOIN BUYER [suna] [wuri]",
@@ -310,7 +310,7 @@ class MultilingualService:
             'register_agent_name': "Shigar da sunan ku duka:",
             'register_agent_location': "Shigar da wurin/LGA:",
             'register_agent_referral': "Shigar da lambar shawarwari ko lambar NYSC\n(Latsa 0 don tsallake):",
-            'register_agent_success': "Yanzu kai ne Wakili na AgroLink!\nID naka: {agent_id}\nZa ku sami ₦200 airtime don manoma 10 da ku yi rajista.\nAmincewa cikin sa'o'i 24. Fara yanzu!",
+            'register_agent_success': "Yanzu kai ne Wakili na Tradoja!\nID naka: {agent_id}\nZa ku sami ₦200 airtime don manoma 10 da ku yi rajista.\nAmincewa cikin sa'o'i 24. Fara yanzu!",
             'already_agent': "An riga an yi muku rajista a matsayin wakili.\nID: {agent_id}",
             'agent_menu': "AKWATIN WAKILI ({agent_id})\nMatsayi: {status}\n1. Rajista Manomi\n2. Rajista Mai Saya\n3. Manomina\n4. Ribar Na\n0. Komawa",
             'agent_pending_approval': "Asusun wakili na jiran amincewa.\nAmincewa cikin sa'o'i 24.",
@@ -354,14 +354,14 @@ class MultilingualService:
         },
         
         'pcm': {  # Nigerian Pidgin
-            'welcome': "Welcome to AgroLink! Na Nigeria Farm Market.",
+            'welcome': "Welcome to Tradoja! Na Nigeria Farm Market.",
             'welcome_back': "You don come back, {name}!",
             'register_prompt': "To register, reply: JOIN [your name] [where you dey] [wetin you dey grow]",
             'registration_success': "E don register you as farmer! Commands: LIST, PRICE, HELP",
             'already_registered': "You don already register. Send HELP for commands.",
             
-            'ussd_main_menu': "AgroLink\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register\n6. Transport Work\n7. Register as Buyer\n8. Become Agent\n9. Agent Work",
-            'ussd_welcome': "Welcome to AgroLink USSD",
+            'ussd_main_menu': "Tradoja\n1. Put Produce\n2. Check Price\n3. My Produce\n4. My Balance\n5. Register\n6. Transport Work\n7. Register as Buyer\n8. Become Agent\n9. Agent Work",
+            'ussd_welcome': "Welcome to Tradoja USSD",
             
             'list_prompt': "Type: [produce] [how many] [price]\nExample: RICE 50BAGS 45000",
             'list_success': "E don list: {quantity} {crop} for ₦{price}",
@@ -375,7 +375,7 @@ class MultilingualService:
             'listings_header': "Your Produce wey dey market:",
             'listing_item': "{num}. {crop} - {quantity} @ ₦{price}",
             
-            'balance': "Your AgroLink Money:\nT2 Wallet: ₦{t2_balance}\nPaystack: {paystack_status}",
+            'balance': "Your Tradoja Money:\nT2 Wallet: ₦{t2_balance}\nPaystack: {paystack_status}",
             
             'invalid_command': "That command no correct. Send HELP for options.",
             'error': "Sorry, wahala happen. Abeg try again.",
@@ -396,7 +396,7 @@ class MultilingualService:
             'register_transporter_success': "Thank you {name}!\nE don register you as driver.\nID: {transporter_id}\nYou go start dey receive job now now.\nText DOC to finish your profile later.",
             'already_transporter': "You don already register as driver.\nID: {transporter_id}",
             'transport_balance': "Driver ID: {transporter_id}\nBalance: ₦{balance}",
-            'doc_response': "Finish your profile to get better ranking and cold-chain bonus.\nGo: agrolink.ng/transport/complete",
+            'doc_response': "Finish your profile to get better ranking and cold-chain bonus.\nGo: tradoja.com/transport/complete",
             
             # Buyer LITE Registration
             'register_buyer_first': "Abeg register as buyer first.\nDial *712*55# > 7 or text JOIN BUYER [name] [location]",
@@ -411,7 +411,7 @@ class MultilingualService:
             'register_agent_name': "Type your full name:",
             'register_agent_location': "Type your location/LGA:",
             'register_agent_referral': "Type referral code or NYSC State Code\n(Press 0 to skip):",
-            'register_agent_success': "You don become AgroLink Agent!\nYour ID: {agent_id}\nYou go earn ₦200 airtime for every 10 farmers wey you register.\nApproval go come in 24 hrs. Start now!",
+            'register_agent_success': "You don become Tradoja Agent!\nYour ID: {agent_id}\nYou go earn ₦200 airtime for every 10 farmers wey you register.\nApproval go come in 24 hrs. Start now!",
             'already_agent': "You don already be agent.\nID: {agent_id}",
             'agent_menu': "AGENT MENU ({agent_id})\nStatus: {status}\n1. Register Farmer\n2. Register Buyer\n3. My Farmers\n4. My Money\n0. Go Back",
             'agent_pending_approval': "Your agent account dey wait for approval.\nApproval go come in 24 hrs.",
@@ -455,14 +455,14 @@ class MultilingualService:
         },
         
         'ig': {  # Igbo
-            'welcome': "Nno na AgroLink! Ahịa Ọrụ Ugbo Nigeria.",
+            'welcome': "Nno na Tradoja! Ahịa Ọrụ Ugbo Nigeria.",
             'welcome_back': "Nnọọ, {name}!",
             'register_prompt': "Iji debanye aha, zaa: JOIN [aha] [ebe] [ihe ọkụkụ]",
             'registration_success': "E debanyela gị dị ka onye ọrụ ugbo! Iwu: LIST, PRICE, HELP",
             'already_registered': "E debanyela aha gị. Zipu HELP maka iwu.",
             
-            'ussd_main_menu': "AgroLink\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha\n6. Ọrụ Njem\n7. Debanye Aha dị ka Onye Ọzụzụ\n8. Bụrụ Onye Nnọchite\n9. Ngalaba Onye Nnọchite",
-            'ussd_welcome': "Nno na AgroLink USSD",
+            'ussd_main_menu': "Tradoja\n1. Dee Ihe Ubi\n2. Lee Ọnụ Ahịa\n3. Ihe Ndepụta M\n4. Ego M\n5. Debanye Aha\n6. Ọrụ Njem\n7. Debanye Aha dị ka Onye Ọzụzụ\n8. Bụrụ Onye Nnọchite\n9. Ngalaba Onye Nnọchite",
+            'ussd_welcome': "Nno na Tradoja USSD",
             
             'list_prompt': "Tinye: [ihe ọkụkụ] [ole] [ọnụ ahịa]\nỌmụmaatụ: RICE 50BAGS 45000",
             'list_success': "E depụtala: {quantity} {crop} n'ọnụ ₦{price}",
@@ -476,7 +476,7 @@ class MultilingualService:
             'listings_header': "Ndepụta Gị Na-arụ Ọrụ:",
             'listing_item': "{num}. {crop} - {quantity} @ ₦{price}",
             
-            'balance': "Ego AgroLink Gị:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
+            'balance': "Ego Tradoja Gị:\nT2: ₦{t2_balance}\nPaystack: {paystack_status}",
             
             'invalid_command': "Iwu anaghị arụ ọrụ. Zipu HELP maka nhọrọ.",
             'error': "Ndo, nsogbu mere. Biko nwaa ọzọ.",
@@ -497,7 +497,7 @@ class MultilingualService:
             'register_transporter_success': "Daalụ {name}!\nE debanyela aha gị dị ka onye ọkwọ ụgbọ.\nID: {transporter_id}\nỊ ga-amalite inweta ọrụ ugbu a.\nZipu DOC iji mezue profaịlụ gị.",
             'already_transporter': "E debanyela aha gị dị ka onye ọkwọ ụgbọ.\nID: {transporter_id}",
             'transport_balance': "ID Onye Ọkwọ: {transporter_id}\nEgo: ₦{balance}",
-            'doc_response': "Mezue profaịlụ gị iji nweta ọkwa dị elu na bonus oyi.\nGaa: agrolink.ng/transport/complete",
+            'doc_response': "Mezue profaịlụ gị iji nweta ọkwa dị elu na bonus oyi.\nGaa: tradoja.com/transport/complete",
             
             # Buyer LITE Registration
             'register_buyer_first': "Biko debanye aha dị ka onye ọzụzụ.\nKpọọ *712*55# > 7 ma ọ bụ zipu JOIN BUYER [aha] [ebe]",
@@ -512,7 +512,7 @@ class MultilingualService:
             'register_agent_name': "Tinye aha gị zuru ezu:",
             'register_agent_location': "Tinye ebe/LGA gị:",
             'register_agent_referral': "Tinye koodu ntụnye ma ọ bụ koodu NYSC\n(Pịa 0 iji wụfee):",
-            'register_agent_success': "Ị bụ ugbu a Onye Nnọchite AgroLink!\nID gị: {agent_id}\nỊ ga-enweta ₦200 airtime maka ndị ọrụ ugbo 10 ị debanyere.\nNkwado n'ime awa 24. Malite ugbu a!",
+            'register_agent_success': "Ị bụ ugbu a Onye Nnọchite Tradoja!\nID gị: {agent_id}\nỊ ga-enweta ₦200 airtime maka ndị ọrụ ugbo 10 ị debanyere.\nNkwado n'ime awa 24. Malite ugbu a!",
             'already_agent': "E debanyela aha gị dị ka onye nnọchite.\nID: {agent_id}",
             'agent_menu': "NGALABA ONYE NNỌCHITE ({agent_id})\nỌnọdụ: {status}\n1. Debanye Onye Ọrụ Ugbo\n2. Debanye Onye Ọzụzụ\n3. Ndị Ọrụ Ugbo M\n4. Ego M\n0. Laghachi",
             'agent_pending_approval': "Akaụntụ onye nnọchite gị na-eche nkwado.\nNkwado n'ime awa 24.",

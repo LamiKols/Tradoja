@@ -1,5 +1,5 @@
 """
-AI-Powered Marketplace Matchmaking Engine for AgroLink
+AI-Powered Marketplace Matchmaking Engine for Tradoja
 Connects farmers with buyers using intelligent algorithms and data analysis
 """
 

@@ -1,8 +1,10 @@
-# AgroLink
+# Tradoja
 
 ## Overview
 
-AgroLink is a digital agricultural marketplace connecting farmers and buyers across Africa, with an initial focus on Lagos to address food security. The platform enables farmers to list produce, buyers to browse products, and administrators to manage operations. It is a Flask web application featuring role-based access for farmers, buyers, and admins. The project aims to enhance food security, empower farmers, and streamline agricultural supply chains through advanced features like AI-powered scam detection, comprehensive logistics, digital inclusion for rural farmers, and climate-smart agriculture tools.
+Tradoja (Trade + Oja, meaning "market" in Yoruba) is a digital agricultural marketplace connecting farmers and buyers across Africa, with an initial focus on Lagos to address food security. The platform enables farmers to list produce, buyers to browse products, and administrators to manage operations. It is a Flask web application featuring role-based access for farmers, buyers, and admins. The project aims to enhance food security, empower farmers, and streamline agricultural supply chains through advanced features like AI-powered scam detection, comprehensive logistics, digital inclusion for rural farmers, and climate-smart agriculture tools.
+
+**Contact**: askme@tradoja.com
 
 ## User Preferences
 

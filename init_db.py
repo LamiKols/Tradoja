@@ -1,5 +1,5 @@
 """
-Database initialization script for AgroLink Lagos
+Database initialization script for Tradoja Lagos
 This script creates the database tables and optionally seeds with sample data
 """
 
@@ -19,8 +19,8 @@ def init_database():
         
         # Create admin user
         admin = User(
-            name="AgroLink Admin",
-            email="admin@agrolink.com",
+            name="Tradoja Admin",
+            email="admin@tradoja.com",
             role="admin"
         )
         admin.set_password("admin123")
@@ -29,7 +29,7 @@ def init_database():
             db.session.add(admin)
             db.session.commit()
             print("Admin user created successfully!")
-            print("Admin credentials: admin@agrolink.com / admin123")
+            print("Admin credentials: admin@tradoja.com / admin123")
         except Exception as e:
             print(f"Error creating admin user: {e}")
             db.session.rollback()

@@ -1,5 +1,5 @@
 """
-Rating Service for AgroLink
+Rating Service for Tradoja
 Handles star ratings for farmers, buyers, and transporters
 """
 

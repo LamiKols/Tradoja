@@ -1,5 +1,5 @@
 """
-USSD Service for AgroLink
+USSD Service for Tradoja
 Supports Africa's Talking and T2 (9mobile) USSD channels
 Enables feature phone users to access the platform without internet
 """
@@ -741,7 +741,7 @@ class USSDService:
         if user:
             session.current_menu = 'main'
             if user.is_lite_account():
-                return "Already registered (LITE). Visit agrolink.com to get VERIFIED!", False
+                return "Already registered (LITE). Visit tradoja.com to get VERIFIED!", False
             return get_message('already_registered', lang), False
         
         data = session.get_session_data()
@@ -770,7 +770,7 @@ class USSDService:
                 new_user = self.User(
                     name=data['name'],
                     phone_number=session.phone_number,
-                    email=f"{session.phone_number.replace('+', '')}@ussd.agrolink.com",
+                    email=f"{session.phone_number.replace('+', '')}@ussd.tradoja.com",
                     role='farmer',
                     location=data['location'],
                     is_ussd_user=True,
@@ -793,7 +793,7 @@ class USSDService:
                 session.current_menu = 'main'
                 session.current_step = 0
                 
-                success_msg = f"Welcome {data['name']}! You're registered (LITE). Visit agrolink.com for VERIFIED status!"
+                success_msg = f"Welcome {data['name']}! You're registered (LITE). Visit tradoja.com for VERIFIED status!"
                 return success_msg, False
                 
             except Exception as e:
@@ -940,7 +940,7 @@ class USSDService:
                     new_user = self.User(
                         name=company_name,
                         phone_number=phone,
-                        email=f"{phone.replace('+', '').replace('-', '')}@transport.agrolink.ng",
+                        email=f"{phone.replace('+', '').replace('-', '')}@transport.tradoja.com",
                         role='transport_company',
                         is_ussd_user=True,
                         source_channel='ussd',
@@ -1044,7 +1044,7 @@ class USSDService:
                     new_user = self.User(
                         name=name,
                         phone_number=phone,
-                        email=f"{phone.replace('+', '').replace('-', '')}@buyer.agrolink.ng",
+                        email=f"{phone.replace('+', '').replace('-', '')}@buyer.tradoja.com",
                         role='buyer',
                         buyer_type=buyer_type,
                         is_ussd_user=True,
@@ -1121,7 +1121,7 @@ class USSDService:
                     new_user = self.User(
                         name=name,
                         phone_number=phone,
-                        email=f"{phone.replace('+', '').replace('-', '')}@agent.agrolink.ng",
+                        email=f"{phone.replace('+', '').replace('-', '')}@agent.tradoja.com",
                         role='agent',
                         is_ussd_user=True,
                         source_channel='ussd',
@@ -1259,7 +1259,7 @@ class USSDService:
                 new_farmer = self.User(
                     name=farmer_name,
                     phone_number=phone_placeholder,
-                    email=f"farmer{random.randint(10000, 99999)}@agrolink.ng",
+                    email=f"farmer{random.randint(10000, 99999)}@tradoja.com",
                     role='farmer',
                     is_ussd_user=True,
                     source_channel='agent',
@@ -1331,7 +1331,7 @@ class USSDService:
                 new_buyer = self.User(
                     name=buyer_name,
                     phone_number=phone_placeholder,
-                    email=f"buyer{random.randint(10000, 99999)}@agrolink.ng",
+                    email=f"buyer{random.randint(10000, 99999)}@tradoja.com",
                     role='buyer',
                     buyer_type='retail_buyer',
                     is_ussd_user=True,
@@ -2137,7 +2137,7 @@ class USSDService:
                         amount = data.get('topup_amount', 0)
                         
                         ref = payment_service.generate_reference(f"USSD_TOPUP_{user.id}")
-                        email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@agrolink.ng"
+                        email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@tradoja.com"
                         
                         result = payment_service.charge_ussd(email, amount, ref, bank_code)
                         
@@ -2456,7 +2456,7 @@ class USSDService:
                     total = data.get('total', 0)
                     
                     ref = payment_service.generate_reference(f"USSD_PAY_{produce_id}")
-                    email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@agrolink.ng"
+                    email = user.email if '@sms.' not in user.email else f"ussd_{user.phone_number.replace('+', '')}@tradoja.com"
                     
                     result = payment_service.charge_ussd(email, total, ref, bank_code)
                     

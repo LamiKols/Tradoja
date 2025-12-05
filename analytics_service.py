@@ -1,5 +1,5 @@
 """
-Advanced Analytics Service for AgroLink
+Advanced Analytics Service for Tradoja
 Provides comprehensive market insights and user engagement analytics
 """
 

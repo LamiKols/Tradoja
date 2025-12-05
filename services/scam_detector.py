@@ -1,5 +1,5 @@
 """
-AgroLink Scam Detector Service - Layer 5
+Tradoja Scam Detector Service - Layer 5
 Rules-based fraud detection for Nigerian agricultural marketplace
 Targets 95-98% scam detection with <2% false positives
 """
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class ScamDetector:
     """
-    Rules-based scam detection engine for AgroLink
+    Rules-based scam detection engine for Tradoja
     
     All rules are designed for Nigerian agricultural marketplace context:
     - Registration fraud (multi-account, IP abuse, location hopping)

@@ -1,5 +1,5 @@
 """
-SabiBuy Group-Buy Service for AgroLink
+SabiBuy Group-Buy Service for Tradoja
 Zero-stock group-buying engine that turns anyone into a millionaire trader
 """
 

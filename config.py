@@ -1,4 +1,4 @@
-# Configuration file for AgroLink platform
+# Configuration file for Tradoja platform
 
 # Produce image mapping with royalty-free images
 PRODUCE_IMAGE_MAP = {

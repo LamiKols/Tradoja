@@ -1272,7 +1272,7 @@ class LoanApplication(db.Model):
     projections_file = db.Column(db.String(255))     # Business projections
     supporting_docs_file = db.Column(db.String(255)) # Additional documents
     
-    # AgroLink data snapshot (auto-generated)
+    # Tradoja data snapshot (auto-generated)
     agrolink_data_snapshot_json = db.Column(db.Text)  # JSON data about trading activity
     
     # Application status
@@ -1324,14 +1324,14 @@ class LoanApplication(db.Model):
         return self.is_payment_completed() and self.status in ['draft', 'payment_pending']
     
     def get_agrolink_data_snapshot(self):
-        """Parse AgroLink data snapshot from JSON"""
+        """Parse Tradoja data snapshot from JSON"""
         if self.agrolink_data_snapshot_json:
             import json
             return json.loads(self.agrolink_data_snapshot_json)
         return {}
     
     def set_agrolink_data_snapshot(self, data):
-        """Store AgroLink data snapshot as JSON"""
+        """Store Tradoja data snapshot as JSON"""
         import json
         self.agrolink_data_snapshot_json = json.dumps(data)
     
