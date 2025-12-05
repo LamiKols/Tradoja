@@ -102,6 +102,11 @@ def home():
                          image_map=PRODUCE_IMAGE_MAP,
                          default_image=DEFAULT_PRODUCE_IMAGE)
 
+@app.route('/logo-comparison')
+def logo_comparison():
+    """Logo comparison page for selecting Tradoja branding"""
+    return render_template('logo_comparison.html', title='Logo Options')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration route"""
