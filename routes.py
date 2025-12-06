@@ -107,6 +107,11 @@ def logo_comparison():
     """Logo comparison page for selecting Tradoja branding"""
     return render_template('logo_comparison.html', title='Logo Options')
 
+@app.route('/proposal')
+def partner_proposal():
+    """Partner proposal page for telecommunications companies"""
+    return render_template('partner_proposal.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration route"""
