@@ -118,18 +118,36 @@ def partner_proposal_pdf():
     from weasyprint import HTML
     from io import BytesIO
     
-    # Render the HTML template
     html_content = render_template('partner_proposal.html')
-    
-    # Generate PDF
     pdf_buffer = BytesIO()
     HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_buffer)
     pdf_buffer.seek(0)
     
-    # Return as downloadable PDF
     response = make_response(pdf_buffer.read())
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=Tradoja_Partnership_Proposal.pdf'
+    return response
+
+@app.route('/proposal.docx')
+def partner_proposal_docx():
+    """Generate and download partner proposal as Word document"""
+    from docx import Document
+    from htmldocx import HtmlToDocx
+    from io import BytesIO
+    
+    html_content = render_template('partner_proposal.html')
+    
+    document = Document()
+    parser = HtmlToDocx()
+    parser.add_html_to_document(html_content, document)
+    
+    file_buffer = BytesIO()
+    document.save(file_buffer)
+    file_buffer.seek(0)
+    
+    response = make_response(file_buffer.read())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    response.headers['Content-Disposition'] = 'attachment; filename=Tradoja_Partnership_Proposal.docx'
     return response
 
 @app.route('/register', methods=['GET', 'POST'])
