@@ -18,4 +18,5 @@ dependencies = [
     "requests>=2.32.4",
     "africastalking>=1.2.9",
     "paystack>=1.5.0",
+    "weasyprint>=67.0",
 ]

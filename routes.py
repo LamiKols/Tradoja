@@ -112,6 +112,26 @@ def partner_proposal():
     """Partner proposal page for telecommunications companies"""
     return render_template('partner_proposal.html')
 
+@app.route('/proposal.pdf')
+def partner_proposal_pdf():
+    """Generate and download partner proposal as PDF"""
+    from weasyprint import HTML
+    from io import BytesIO
+    
+    # Render the HTML template
+    html_content = render_template('partner_proposal.html')
+    
+    # Generate PDF
+    pdf_buffer = BytesIO()
+    HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
+    
+    # Return as downloadable PDF
+    response = make_response(pdf_buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=Tradoja_Partnership_Proposal.pdf'
+    return response
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration route"""
