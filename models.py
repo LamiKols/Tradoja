@@ -2329,10 +2329,18 @@ class Order(db.Model):
         return self.delivery_otp
     
     def verify_otp(self, otp_input):
-        """Verify OTP and update status"""
+        """Verify OTP and update status with security checks"""
+        # Check attempt limit
         if self.otp_attempts >= 3:
             return False, "Too many attempts. Contact support."
         
+        # Check OTP expiry (24 hours)
+        if self.otp_generated_at:
+            expiry_time = self.otp_generated_at + timedelta(hours=24)
+            if datetime.utcnow() > expiry_time:
+                return False, "OTP expired. Contact seller for new code."
+        
+        # Verify OTP
         if str(otp_input) == str(self.delivery_otp):
             self.otp_verified = True
             self.otp_verified_at = datetime.utcnow()

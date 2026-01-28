@@ -2038,11 +2038,18 @@ class SMSService:
             success, message = order.verify_otp(otp_input)
             
             if success:
+                # Verify escrow is funded before releasing
+                if order.escrow and order.escrow.status != 'held':
+                    db.session.commit()
+                    return self.send_sms(phone_number,
+                        f"Delivery confirmed but payment issue.\n"
+                        f"Escrow status: {order.escrow.status}. Contact support.")
+                
                 # Auto-release escrow
                 order.complete_order()
                 
-                # Release escrow if exists
-                if order.escrow:
+                # Release escrow if exists and is held
+                if order.escrow and order.escrow.status == 'held':
                     order.escrow.status = 'released'
                     order.escrow.release_date = datetime.utcnow()
                     order.escrow.released_to_id = order.farmer_id
