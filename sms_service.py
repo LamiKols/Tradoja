@@ -217,6 +217,14 @@ class SMSService:
                 return self._handle_transport_settlement(phone_number, command_parts)
             elif command == 'CREATE':
                 return self._handle_sabibuy_create(phone_number, command_parts)
+            elif command == 'CANCEL':
+                return self._handle_order_cancel(phone_number, command_parts)
+            elif command == 'JOBS':
+                return self._handle_transporter_jobs(phone_number)
+            elif command == 'CLAIM':
+                return self._handle_claim_job(phone_number, command_parts)
+            elif command == 'VOUCH':
+                return self._handle_vouch_farmer(phone_number, command_parts)
             else:
                 return self._send_invalid_command_message(phone_number)
                 
@@ -1308,12 +1316,16 @@ class SMSService:
                        "SELL [crop] [qty] [price]\n"
                        "ACCEPT ORD-xxxx\n"
                        "PICKUP ORD-xxxx\n"
+                       "VOUCH [phone] - Verify farmer\n"
                        "PRICE [crop]\n\n"
                        "TRANSPORT:\n"
+                       "JOBS - See jobs\n"
+                       "CLAIM ORD-xxxx\n"
                        "LOCATION ORD-xxxx [place]\n"
                        "DELIVER ORD-xxxx [OTP]\n\n"
                        "TRACKING:\n"
                        "TRACK ORD-xxxx\n"
+                       "CANCEL ORD-xxxx [reason]\n"
                        "STATUS - Your account\n\n"
                        "SABIBUY:\n"
                        "SABIBUY [code]\n"
@@ -3046,6 +3058,299 @@ class SMSService:
             current_app.logger.error(f"SabiBuy create error: {e}")
             db.session.rollback()
             return self.send_sms(phone_number, "Failed to create campaign. Try again.")
+
+    def _handle_order_cancel(self, phone_number, command_parts):
+        """Handle order cancellation with refund logic
+        
+        Format: CANCEL [order_code] [reason]
+        Examples:
+        - CANCEL ORD-ABC123 changed mind
+        - CANCEL ORD-ABC123 buyer not responding
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "To cancel order:\nCANCEL [order-code] [reason]\n"
+                "Example: CANCEL ORD-ABC123 buyer unavailable")
+        
+        order_code = command_parts[1].upper()
+        reason = ' '.join(command_parts[2:]) if len(command_parts) > 2 else 'No reason given'
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.\n"
+                    f"Check code and try again.")
+            
+            # Check if user is authorized to cancel
+            if user.id not in [order.farmer_id, order.buyer_id]:
+                return self.send_sms(phone_number,
+                    "You can only cancel your own orders.")
+            
+            # Check if order can be cancelled
+            non_cancellable = ['in_transit', 'delivered', 'completed', 'cancelled']
+            if order.status in non_cancellable:
+                return self.send_sms(phone_number,
+                    f"Cannot cancel order in '{order.status}' status.\n"
+                    f"Contact support if needed.")
+            
+            # Cancel the order
+            order.status = 'cancelled'
+            order.cancelled_at = datetime.utcnow()
+            order.cancelled_by_id = user.id
+            order.cancellation_reason = reason
+            
+            # Refund escrow if exists
+            refund_msg = ""
+            if order.escrow and order.escrow.status == 'held':
+                order.escrow.status = 'refunded'
+                order.escrow.refund_date = datetime.utcnow()
+                refund_msg = "\nPayment will be refunded."
+            
+            db.session.commit()
+            
+            # Notify the other party
+            other_party = order.buyer if user.id == order.farmer_id else order.farmer
+            if other_party and other_party.phone_number:
+                self.send_sms(other_party.phone_number,
+                    f"Order {order_code} cancelled.\n"
+                    f"Reason: {reason[:50]}\n"
+                    f"Contact seller for questions.")
+            
+            return self.send_sms(phone_number,
+                f"Order {order_code} cancelled.\n"
+                f"Reason: {reason[:30]}...{refund_msg}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Cancel order error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error cancelling order. Try again.")
+
+    def _handle_transporter_jobs(self, phone_number):
+        """Show available delivery jobs for transporters
+        
+        Format: JOBS
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        # Check if user is a transporter
+        transport = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not transport:
+            return self.send_sms(phone_number,
+                "You need a transport profile to see jobs.\n"
+                "Register at tradoja.com or contact agent.")
+        
+        try:
+            # Find orders needing transport in user's area
+            available_orders = Order.query.filter(
+                Order.status.in_(['accepted', 'pending']),
+                Order.transporter_id.is_(None)
+            ).limit(5).all()
+            
+            if not available_orders:
+                return self.send_sms(phone_number,
+                    "No delivery jobs available now.\n"
+                    "Check back later or send JOBS again.")
+            
+            jobs_text = "Available jobs:\n\n"
+            for order in available_orders:
+                produce_name = order.produce.crop_type if order.produce else "Goods"
+                jobs_text += (
+                    f"{order.order_code}\n"
+                    f"{produce_name} - {order.quantity}kg\n"
+                    f"To claim: CLAIM {order.order_code}\n\n"
+                )
+            
+            return self.send_sms(phone_number, jobs_text.strip())
+            
+        except Exception as e:
+            current_app.logger.error(f"Jobs listing error: {e}")
+            return self.send_sms(phone_number,
+                "Error loading jobs. Try again.")
+
+    def _handle_claim_job(self, phone_number, command_parts):
+        """Transporter claims a delivery job
+        
+        Format: CLAIM [order_code]
+        Example: CLAIM ORD-ABC123
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        transport = TransportProfile.query.filter_by(user_id=user.id).first()
+        if not transport:
+            return self.send_sms(phone_number,
+                "You need a transport profile to claim jobs.\n"
+                "Register at tradoja.com or contact agent.")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "To claim job:\nCLAIM [order-code]\n"
+                "Example: CLAIM ORD-ABC123\n"
+                "Send JOBS to see available jobs.")
+        
+        order_code = command_parts[1].upper()
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            if order.transporter_id:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} already claimed.\n"
+                    f"Send JOBS for other available jobs.")
+            
+            if order.status not in ['accepted', 'pending']:
+                return self.send_sms(phone_number,
+                    f"Cannot claim order in '{order.status}' status.")
+            
+            # Assign transporter
+            order.transporter_id = user.id
+            order.transport_claimed_at = datetime.utcnow()
+            db.session.commit()
+            
+            # Get pickup details
+            farmer = order.farmer
+            pickup_location = farmer.location if farmer else "Contact farmer"
+            farmer_phone = farmer.phone_number if farmer else "N/A"
+            
+            # Notify farmer
+            if farmer and farmer.phone_number:
+                self.send_sms(farmer.phone_number,
+                    f"Transporter assigned for {order_code}!\n"
+                    f"Name: {user.farm_name or user.username}\n"
+                    f"Phone: {phone_number}\n"
+                    f"Prepare goods for pickup.")
+            
+            return self.send_sms(phone_number,
+                f"Job claimed: {order_code}\n\n"
+                f"Pickup from: {pickup_location}\n"
+                f"Farmer: {farmer_phone}\n\n"
+                f"After pickup send:\n"
+                f"LOCATION {order_code} [area]")
+            
+        except Exception as e:
+            current_app.logger.error(f"Claim job error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error claiming job. Try again.")
+
+    def _handle_vouch_farmer(self, phone_number, command_parts):
+        """Community vouching - established farmers vouch for new farmers
+        
+        Format: VOUCH [phone_number]
+        Example: VOUCH 08012345678
+        
+        Requires 3 vouches from verified farmers for new farmer to become trusted.
+        """
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        # Check if voucher is a verified farmer
+        if user.role != 'farmer' or user.verification_level != 'verified':
+            return self.send_sms(phone_number,
+                "Only verified farmers can vouch.\n"
+                "Complete verification at tradoja.com first.")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "To vouch for a farmer:\nVOUCH [phone]\n"
+                "Example: VOUCH 08012345678")
+        
+        target_phone = command_parts[1]
+        # Normalize phone number
+        if target_phone.startswith('0'):
+            target_phone = '+234' + target_phone[1:]
+        elif not target_phone.startswith('+'):
+            target_phone = '+234' + target_phone
+        
+        try:
+            from models import FarmerVouch
+            
+            target_user = User.query.filter_by(phone_number=target_phone).first()
+            
+            if not target_user:
+                return self.send_sms(phone_number,
+                    f"Farmer with {target_phone} not found.\n"
+                    f"They must register first.")
+            
+            if target_user.id == user.id:
+                return self.send_sms(phone_number,
+                    "You cannot vouch for yourself.")
+            
+            if target_user.verification_level == 'verified':
+                return self.send_sms(phone_number,
+                    f"{target_user.farm_name or target_user.username} is already verified.")
+            
+            # Check if already vouched
+            existing_vouch = FarmerVouch.query.filter_by(
+                voucher_id=user.id,
+                farmer_id=target_user.id
+            ).first()
+            
+            if existing_vouch:
+                return self.send_sms(phone_number,
+                    f"You already vouched for this farmer.")
+            
+            # Add vouch
+            vouch = FarmerVouch(
+                voucher_id=user.id,
+                farmer_id=target_user.id,
+                vouched_at=datetime.utcnow()
+            )
+            db.session.add(vouch)
+            
+            # Count vouches
+            vouch_count = FarmerVouch.query.filter_by(farmer_id=target_user.id).count() + 1
+            
+            # Auto-verify if 3 vouches received
+            if vouch_count >= 3:
+                target_user.verification_level = 'verified'
+                target_user.verified_at = datetime.utcnow()
+                target_user.verification_method = 'community_vouch'
+                
+                db.session.commit()
+                
+                # Notify the verified farmer
+                if target_user.phone_number:
+                    self.send_sms(target_user.phone_number,
+                        f"Congratulations! You are now VERIFIED.\n"
+                        f"3 farmers vouched for you.\n"
+                        f"You can now access premium features.")
+                
+                return self.send_sms(phone_number,
+                    f"Vouch recorded! {target_user.farm_name or target_user.username} "
+                    f"is now VERIFIED (3/3 vouches).")
+            else:
+                db.session.commit()
+                remaining = 3 - vouch_count
+                
+                return self.send_sms(phone_number,
+                    f"Vouch recorded for {target_user.farm_name or target_user.username}.\n"
+                    f"{vouch_count}/3 vouches. {remaining} more needed.")
+            
+        except Exception as e:
+            current_app.logger.error(f"Vouch error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error recording vouch. Try again.")
 
 
 # SMS Templates for future multilingual support

@@ -2291,6 +2291,9 @@ class Order(db.Model):
     delivered_at = db.Column(db.DateTime)  # Transporter confirms delivery with OTP
     completed_at = db.Column(db.DateTime)  # Escrow released
     cancelled_at = db.Column(db.DateTime)
+    cancelled_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Who cancelled
+    cancellation_reason = db.Column(db.String(300))  # Reason for cancellation
+    transport_claimed_at = db.Column(db.DateTime)  # When transporter claimed job
     
     # Location tracking (for transporters)
     last_location = db.Column(db.String(300))  # Last reported location
@@ -2427,3 +2430,21 @@ class CaptainBond(db.Model):
     
     def __repr__(self):
         return f'<CaptainBond {self.user_id}: N{self.amount} ({self.status})>'
+
+
+class FarmerVouch(db.Model):
+    """Community vouching system - established farmers vouch for new farmers"""
+    id = db.Column(db.Integer, primary_key=True)
+    voucher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vouched_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    voucher = db.relationship('User', foreign_keys=[voucher_id], backref='vouches_given')
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='vouches_received')
+    
+    __table_args__ = (
+        db.UniqueConstraint('voucher_id', 'farmer_id', name='unique_vouch'),
+    )
+    
+    def __repr__(self):
+        return f'<FarmerVouch {self.voucher_id} -> {self.farmer_id}>'
