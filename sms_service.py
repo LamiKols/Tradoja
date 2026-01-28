@@ -219,8 +219,6 @@ class SMSService:
                 return self._handle_sabibuy_create(phone_number, command_parts)
             elif command == 'CANCEL':
                 return self._handle_order_cancel(phone_number, command_parts)
-            elif command == 'JOBS':
-                return self._handle_transporter_jobs(phone_number)
             elif command == 'CLAIM':
                 return self._handle_claim_job(phone_number, command_parts)
             elif command == 'VOUCH':
@@ -3081,6 +3079,8 @@ class SMSService:
         reason = ' '.join(command_parts[2:]) if len(command_parts) > 2 else 'No reason given'
         
         try:
+            from models import Order
+            
             order = Order.query.filter_by(order_code=order_code).first()
             
             if not order:
