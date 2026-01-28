@@ -151,6 +151,9 @@ class SMSService:
             elif command == 'STOP':
                 return self._handle_opt_out(phone_number)
             elif command.startswith('ACCEPT'):
+                # Check if accepting an order (ORD-xxx) or a match
+                if len(command_parts) > 1 and command_parts[1].upper().startswith('ORD'):
+                    return self._handle_order_acceptance(phone_number, command_parts)
                 return self._handle_match_acceptance(phone_number, command_parts)
             elif command.startswith('DECLINE'):
                 return self._handle_match_decline(phone_number, command_parts)
@@ -186,6 +189,12 @@ class SMSService:
                 return self._handle_complaint(phone_number, command_parts)
             elif command == 'TRACK':
                 return self._handle_order_tracking(phone_number, command_parts)
+            elif command == 'PICKUP':
+                return self._handle_pickup_confirmation(phone_number, command_parts)
+            elif command == 'LOCATION':
+                return self._handle_location_update(phone_number, command_parts)
+            elif command == 'DELIVER':
+                return self._handle_delivery_confirmation(phone_number, command_parts)
             elif command == 'RATE':
                 return self._handle_rating(phone_number, command_parts)
             elif command == 'STATUS':
@@ -451,6 +460,79 @@ class SMSService:
         except Exception as e:
             current_app.logger.error(f"Match acceptance error: {e}")
             return self.send_sms(phone_number, "Error accepting match. Please try again.")
+    
+    def _handle_order_acceptance(self, phone_number, command_parts):
+        """Handle farmer accepting an order
+        
+        Format: ACCEPT [order-code]
+        Example: ACCEPT ORD-7842
+        
+        This generates OTP and sends to buyer for delivery verification.
+        """
+        from models import Order
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "Format: ACCEPT [order-code]\nExample: ACCEPT ORD-7842")
+        
+        order_code = command_parts[1].upper()
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            # Verify user is the farmer
+            if order.farmer_id != user.id:
+                return self.send_sms(phone_number,
+                    "You are not the seller for this order.")
+            
+            # Check order status
+            if order.status != 'pending':
+                return self.send_sms(phone_number,
+                    f"Order already {order.status}. Cannot accept.")
+            
+            # Accept order
+            order.status = 'accepted'
+            order.accepted_at = datetime.utcnow()
+            
+            # Generate OTP for buyer
+            otp = order.generate_delivery_otp()
+            db.session.commit()
+            
+            # Send OTP to buyer
+            if order.buyer.phone_number:
+                self.send_sms(order.buyer.phone_number,
+                    f"Order {order_code} accepted!\n"
+                    f"Amount: N{order.total_amount:,.0f} (held in escrow)\n"
+                    f"Your delivery code is: {otp}\n"
+                    f"Give this code to transporter on delivery.")
+            
+            # Notify transporter if assigned
+            if order.transporter and order.transporter.phone_number:
+                self.send_sms(order.transporter.phone_number,
+                    f"Job assigned: {order_code}\n"
+                    f"Pickup: {order.pickup_location}\n"
+                    f"Deliver to: {order.destination}\n"
+                    f"Collect OTP from buyer at delivery.")
+            
+            return self.send_sms(phone_number,
+                f"Order {order_code} accepted!\n"
+                f"Amount: N{order.total_amount:,.0f} held in escrow.\n"
+                f"Buyer notified with delivery code.\n"
+                f"When picked up, send: PICKUP {order_code}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Order acceptance error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error accepting order. Please try again.")
     
     def _handle_match_decline(self, phone_number, command_parts):
         """Handle match decline via SMS"""
@@ -1219,20 +1301,23 @@ class SMSService:
         
         help_message = ("Tradoja SMS Commands:\n\n"
                        "REGISTRATION:\n"
-                       "JOIN [name] [loc] [crop]\n"
-                       "JOIN BUYER [name] [loc]\n"
-                       "JOIN TRK [name] [loc] [type]\n"
-                       "JOIN AGENT [name] [loc]\n\n"
+                       "REG [name] [loc] [crop]\n"
+                       "REG BUYER [name] [loc]\n"
+                       "REG TRK [name] [loc] [type]\n\n"
                        "FARMER:\n"
-                       "LIST [crop] [qty] [price]\n"
-                       "MYLIST - Your listings\n"
-                       "PRICE [crop] - Check prices\n\n"
+                       "SELL [crop] [qty] [price]\n"
+                       "ACCEPT ORD-xxxx\n"
+                       "PICKUP ORD-xxxx\n"
+                       "PRICE [crop]\n\n"
+                       "TRANSPORT:\n"
+                       "LOCATION ORD-xxxx [place]\n"
+                       "DELIVER ORD-xxxx [OTP]\n\n"
+                       "TRACKING:\n"
+                       "TRACK ORD-xxxx\n"
+                       "STATUS - Your account\n\n"
                        "SABIBUY:\n"
-                       "SABIBUY [code] - Join campaign\n"
-                       "MYSABIBUY - Your campaigns\n"
-                       "SBEARNINGS - Your earnings\n\n"
-                       "BALANCE:\n"
-                       "BAL - All balances\n")
+                       "SABIBUY [code]\n"
+                       "BAL - Balances\n")
         
         if transport_profile:
             help_message += ("\nTRANSPORT:\n"
@@ -1759,15 +1844,237 @@ class SMSService:
                 return self.send_sms(phone_number,
                     "Logistics:\n" + "\n".join(lines))
             
+            elif tracking_target.startswith('ORD-') or tracking_target.startswith('ORD'):
+                # Track order by code
+                from models import Order
+                order = Order.query.filter_by(order_code=tracking_target).first()
+                if not order:
+                    return self.send_sms(phone_number,
+                        f"Order {tracking_target} not found.")
+                
+                # Check user has access to this order
+                if order.farmer_id != user.id and order.buyer_id != user.id and order.transporter_id != user.id:
+                    return self.send_sms(phone_number,
+                        "You don't have access to this order.")
+                
+                # Build status message
+                status = order.get_status_display()
+                msg = f"Order: {order.order_code}\n"
+                msg += f"Status: {status}\n"
+                msg += f"Amount: N{order.total_amount:,.0f}\n"
+                
+                if order.last_location:
+                    msg += f"Location: {order.last_location}\n"
+                
+                # Add next action hint based on status and role
+                if order.status == 'pending' and order.farmer_id == user.id:
+                    msg += f"Action: ACCEPT {order.order_code}"
+                elif order.status == 'accepted' and order.farmer_id == user.id:
+                    msg += f"Action: PICKUP {order.order_code}"
+                elif order.status in ['pickup_confirmed', 'in_transit'] and order.transporter_id == user.id:
+                    msg += f"Action: DELIVER {order.order_code} [buyer-OTP]"
+                
+                return self.send_sms(phone_number, msg)
+            
             else:
                 return self.send_sms(phone_number,
-                    f"Invalid tracking target: {tracking_target}\n"
-                    "Use: TRACK MYORDERS or TRACK [campaign code]")
+                    f"Invalid tracking code: {tracking_target}\n"
+                    "Use: TRACK ORD-xxxx or TRACK MYORDERS")
                 
         except Exception as e:
             current_app.logger.error(f"Tracking error: {e}")
             return self.send_sms(phone_number,
                 "Could not fetch tracking info. Please try again.")
+    
+    def _handle_pickup_confirmation(self, phone_number, command_parts):
+        """Handle farmer confirming pickup by transporter
+        
+        Format: PICKUP [order-code]
+        Example: PICKUP ORD-7842
+        """
+        from models import Order
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: JOIN [name] [location] [crop]")
+        
+        if len(command_parts) < 2:
+            return self.send_sms(phone_number,
+                "Format: PICKUP [order-code]\nExample: PICKUP ORD-7842")
+        
+        order_code = command_parts[1].upper()
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            # Verify user is the farmer
+            if order.farmer_id != user.id:
+                return self.send_sms(phone_number,
+                    "Only the seller can confirm pickup.")
+            
+            # Check order status
+            if order.status != 'accepted':
+                return self.send_sms(phone_number,
+                    f"Order cannot be picked up. Status: {order.get_status_display()}")
+            
+            # Confirm pickup
+            order.confirm_pickup()
+            db.session.commit()
+            
+            # Notify transporter if assigned
+            if order.transporter:
+                self.send_sms(order.transporter.phone_number,
+                    f"Pickup confirmed for {order_code}. You may begin transit.\n"
+                    f"Destination: {order.destination}\n"
+                    f"Update location: LOCATION {order_code}")
+            
+            # Notify buyer
+            if order.buyer.phone_number:
+                self.send_sms(order.buyer.phone_number,
+                    f"Your order {order_code} has been picked up.\n"
+                    f"Track: TRACK {order_code}")
+            
+            return self.send_sms(phone_number,
+                f"Pickup confirmed for {order_code}.\n"
+                f"Goods handed to transporter. You'll be notified when delivered.")
+            
+        except Exception as e:
+            current_app.logger.error(f"Pickup confirmation error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error confirming pickup. Please try again.")
+    
+    def _handle_location_update(self, phone_number, command_parts):
+        """Handle transporter reporting location
+        
+        Format: LOCATION [order-code] [location-text]
+        Example: LOCATION ORD-7842 Ibadan expressway
+        """
+        from models import Order
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: REG TRK [name] [vehicle] [capacity]")
+        
+        if len(command_parts) < 3:
+            return self.send_sms(phone_number,
+                "Format: LOCATION [order-code] [location]\n"
+                "Example: LOCATION ORD-7842 Ibadan expressway")
+        
+        order_code = command_parts[1].upper()
+        location = ' '.join(command_parts[2:])
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            # Verify user is the transporter
+            if order.transporter_id != user.id:
+                return self.send_sms(phone_number,
+                    "Only the assigned transporter can update location.")
+            
+            # Update location and status
+            order.update_location(location)
+            if order.status == 'pickup_confirmed':
+                order.start_transit()
+            db.session.commit()
+            
+            return self.send_sms(phone_number,
+                f"Location updated: {location}\n"
+                f"When delivered, send: DELIVER {order_code} [buyer-OTP]")
+            
+        except Exception as e:
+            current_app.logger.error(f"Location update error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error updating location. Please try again.")
+    
+    def _handle_delivery_confirmation(self, phone_number, command_parts):
+        """Handle transporter confirming delivery with OTP
+        
+        Format: DELIVER [order-code] [otp]
+        Example: DELIVER ORD-7842 4829
+        """
+        from models import Order, EscrowHold
+        
+        user = User.query.filter_by(phone_number=phone_number).first()
+        if not user:
+            return self.send_sms(phone_number,
+                "Register first. Send: REG TRK [name] [vehicle] [capacity]")
+        
+        if len(command_parts) < 3:
+            return self.send_sms(phone_number,
+                "Format: DELIVER [order-code] [buyer-OTP]\n"
+                "Example: DELIVER ORD-7842 4829\n"
+                "Get OTP from buyer at delivery.")
+        
+        order_code = command_parts[1].upper()
+        otp_input = command_parts[2]
+        
+        try:
+            order = Order.query.filter_by(order_code=order_code).first()
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            # Verify user is the transporter
+            if order.transporter_id != user.id:
+                return self.send_sms(phone_number,
+                    "Only the assigned transporter can confirm delivery.")
+            
+            # Check order status
+            if order.status not in ['pickup_confirmed', 'in_transit']:
+                return self.send_sms(phone_number,
+                    f"Order not ready for delivery. Status: {order.get_status_display()}")
+            
+            # Verify OTP
+            success, message = order.verify_otp(otp_input)
+            
+            if success:
+                # Auto-release escrow
+                order.complete_order()
+                
+                # Release escrow if exists
+                if order.escrow:
+                    order.escrow.status = 'released'
+                    order.escrow.release_date = datetime.utcnow()
+                    order.escrow.released_to_id = order.farmer_id
+                
+                db.session.commit()
+                
+                # Notify farmer
+                if order.farmer.phone_number:
+                    farmer_amount = order.total_amount - order.platform_fee
+                    self.send_sms(order.farmer.phone_number,
+                        f"Delivery confirmed for {order_code}!\n"
+                        f"Payment of N{farmer_amount:,.0f} released to your account.")
+                
+                # Notify buyer
+                if order.buyer.phone_number:
+                    self.send_sms(order.buyer.phone_number,
+                        f"Delivery confirmed for {order_code}.\n"
+                        f"Thank you! Rate: RATE {order_code} [1-5] [comment]")
+                
+                return self.send_sms(phone_number,
+                    f"Delivery confirmed for {order_code}!\n"
+                    f"OTP verified. Transaction complete.\n"
+                    f"Your logistics fee will be paid shortly.")
+            else:
+                db.session.commit()
+                return self.send_sms(phone_number, f"Delivery failed: {message}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Delivery confirmation error: {e}")
+            db.session.rollback()
+            return self.send_sms(phone_number,
+                "Error confirming delivery. Please try again.")
     
     def _handle_rating(self, phone_number, command_parts):
         """Handle rating submission via SMS
