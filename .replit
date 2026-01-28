@@ -34,10 +34,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 34683
-externalPort = 5173
-
-[[ports]]
 localPort = 35327
 externalPort = 3003
 
@@ -62,4 +58,4 @@ localPort = 45071
 externalPort = 3001
 
 [agent]
-integrations = ["web_scraper==1.0.0", "python_database==1.0.0", "flask_stripe==1.0.0", "styling_replit==1.0.0"]
+integrations = ["web_scraper:1.0.0", "python_database:1.0.0", "flask_stripe:1.0.0", "styling_replit:1.0.0"]
