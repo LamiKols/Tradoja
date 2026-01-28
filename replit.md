@@ -115,6 +115,23 @@ Preferred communication style: Simple, everyday language.
 - **Environment Variables**: Configuration management.
 - **Replit Hosting**: Cloud-based development and deployment.
 
+## Demo Credentials
+
+For investor/partner demos, use these pre-seeded accounts:
+
+| Role | Email | Password | Purpose |
+|------|-------|----------|---------|
+| Admin | admin@tradoja.com | admin123 | Full admin dashboard access |
+| Farmer | farmer@demo.com | farmer123 | Farmer with produce listings |
+| Buyer | buyer@demo.com | buyer123 | Verified bulk trader |
+| Agent | agent@demo.com | agent123 | Field agent for onboarding |
+| Farmer | amina@demo.com | demo123 | Additional farmer (Kano) |
+| Farmer | emeka@demo.com | demo123 | Additional farmer (Enugu) |
+
+**To re-seed demo data**: Run `python seed_demo_data.py`
+
+**USSD/SMS Status**: Pending telco activation. Use simulators at `/simulator/ussd` and `/simulator/sms` for demos.
+
 ## Pending Integrations
 
 ### Twilio WhatsApp Integration (Planned)
