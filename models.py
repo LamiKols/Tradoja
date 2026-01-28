@@ -2250,6 +2250,153 @@ class EscrowHold(db.Model):
         return f'<EscrowHold {self.reference}: N{self.amount} ({self.status})>'
 
 
+class Order(db.Model):
+    """Order model for tracking complete transaction lifecycle with OTP verification"""
+    id = db.Column(db.Integer, primary_key=True)
+    order_code = db.Column(db.String(20), unique=True, nullable=False)  # e.g., ORD-7842
+    
+    # Parties involved
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    transporter_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Assigned transporter
+    
+    # Order details
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=False)
+    quantity = db.Column(db.String(100))
+    total_amount = db.Column(db.Float, nullable=False)
+    logistics_fee = db.Column(db.Float, default=0.0)
+    platform_fee = db.Column(db.Float, default=0.0)
+    
+    # Delivery type
+    delivery_type = db.Column(db.String(20), default='delivery')  # 'delivery' or 'pickup'
+    pickup_location = db.Column(db.String(300))
+    destination = db.Column(db.String(300))
+    
+    # Status tracking
+    status = db.Column(db.String(30), default='pending')  
+    # pending, accepted, pickup_confirmed, in_transit, delivered, completed, cancelled, disputed
+    
+    # OTP Verification (Transaction Verification)
+    delivery_otp = db.Column(db.String(6))  # 4-6 digit OTP sent to buyer
+    otp_generated_at = db.Column(db.DateTime)
+    otp_verified = db.Column(db.Boolean, default=False)
+    otp_verified_at = db.Column(db.DateTime)
+    otp_attempts = db.Column(db.Integer, default=0)  # Failed attempts count
+    
+    # Transaction verification timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    accepted_at = db.Column(db.DateTime)  # Farmer accepts order
+    pickup_confirmed_at = db.Column(db.DateTime)  # Farmer confirms goods handed to transporter
+    in_transit_at = db.Column(db.DateTime)  # Transporter starts journey
+    delivered_at = db.Column(db.DateTime)  # Transporter confirms delivery with OTP
+    completed_at = db.Column(db.DateTime)  # Escrow released
+    cancelled_at = db.Column(db.DateTime)
+    
+    # Location tracking (for transporters)
+    last_location = db.Column(db.String(300))  # Last reported location
+    last_location_time = db.Column(db.DateTime)
+    
+    # Escrow tracking
+    escrow_id = db.Column(db.Integer, db.ForeignKey('escrow_hold.id'))
+    escrow_released = db.Column(db.Boolean, default=False)
+    
+    # Linked logistics request (if platform logistics used)
+    logistics_request_id = db.Column(db.Integer, db.ForeignKey('logistics_request.id'))
+    
+    # SMS/USSD channel tracking
+    source_channel = db.Column(db.String(20), default='web')  # 'web', 'sms', 'ussd'
+    
+    # Relationships
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='orders_as_farmer')
+    buyer = db.relationship('User', foreign_keys=[buyer_id], backref='orders_as_buyer')
+    transporter = db.relationship('User', foreign_keys=[transporter_id], backref='orders_as_transporter')
+    produce = db.relationship('Produce', backref='orders')
+    escrow = db.relationship('EscrowHold', backref='order')
+    logistics_request = db.relationship('LogisticsRequest', backref='order')
+    
+    def generate_order_code(self):
+        """Generate unique order code"""
+        import random
+        self.order_code = f"ORD-{random.randint(1000, 9999)}"
+        return self.order_code
+    
+    def generate_delivery_otp(self):
+        """Generate 4-digit OTP for delivery verification"""
+        import random
+        self.delivery_otp = str(random.randint(1000, 9999))
+        self.otp_generated_at = datetime.utcnow()
+        self.otp_attempts = 0
+        return self.delivery_otp
+    
+    def verify_otp(self, otp_input):
+        """Verify OTP and update status"""
+        if self.otp_attempts >= 3:
+            return False, "Too many attempts. Contact support."
+        
+        if str(otp_input) == str(self.delivery_otp):
+            self.otp_verified = True
+            self.otp_verified_at = datetime.utcnow()
+            self.status = 'delivered'
+            self.delivered_at = datetime.utcnow()
+            return True, "Delivery confirmed!"
+        else:
+            self.otp_attempts += 1
+            remaining = 3 - self.otp_attempts
+            return False, f"Wrong OTP. {remaining} attempts left."
+    
+    def confirm_pickup(self):
+        """Farmer confirms goods handed to transporter"""
+        self.status = 'pickup_confirmed'
+        self.pickup_confirmed_at = datetime.utcnow()
+    
+    def start_transit(self):
+        """Transporter starts journey"""
+        self.status = 'in_transit'
+        self.in_transit_at = datetime.utcnow()
+    
+    def update_location(self, location):
+        """Update transporter location"""
+        self.last_location = location
+        self.last_location_time = datetime.utcnow()
+    
+    def complete_order(self):
+        """Mark order as completed and release escrow"""
+        self.status = 'completed'
+        self.completed_at = datetime.utcnow()
+        self.escrow_released = True
+    
+    def get_status_display(self):
+        """Human-readable status for SMS"""
+        statuses = {
+            'pending': 'Awaiting acceptance',
+            'accepted': 'Accepted, awaiting pickup',
+            'pickup_confirmed': 'Picked up, awaiting transport',
+            'in_transit': f'In transit - {self.last_location or "Location unknown"}',
+            'delivered': 'Delivered, awaiting confirmation',
+            'completed': 'Completed - Payment released',
+            'cancelled': 'Cancelled',
+            'disputed': 'Under dispute'
+        }
+        return statuses.get(self.status, self.status)
+    
+    def get_status_badge_class(self):
+        """Bootstrap badge class for status"""
+        classes = {
+            'pending': 'bg-warning',
+            'accepted': 'bg-info',
+            'pickup_confirmed': 'bg-primary',
+            'in_transit': 'bg-primary',
+            'delivered': 'bg-success',
+            'completed': 'bg-success',
+            'cancelled': 'bg-danger',
+            'disputed': 'bg-danger'
+        }
+        return classes.get(self.status, 'bg-secondary')
+    
+    def __repr__(self):
+        return f'<Order {self.order_code}: {self.status}>'
+
+
 class CaptainBond(db.Model):
     """SabiBuy Captain bond deposits (N10,000 refundable)"""
     id = db.Column(db.Integer, primary_key=True)
