@@ -32,8 +32,8 @@ class SMSService:
             if not phone_number.startswith('+'):
                 phone_number = f'+{phone_number}'
             
-            # In simulation mode, just return the message
-            if simulate:
+            # In simulation mode (explicit or via _simulation_mode flag), just return the message
+            if simulate or getattr(self, '_simulation_mode', False):
                 self._log_sms_interaction(
                     phone_number=phone_number,
                     message_type='outgoing',
@@ -133,8 +133,8 @@ class SMSService:
             
             command = command_parts[0]
             
-            # Route to appropriate handler
-            if command == 'JOIN':
+            # Route to appropriate handler (with common aliases)
+            if command == 'JOIN' or command == 'REG' or command == 'REGISTER':
                 if len(command_parts) > 1 and command_parts[1] in ('TRK', 'TRANSPORT'):
                     return self._handle_transport_registration(phone_number, command_parts)
                 if len(command_parts) > 1 and command_parts[1] in ('BUYER', 'BUY'):
@@ -142,7 +142,7 @@ class SMSService:
                 if len(command_parts) > 1 and command_parts[1] == 'AGENT':
                     return self._handle_agent_registration(phone_number, command_parts)
                 return self._handle_registration(phone_number, command_parts)
-            elif command == 'LIST':
+            elif command == 'LIST' or command == 'SELL':
                 return self._handle_produce_listing(phone_number, command_parts)
             elif command == 'PRICE':
                 return self._handle_price_check(phone_number, command_parts)
@@ -213,7 +213,7 @@ class SMSService:
                 
         except Exception as e:
             current_app.logger.error(f"SMS processing error: {e}")
-            self._send_error_message(phone_number)
+            return self._send_error_message(phone_number)
     
     def _handle_registration(self, phone_number, command_parts):
         """Handle farmer registration via SMS - creates LITE account"""
