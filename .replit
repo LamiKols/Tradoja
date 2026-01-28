@@ -33,29 +33,5 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 35327
-externalPort = 3003
-
-[[ports]]
-localPort = 35359
-externalPort = 5000
-
-[[ports]]
-localPort = 37647
-externalPort = 3002
-
-[[ports]]
-localPort = 38337
-externalPort = 3000
-
-[[ports]]
-localPort = 43425
-externalPort = 4200
-
-[[ports]]
-localPort = 45071
-externalPort = 3001
-
 [agent]
 integrations = ["web_scraper:1.0.0", "python_database:1.0.0", "flask_stripe:1.0.0", "styling_replit:1.0.0"]
