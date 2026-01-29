@@ -5997,3 +5997,68 @@ def sms_simulator_api():
     except Exception as e:
         app.logger.error(f"SMS simulator error: {e}")
         return jsonify({'response': f'Error processing message: {str(e)}'})
+
+
+# ==================== TRACEABILITY ROUTES ====================
+
+@app.route('/trace/<code>')
+def view_trace(code):
+    """View blockchain-style traceability history for produce
+    
+    Accessible by: Anyone (public traceability for transparency)
+    """
+    from models import TraceChain, ProduceTrace, Order
+    from services.traceability_service import traceability_service
+    
+    code = code.upper()
+    chain = None
+    order = None
+    
+    if code.startswith('ORD-'):
+        order = Order.query.filter_by(order_code=code).first()
+        if order:
+            chain = TraceChain.query.filter_by(produce_id=order.produce_id).first()
+    elif code.startswith('CHN-'):
+        chain = TraceChain.query.filter_by(chain_code=code).first()
+    
+    if not chain:
+        flash('Traceability chain not found.', 'warning')
+        return redirect(url_for('marketplace'))
+    
+    history = traceability_service.get_chain_history(chain.chain_code)
+    integrity_verified = history.get('integrity_verified', False)
+    
+    traces = ProduceTrace.query.filter_by(
+        produce_id=chain.produce_id
+    ).order_by(ProduceTrace.timestamp.asc()).all()
+    
+    return render_template('trace/view.html',
+                          chain=chain,
+                          traces=traces,
+                          history=history,
+                          integrity_verified=integrity_verified,
+                          order=order)
+
+
+@app.route('/trace/api/<code>')
+def trace_api(code):
+    """JSON API for trace data (for QR code scanning)"""
+    from services.traceability_service import traceability_service
+    from models import TraceChain, Order
+    
+    code = code.upper()
+    chain_code = code
+    
+    if code.startswith('ORD-'):
+        order = Order.query.filter_by(order_code=code).first()
+        if order:
+            chain = TraceChain.query.filter_by(produce_id=order.produce_id).first()
+            if chain:
+                chain_code = chain.chain_code
+            else:
+                return jsonify({'error': 'No trace chain found'}), 404
+        else:
+            return jsonify({'error': 'Order not found'}), 404
+    
+    history = traceability_service.get_chain_history(chain_code)
+    return jsonify(history)

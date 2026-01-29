@@ -1347,9 +1347,12 @@ class SMSService:
                        "CLAIM ORD-xxxx\n"
                        "DELIVER ORD-xxxx [OTP]\n\n"
                        "AI FEATURES:\n"
-                       "AI [your request] - Smart assistant\n"
+                       "AI [request] - Smart assistant\n"
                        "ADVICE [crop] - Price advice\n"
                        "RISK ORD-xxxx - Check safety\n\n"
+                       "TRACEABILITY:\n"
+                       "TRACE ORD-xxxx - Produce journey\n"
+                       "QUALITY ORD-xxxx A - Record grade\n\n"
                        "TRACKING:\n"
                        "TRACK/CANCEL/STATUS/BAL\n")
         
@@ -2032,6 +2035,21 @@ class SMSService:
             order.update_location(location)
             if order.status == 'pickup_confirmed':
                 order.start_transit()
+            
+            # Record location in traceability chain
+            try:
+                from services.traceability_service import traceability_service
+                traceability_service.record_order_events(
+                    order_id=order.id,
+                    event_type='location_update',
+                    user_id=user.id,
+                    role='transporter',
+                    location=location,
+                    source_channel='sms'
+                )
+            except Exception as te:
+                current_app.logger.error(f"Trace location error: {te}")
+            
             db.session.commit()
             
             return self.send_sms(phone_number,
