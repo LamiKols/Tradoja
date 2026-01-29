@@ -232,6 +232,10 @@ class SMSService:
                 return self._handle_price_advice(phone_number, command_parts)
             elif command == 'RISK':
                 return self._handle_risk_check(phone_number, command_parts)
+            elif command == 'TRACE':
+                return self._handle_trace_command(phone_number, command_parts)
+            elif command == 'QUALITY':
+                return self._handle_quality_check(phone_number, command_parts)
             else:
                 # Try AI natural language parsing as fallback
                 return self._try_ai_parse(phone_number, original_message, command_parts)
@@ -521,6 +525,20 @@ class SMSService:
             # Generate OTP for buyer
             otp = order.generate_delivery_otp()
             db.session.commit()
+            
+            # Create traceability chain for this order
+            try:
+                from services.traceability_service import traceability_service
+                trace_result = traceability_service.record_order_events(
+                    order_id=order.id,
+                    event_type='packaging',
+                    user_id=user.id,
+                    role='farmer',
+                    location=user.location if hasattr(user, 'location') else order.pickup_location,
+                    source_channel='sms'
+                )
+            except Exception as te:
+                current_app.logger.error(f"Trace creation on accept: {te}")
             
             # Send OTP to buyer
             if order.buyer.phone_number:
@@ -1941,6 +1959,20 @@ class SMSService:
             order.confirm_pickup()
             db.session.commit()
             
+            # Record pickup in traceability chain
+            try:
+                from services.traceability_service import traceability_service
+                traceability_service.record_order_events(
+                    order_id=order.id,
+                    event_type='pickup',
+                    user_id=user.id,
+                    role='farmer',
+                    location=order.pickup_location or user.location,
+                    source_channel='sms'
+                )
+            except Exception as te:
+                current_app.logger.error(f"Trace pickup error: {te}")
+            
             # Notify transporter if assigned
             if order.transporter:
                 self.send_sms(order.transporter.phone_number,
@@ -2089,6 +2121,20 @@ class SMSService:
                     order.escrow.release_date = datetime.utcnow()
                     order.escrow.released_to_id = order.farmer_id
                     order.escrow.ai_verified = True
+                
+                # Record delivery in traceability chain
+                try:
+                    from services.traceability_service import traceability_service
+                    traceability_service.record_order_events(
+                        order_id=order.id,
+                        event_type='delivery',
+                        user_id=user.id,
+                        role='transporter',
+                        location=order.destination,
+                        source_channel='sms'
+                    )
+                except Exception as te:
+                    current_app.logger.error(f"Trace delivery error: {te}")
                 
                 db.session.commit()
                 
@@ -3526,6 +3572,121 @@ class SMSService:
             current_app.logger.error(f"Risk check error: {e}")
             return self.send_sms(phone_number,
                 "Risk check unavailable. Contact support.")
+
+    def _handle_trace_command(self, phone_number, command_parts):
+        """View blockchain traceability history for produce
+        
+        Format: TRACE [chain-code or order-code]
+        Examples:
+        - TRACE CHN-ABC123
+        - TRACE ORD-XYZ789
+        """
+        try:
+            from services.traceability_service import traceability_service
+            from models import Order, TraceChain
+            
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Register first. Send: JOIN [name] [location] [crop]")
+            
+            if len(command_parts) < 2:
+                return self.send_sms(phone_number,
+                    "View produce journey:\nTRACE [code]\n"
+                    "Example: TRACE CHN-ABC123\n"
+                    "Or: TRACE ORD-XYZ789")
+            
+            code = command_parts[1].upper()
+            
+            if code.startswith('ORD-'):
+                order = Order.query.filter_by(order_code=code).first()
+                if not order:
+                    return self.send_sms(phone_number, f"Order {code} not found.")
+                
+                chain = TraceChain.query.filter_by(produce_id=order.produce_id).first()
+                if not chain:
+                    return self.send_sms(phone_number,
+                        f"No trace chain for {code}.\n"
+                        f"Traceability starts when order is accepted.")
+                code = chain.chain_code
+            
+            history = traceability_service.format_sms_history(code)
+            return self.send_sms(phone_number, history)
+            
+        except Exception as e:
+            current_app.logger.error(f"Trace command error: {e}")
+            return self.send_sms(phone_number,
+                "Trace lookup failed. Try again.")
+
+    def _handle_quality_check(self, phone_number, command_parts):
+        """Record quality check event in traceability chain
+        
+        Format: QUALITY [order-code] [grade] [notes]
+        Examples:
+        - QUALITY ORD-ABC123 A Fresh and ripe
+        - QUALITY ORD-ABC123 B Minor bruising
+        """
+        try:
+            from services.traceability_service import traceability_service
+            from models import Order, TraceChain
+            
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Register first. Send: JOIN [name] [location] [crop]")
+            
+            if len(command_parts) < 3:
+                return self.send_sms(phone_number,
+                    "Record quality check:\nQUALITY [order] [A/B/C] [notes]\n"
+                    "Example: QUALITY ORD-123 A Fresh produce")
+            
+            order_code = command_parts[1].upper()
+            grade = command_parts[2].upper()
+            notes = ' '.join(command_parts[3:]) if len(command_parts) > 3 else ''
+            
+            if grade not in ['A', 'B', 'C', 'PREMIUM', 'STANDARD', 'ECONOMY']:
+                return self.send_sms(phone_number,
+                    "Grade must be A, B, or C\n"
+                    "(or PREMIUM, STANDARD, ECONOMY)")
+            
+            order = Order.query.filter_by(order_code=order_code).first()
+            if not order:
+                return self.send_sms(phone_number, f"Order {order_code} not found.")
+            
+            if user.id not in [order.farmer_id, order.buyer_id, order.transporter_id]:
+                return self.send_sms(phone_number,
+                    "You can only record quality for your orders.")
+            
+            role = 'farmer' if user.id == order.farmer_id else (
+                'buyer' if user.id == order.buyer_id else 'transporter')
+            
+            location = user.location if hasattr(user, 'location') else 'Unknown'
+            
+            result = traceability_service.record_order_events(
+                order_id=order.id,
+                event_type='quality_check',
+                user_id=user.id,
+                role=role,
+                location=location,
+                source_channel='sms'
+            )
+            
+            if hasattr(result, '__getitem__') and result.get('success'):
+                chain_code = result.get('chain_code', '')
+                return self.send_sms(phone_number,
+                    f"Quality recorded for {order_code}!\n"
+                    f"Grade: {grade}\n"
+                    f"Chain: {chain_code}\n"
+                    f"View: TRACE {chain_code}")
+            else:
+                return self.send_sms(phone_number,
+                    f"Quality check recorded.\n"
+                    f"Grade: {grade}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Quality check error: {e}")
+            return self.send_sms(phone_number,
+                "Quality recording failed. Try again.")
 
 
 # SMS Templates for future multilingual support

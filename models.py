@@ -2450,3 +2450,111 @@ class FarmerVouch(db.Model):
     
     def __repr__(self):
         return f'<FarmerVouch {self.voucher_id} -> {self.farmer_id}>'
+
+
+class ProduceTrace(db.Model):
+    """Blockchain-style traceability record for produce origin and quality
+    
+    Each record is cryptographically linked to previous records forming an
+    immutable chain that proves the complete journey of produce from farm to buyer.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    trace_code = db.Column(db.String(30), unique=True, nullable=False)  # e.g., TRC-ABC123
+    
+    # What is being traced
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'))
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'))
+    
+    # Event details
+    event_type = db.Column(db.String(50), nullable=False)
+    # Types: harvest, quality_check, packaging, pickup, in_transit, location_update, delivery, verified
+    
+    # Who recorded this event
+    recorded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recorded_by_role = db.Column(db.String(30))  # farmer, transporter, buyer, agent, system
+    
+    # Location and time
+    location = db.Column(db.String(300))
+    gps_coordinates = db.Column(db.String(50))  # "lat,lng" if available
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Quality data (for quality_check events)
+    quality_grade = db.Column(db.String(20))  # A, B, C or Premium, Standard, Economy
+    quality_notes = db.Column(db.Text)
+    temperature = db.Column(db.Float)  # For cold chain items
+    humidity = db.Column(db.Float)
+    
+    # Quantity tracking (for detecting tampering)
+    quantity_kg = db.Column(db.Float)
+    quantity_change = db.Column(db.Float)  # Difference from previous (spoilage, theft)
+    
+    # Blockchain-style linking
+    previous_hash = db.Column(db.String(64))  # SHA256 hash of previous record
+    current_hash = db.Column(db.String(64), nullable=False)  # Hash of this record
+    nonce = db.Column(db.Integer, default=0)  # For future proof-of-work if needed
+    
+    # Verification
+    verified = db.Column(db.Boolean, default=False)
+    verified_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    verified_at = db.Column(db.DateTime)
+    
+    # SMS/channel tracking
+    source_channel = db.Column(db.String(20), default='web')  # web, sms, ussd, iot
+    
+    # Relationships
+    produce = db.relationship('Produce', backref='trace_records')
+    order = db.relationship('Order', backref='trace_records')
+    recorded_by = db.relationship('User', foreign_keys=[recorded_by_id], backref='traces_recorded')
+    verified_by = db.relationship('User', foreign_keys=[verified_by_id])
+    
+    def __repr__(self):
+        return f'<ProduceTrace {self.trace_code}: {self.event_type} at {self.timestamp}>'
+
+
+class TraceChain(db.Model):
+    """Master chain record linking all traces for a produce batch"""
+    id = db.Column(db.Integer, primary_key=True)
+    chain_code = db.Column(db.String(30), unique=True, nullable=False)  # e.g., CHN-XYZ789
+    
+    # Origin
+    produce_id = db.Column(db.Integer, db.ForeignKey('produce.id'), nullable=False)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Chain status
+    status = db.Column(db.String(30), default='active')
+    # active, completed, disputed, verified
+    
+    # Origin details (immutable once set)
+    origin_farm = db.Column(db.String(300))
+    origin_lga = db.Column(db.String(100))  # Local Government Area
+    origin_state = db.Column(db.String(100))
+    harvest_date = db.Column(db.DateTime)
+    crop_type = db.Column(db.String(100))
+    initial_quantity_kg = db.Column(db.Float)
+    
+    # Current state
+    current_quantity_kg = db.Column(db.Float)
+    current_holder_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    current_location = db.Column(db.String(300))
+    
+    # Verification
+    gi_certified = db.Column(db.Boolean, default=False)  # Geographical Indication
+    organic_certified = db.Column(db.Boolean, default=False)
+    quality_grade = db.Column(db.String(20))
+    
+    # Chain integrity
+    genesis_hash = db.Column(db.String(64))  # Hash of first trace record
+    latest_hash = db.Column(db.String(64))  # Hash of most recent record
+    total_records = db.Column(db.Integer, default=0)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    
+    # Relationships
+    produce = db.relationship('Produce', backref='trace_chain')
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='chains_as_farmer')
+    current_holder = db.relationship('User', foreign_keys=[current_holder_id])
+    
+    def __repr__(self):
+        return f'<TraceChain {self.chain_code}: {self.crop_type} from {self.origin_state}>'
