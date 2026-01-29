@@ -2060,6 +2060,11 @@ class SMSService:
                     release_check = ai_trading_service.evaluate_auto_release(order.id)
                     
                     if release_check.get('require_manual_review'):
+                        # Persist review-required state
+                        order.status = 'delivery_review'
+                        if order.escrow:
+                            order.escrow.status = 'review'
+                            order.escrow.admin_notes = f"AI flagged: {release_check.get('reason', 'Manual review required')[:200]}"
                         db.session.commit()
                         return self.send_sms(phone_number,
                             f"Delivery noted for {order_code}.\n"
@@ -3380,8 +3385,16 @@ class SMSService:
             
             result = ai_trading_service.parse_natural_language(original_message, phone_number)
             
+            # Validate command is in whitelist
+            valid_commands = {'SELL', 'PRICE', 'TRACK', 'ACCEPT', 'CANCEL', 'BAL', 'BALANCE', 'STATUS', 'HELP', 'JOBS', 'VOUCH'}
+            
             if result.get('confidence', 0) >= 0.7 and result.get('command'):
                 command = result['command'].upper()
+                
+                # Reject if not in whitelist
+                if command not in valid_commands:
+                    return self._send_invalid_command_message(phone_number)
+                
                 params = result.get('params', [])
                 
                 new_parts = [command] + [str(p).upper() for p in params]

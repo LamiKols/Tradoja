@@ -67,7 +67,8 @@ Return JSON with:
   "original_intent": "brief description of what user wants"
 }
 
-If unclear, set confidence < 0.5 and suggest clarification."""
+IMPORTANT: command must be one of: SELL, PRICE, TRACK, ACCEPT, CANCEL, BAL, STATUS, HELP, JOBS, VOUCH
+If unclear or not matching these commands, set confidence < 0.5."""
                     },
                     {
                         "role": "user",
