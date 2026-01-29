@@ -2240,6 +2240,8 @@ class EscrowHold(db.Model):
     
     dispute_reason = db.Column(db.Text)
     admin_notes = db.Column(db.Text)
+    ai_verified = db.Column(db.Boolean, default=False)  # AI verified release
+    ai_risk_score = db.Column(db.Integer)  # AI risk score at time of hold
     
     user = db.relationship('User', foreign_keys=[user_id], backref='escrow_holds')
     released_to = db.relationship('User', foreign_keys=[released_to_id])

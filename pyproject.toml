@@ -21,4 +21,5 @@ dependencies = [
     "weasyprint>=67.0",
     "python-docx>=1.2.0",
     "htmldocx>=0.0.6",
+    "openai>=2.16.0",
 ]

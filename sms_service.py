@@ -109,10 +109,13 @@ class SMSService:
         return message
     
     def process_incoming_sms(self, phone_number, message, metadata=None):
-        """Process incoming SMS commands"""
+        """Process incoming SMS commands with AI natural language fallback"""
         try:
             # Store metadata for handlers to use
             self._current_metadata = metadata or {}
+            
+            # Store original message before uppercasing for AI parsing
+            original_message = message.strip()
             
             # Clean and normalize the message
             message = message.strip().upper()
@@ -223,8 +226,15 @@ class SMSService:
                 return self._handle_claim_job(phone_number, command_parts)
             elif command == 'VOUCH':
                 return self._handle_vouch_farmer(phone_number, command_parts)
+            elif command == 'AI':
+                return self._handle_ai_command(phone_number, command_parts, original_message)
+            elif command == 'ADVICE':
+                return self._handle_price_advice(phone_number, command_parts)
+            elif command == 'RISK':
+                return self._handle_risk_check(phone_number, command_parts)
             else:
-                return self._send_invalid_command_message(phone_number)
+                # Try AI natural language parsing as fallback
+                return self._try_ai_parse(phone_number, original_message, command_parts)
                 
         except Exception as e:
             current_app.logger.error(f"SMS processing error: {e}")
@@ -1308,26 +1318,22 @@ class SMSService:
         help_message = ("Tradoja SMS Commands:\n\n"
                        "REGISTRATION:\n"
                        "REG [name] [loc] [crop]\n"
-                       "REG BUYER [name] [loc]\n"
-                       "REG TRK [name] [loc] [type]\n\n"
+                       "REG BUYER [name] [loc]\n\n"
                        "FARMER:\n"
                        "SELL [crop] [qty] [price]\n"
                        "ACCEPT ORD-xxxx\n"
                        "PICKUP ORD-xxxx\n"
-                       "VOUCH [phone] - Verify farmer\n"
                        "PRICE [crop]\n\n"
                        "TRANSPORT:\n"
                        "JOBS - See jobs\n"
                        "CLAIM ORD-xxxx\n"
-                       "LOCATION ORD-xxxx [place]\n"
                        "DELIVER ORD-xxxx [OTP]\n\n"
+                       "AI FEATURES:\n"
+                       "AI [your request] - Smart assistant\n"
+                       "ADVICE [crop] - Price advice\n"
+                       "RISK ORD-xxxx - Check safety\n\n"
                        "TRACKING:\n"
-                       "TRACK ORD-xxxx\n"
-                       "CANCEL ORD-xxxx [reason]\n"
-                       "STATUS - Your account\n\n"
-                       "SABIBUY:\n"
-                       "SABIBUY [code]\n"
-                       "BAL - Balances\n")
+                       "TRACK/CANCEL/STATUS/BAL\n")
         
         if transport_profile:
             help_message += ("\nTRANSPORT:\n"
@@ -2048,6 +2054,20 @@ class SMSService:
             success, message = order.verify_otp(otp_input)
             
             if success:
+                # AI-powered auto-release verification
+                try:
+                    from services.ai_trading_service import ai_trading_service
+                    release_check = ai_trading_service.evaluate_auto_release(order.id)
+                    
+                    if release_check.get('require_manual_review'):
+                        db.session.commit()
+                        return self.send_sms(phone_number,
+                            f"Delivery noted for {order_code}.\n"
+                            f"AI flagged for review: {release_check.get('reason', 'Additional verification')[:60]}\n"
+                            f"Funds release pending approval.")
+                except Exception as ai_err:
+                    current_app.logger.warning(f"AI release check failed: {ai_err}")
+                
                 # Verify escrow is funded before releasing
                 if order.escrow and order.escrow.status != 'held':
                     db.session.commit()
@@ -2063,6 +2083,7 @@ class SMSService:
                     order.escrow.status = 'released'
                     order.escrow.release_date = datetime.utcnow()
                     order.escrow.released_to_id = order.farmer_id
+                    order.escrow.ai_verified = True
                 
                 db.session.commit()
                 
@@ -3351,6 +3372,147 @@ class SMSService:
             db.session.rollback()
             return self.send_sms(phone_number,
                 "Error recording vouch. Try again.")
+
+    def _try_ai_parse(self, phone_number, original_message, command_parts):
+        """Try AI natural language parsing when command not recognized"""
+        try:
+            from services.ai_trading_service import ai_trading_service
+            
+            result = ai_trading_service.parse_natural_language(original_message, phone_number)
+            
+            if result.get('confidence', 0) >= 0.7 and result.get('command'):
+                command = result['command'].upper()
+                params = result.get('params', [])
+                
+                new_parts = [command] + [str(p).upper() for p in params]
+                
+                if command == 'SELL':
+                    return self._handle_produce_listing(phone_number, new_parts)
+                elif command == 'PRICE':
+                    return self._handle_price_check(phone_number, new_parts)
+                elif command == 'TRACK':
+                    return self._handle_order_tracking(phone_number, new_parts)
+                elif command == 'BAL' or command == 'BALANCE':
+                    return self._handle_balance_check(phone_number)
+                elif command == 'STATUS':
+                    return self._handle_status_check(phone_number, new_parts)
+                elif command == 'HELP':
+                    return self._send_help_message(phone_number)
+                elif command == 'ACCEPT':
+                    return self._handle_order_acceptance(phone_number, new_parts)
+                elif command == 'CANCEL':
+                    return self._handle_order_cancel(phone_number, new_parts)
+                elif command == 'JOBS':
+                    return self._handle_view_jobs(phone_number)
+                else:
+                    return self.send_sms(phone_number,
+                        f"I understood: {result.get('original_intent', 'your request')}\n"
+                        f"Try: {command} {' '.join(str(p) for p in params)}")
+            else:
+                return self._send_invalid_command_message(phone_number)
+                
+        except Exception as e:
+            current_app.logger.error(f"AI parse fallback error: {e}")
+            return self._send_invalid_command_message(phone_number)
+    
+    def _handle_ai_command(self, phone_number, command_parts, original_message):
+        """Handle explicit AI command - parse natural language"""
+        try:
+            from services.ai_trading_service import ai_trading_service
+            
+            if len(command_parts) < 2:
+                return self.send_sms(phone_number,
+                    "AI can help! Just type what you want.\n"
+                    "Example: AI I want to sell 50kg tomatoes")
+            
+            user_message = ' '.join(command_parts[1:])
+            result = ai_trading_service.parse_natural_language(user_message, phone_number)
+            
+            if result.get('confidence', 0) >= 0.5 and result.get('command'):
+                cmd = result['command']
+                params = ' '.join(str(p) for p in result.get('params', []))
+                intent = result.get('original_intent', '')[:40]
+                
+                return self.send_sms(phone_number,
+                    f"AI understood: {intent}\n"
+                    f"Command: {cmd} {params}\n"
+                    f"Send this command to proceed.")
+            else:
+                return self.send_sms(phone_number,
+                    "I couldn't understand that.\n"
+                    "Try: AI sell 50kg tomatoes for 15000\n"
+                    "Or send HELP for commands.")
+                
+        except Exception as e:
+            current_app.logger.error(f"AI command error: {e}")
+            return self.send_sms(phone_number,
+                "AI service temporarily unavailable.\nSend HELP for commands.")
+    
+    def _handle_price_advice(self, phone_number, command_parts):
+        """Get AI-powered price advice for a crop"""
+        try:
+            from services.ai_trading_service import ai_trading_service
+            
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Register first. Send: JOIN [name] [location] [crop]")
+            
+            if len(command_parts) < 2:
+                return self.send_sms(phone_number,
+                    "Get AI price advice:\nADVICE [crop] [quantity]\n"
+                    "Example: ADVICE tomatoes 100")
+            
+            crop = command_parts[1]
+            quantity = float(command_parts[2]) if len(command_parts) > 2 else 50
+            location = user.location if hasattr(user, 'location') else None
+            
+            result = ai_trading_service.get_price_advice(crop, quantity, location)
+            response = ai_trading_service.format_sms_response(result, 'price_advice')
+            
+            return self.send_sms(phone_number, response)
+            
+        except Exception as e:
+            current_app.logger.error(f"Price advice error: {e}")
+            return self.send_sms(phone_number,
+                "Price advice unavailable. Try: PRICE [crop]")
+    
+    def _handle_risk_check(self, phone_number, command_parts):
+        """Check AI risk score for an order"""
+        try:
+            from services.ai_trading_service import ai_trading_service
+            from models import Order
+            
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Register first. Send: JOIN [name] [location] [crop]")
+            
+            if len(command_parts) < 2:
+                return self.send_sms(phone_number,
+                    "Check order risk:\nRISK [order-code]\n"
+                    "Example: RISK ORD-ABC123")
+            
+            order_code = command_parts[1].upper()
+            order = Order.query.filter_by(order_code=order_code).first()
+            
+            if not order:
+                return self.send_sms(phone_number,
+                    f"Order {order_code} not found.")
+            
+            if user.id not in [order.farmer_id, order.buyer_id]:
+                return self.send_sms(phone_number,
+                    "You can only check risk for your orders.")
+            
+            result = ai_trading_service.score_escrow_risk(order.id)
+            response = ai_trading_service.format_sms_response(result, 'risk_score')
+            
+            return self.send_sms(phone_number, response)
+            
+        except Exception as e:
+            current_app.logger.error(f"Risk check error: {e}")
+            return self.send_sms(phone_number,
+                "Risk check unavailable. Contact support.")
 
 
 # SMS Templates for future multilingual support
