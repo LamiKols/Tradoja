@@ -3450,7 +3450,7 @@ class SMSService:
             result = ai_trading_service.parse_natural_language(original_message, phone_number)
             
             # Validate command is in whitelist
-            valid_commands = {'SELL', 'PRICE', 'TRACK', 'ACCEPT', 'CANCEL', 'BAL', 'BALANCE', 'STATUS', 'HELP', 'JOBS', 'VOUCH'}
+            valid_commands = {'SELL', 'PRICE', 'TRACK', 'ACCEPT', 'CANCEL', 'BAL', 'BALANCE', 'STATUS', 'HELP', 'JOBS', 'VOUCH', 'TRACE', 'QUALITY'}
             
             if result.get('confidence', 0) >= 0.7 and result.get('command'):
                 command = result['command'].upper()
