@@ -358,6 +358,11 @@ class SMSService:
             return self.send_sms(phone_number, 
                 "Please register first. Send: JOIN [name] [location] [crop]")
         
+        if not user.can_create_listing():
+            return self.send_sms(phone_number,
+                "Listing limit reached (max 3 for unverified accounts).\n"
+                "Get verified at tradoja.com/get-verified to list more.")
+        
         if len(command_parts) < 4:
             message = ("Format: LIST [crop] [quantity] [price] [location]\n"
                       "Example: LIST RICE 50BAGS 45000 ONITSHA\n"
@@ -448,7 +453,7 @@ class SMSService:
                     f"No recent prices for {crop_name}. Try: TOMATOES, YAM, CASSAVA, RICE")
             
             # Calculate price statistics
-            prices = [p.price_per_kg for p in recent_produce if p.price_per_kg]
+            prices = [p.price for p in recent_produce if p.price]
             if not prices:
                 return self.send_sms(phone_number, 
                     f"No price data available for {crop_name}")
@@ -457,9 +462,9 @@ class SMSService:
             min_price = min(prices)
             max_price = max(prices)
             
-            price_message = (f"📊 {crop_name} Market Prices:\n"
-                           f"Average: ₦{avg_price:.0f}/kg\n"
-                           f"Range: ₦{min_price:.0f} - ₦{max_price:.0f}\n"
+            price_message = (f"{crop_name} Market Prices:\n"
+                           f"Average: N{avg_price:,.0f}\n"
+                           f"Range: N{min_price:,.0f} - N{max_price:,.0f}\n"
                            f"Based on {len(prices)} recent listings")
             
             return self.send_sms(phone_number, price_message)
@@ -1115,7 +1120,7 @@ class SMSService:
                 "Register first! Reply: JOIN [name] [location] [crop]")
         
         listings = Produce.query.filter_by(farmer_id=user.id).order_by(
-            Produce.created_at.desc()
+            Produce.date_listed.desc()
         ).limit(5).all()
         
         if not listings:
@@ -1126,8 +1131,8 @@ class SMSService:
         
         listing_text = []
         for p in listings:
-            status = "Active" if p.status == 'available' else p.status.title()
-            listing_text.append(f"{p.crop_type}: {p.quantity} @ N{p.price:,.0f} [{status}]")
+            status = "Active" if (p.is_available and not p.is_sold) else ("Sold" if p.is_sold else "Inactive")
+            listing_text.append(f"{p.name}: {p.quantity} @ N{p.price:,.0f} [{status}]")
         
         return self.send_sms(phone_number,
             f"Your Listings ({len(listings)}):\n" + "\n".join(listing_text))
@@ -1682,7 +1687,7 @@ class SMSService:
             if result.get('success'):
                 total = result.get('total_amount', quantity * campaign.selling_price)
                 produce = Produce.query.get(campaign.produce_id)
-                produce_name = produce.crop_type if produce else 'Produce'
+                produce_name = produce.name if produce else 'Produce'
                 
                 return self.send_sms(phone_number,
                     f"Order placed!\n"
@@ -1717,9 +1722,9 @@ class SMSService:
         campaign_list = []
         for c in campaigns:
             produce = Produce.query.get(c.produce_id)
-            produce_name = produce.crop_type if produce else 'Produce'
+            produce_name = produce.name if produce else 'Produce'
             progress = int((c.current_quantity / c.minimum_quantity * 100)) if c.minimum_quantity > 0 else 0
-            campaign_list.append(f"{c.campaign_code}: {produce_name} ({progress}%)")
+            campaign_list.append(f"{c.code}: {produce_name} ({progress}%)")
         
         return self.send_sms(phone_number,
             f"Your SabiBuys:\n" + "\n".join(campaign_list))
@@ -1770,7 +1775,7 @@ class SMSService:
             if result.get('success'):
                 total = result.get('total_amount', quantity * campaign.selling_price)
                 produce = Produce.query.get(campaign.produce_id)
-                produce_name = produce.crop_type if produce else 'Produce'
+                produce_name = produce.name if produce else 'Produce'
                 
                 return self.send_sms(phone_number,
                     f"Order placed for {campaign_code}!\n"
@@ -2397,6 +2402,11 @@ class SMSService:
             if produce.farmer_id == user.id:
                 return self.send_sms(phone_number, "You cannot buy your own listing")
             
+            if not user.can_transact_amount(produce.price):
+                return self.send_sms(phone_number,
+                    "Unverified accounts limited to N50,000/transaction.\n"
+                    "Get verified at tradoja.com/get-verified")
+            
             amount = produce.price
             user_type = 'farmer' if user.role == 'farmer' else ('verified_trader' if user.trader_verified else 'buyer')
             fee_info = payment_service.calculate_tiered_fee(amount, user_type)
@@ -2505,7 +2515,7 @@ class SMSService:
         campaign_code = command_parts[0].upper()
         
         campaign = SabiBuy.query.filter(
-            db.func.upper(SabiBuy.campaign_code) == campaign_code
+            db.func.upper(SabiBuy.code) == campaign_code
         ).first()
         
         if not campaign:
@@ -2536,7 +2546,7 @@ class SMSService:
         
         success, msg, ref = wallet_service.debit_wallet(
             user, order.total_amount,
-            f"SabiBuy order: {campaign.campaign_code}",
+            f"SabiBuy order: {campaign.code}",
             db_session=db.session
         )
         
@@ -2548,10 +2558,10 @@ class SMSService:
             
             return self.send_sms(phone_number,
                 f"SabiBuy payment confirmed!\n"
-                f"Campaign: {campaign.campaign_code}\n"
+                f"Campaign: {campaign.code}\n"
                 f"Amount: N{order.total_amount:,.0f}\n"
                 f"Qty: {order.quantity}\n"
-                f"Track: TRACK {campaign.campaign_code}")
+                f"Track: TRACK {campaign.code}")
         else:
             return self.send_sms(phone_number, f"Payment failed: {msg}")
     
@@ -3087,13 +3097,13 @@ class SMSService:
     def _handle_sabibuy_create(self, phone_number, command_parts):
         """Handle SabiBuy campaign creation via SMS
         
-        Format: CREATE SABIBUY [crop] [price] [min_qty]
+        Format: CREATE SABIBUY [listing_id] [selling_price] [min_qty]
         Examples:
-        - CREATE SABIBUY RICE 48000 50
-        - CREATE SABIBUY TOMATO 25000 100
+        - CREATE SABIBUY 123 48000 50
+        - CREATE SABIBUY 45 25000 100
         """
         from wallet_service import wallet_service
-        from models import CaptainBond, SabiBuy
+        from models import CaptainBond, SabiBuy, Produce
         
         user = User.query.filter_by(phone_number=phone_number).first()
         if not user:
@@ -3102,13 +3112,13 @@ class SMSService:
         
         if len(command_parts) < 2:
             return self.send_sms(phone_number,
-                "CREATE SABIBUY [crop] [price] [min_qty]\n"
-                "Example: CREATE SABIBUY RICE 48000 50\n"
+                "CREATE SABIBUY [listing_id] [sell_price] [min_qty]\n"
+                "Example: CREATE SABIBUY 123 48000 50\n"
                 "Note: Requires N10,000 Captain bond")
         
         if command_parts[1].upper() != 'SABIBUY':
             return self.send_sms(phone_number,
-                "Use: CREATE SABIBUY [crop] [price] [min_qty]")
+                "Use: CREATE SABIBUY [listing_id] [sell_price] [min_qty]")
         
         bond = CaptainBond.query.filter_by(
             user_id=user.id,
@@ -3123,17 +3133,23 @@ class SMSService:
         
         if len(command_parts) < 5:
             return self.send_sms(phone_number,
-                "Format: CREATE SABIBUY [crop] [price] [min_qty]\n"
-                "Example: CREATE SABIBUY RICE 48000 50")
+                "Format: CREATE SABIBUY [listing_id] [sell_price] [min_qty]\n"
+                "Example: CREATE SABIBUY 123 48000 50")
         
         try:
-            crop = command_parts[2].upper()
+            produce_id = int(command_parts[2])
             price = float(command_parts[3])
             min_qty = int(command_parts[4])
         except (ValueError, IndexError):
             return self.send_sms(phone_number,
                 "Invalid format.\n"
-                "Use: CREATE SABIBUY RICE 48000 50")
+                "Use: CREATE SABIBUY 123 48000 50")
+        
+        produce = Produce.query.get(produce_id)
+        if not produce or not produce.is_available:
+            return self.send_sms(phone_number,
+                f"Listing #{produce_id} not found or unavailable.\n"
+                "Browse: MARKET [crop]")
         
         if price < 1000 or price > 10000000:
             return self.send_sms(phone_number, "Price must be N1,000 - N10,000,000")
@@ -3144,19 +3160,20 @@ class SMSService:
         name_part = user.name.split()[0].upper()[:4]
         code = f"{name_part}-SABIBUY-{int(price/1000)}K"
         
-        existing = SabiBuy.query.filter_by(campaign_code=code).first()
+        existing = SabiBuy.query.filter_by(code=code).first()
         counter = 1
         while existing:
             code = f"{name_part}-SABIBUY-{int(price/1000)}K-{counter}"
-            existing = SabiBuy.query.filter_by(campaign_code=code).first()
+            existing = SabiBuy.query.filter_by(code=code).first()
             counter += 1
         
         try:
             campaign = SabiBuy(
-                campaign_code=code,
+                code=code,
                 organizer_id=user.id,
-                produce_name=crop,
-                unit_price=price,
+                produce_id=produce.id,
+                farm_price=produce.price,
+                selling_price=price,
                 minimum_quantity=min_qty,
                 current_quantity=0,
                 status='active',
@@ -3168,8 +3185,9 @@ class SMSService:
             return self.send_sms(phone_number,
                 f"SabiBuy created!\n"
                 f"Code: {code}\n"
-                f"Crop: {crop}\n"
-                f"Price: N{price:,.0f}\n"
+                f"Item: {produce.name}\n"
+                f"Farm: N{produce.price:,.0f}\n"
+                f"Sell: N{price:,.0f}\n"
                 f"Min: {min_qty} units\n\n"
                 f"Share code with buyers!")
                 
@@ -3285,7 +3303,7 @@ class SMSService:
             
             jobs_text = "Available jobs:\n\n"
             for order in available_orders:
-                produce_name = order.produce.crop_type if order.produce else "Goods"
+                produce_name = order.produce.name if order.produce else "Goods"
                 jobs_text += (
                     f"{order.order_code}\n"
                     f"{produce_name} - {order.quantity}kg\n"

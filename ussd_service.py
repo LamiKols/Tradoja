@@ -419,6 +419,8 @@ class USSDService:
                     session.current_menu = 'register'
                     session.current_step = 0
                     return "Register first to list produce.\nEnter your name:", True
+                if not user.can_create_listing():
+                    return "Listing limit reached (max 3 for unverified).\nVisit tradoja.com/get-verified", False
                 return get_message('list_prompt', lang), True
             
             elif target_menu == 'check_prices':
@@ -689,7 +691,8 @@ class USSDService:
         
         listings = Produce.query.filter_by(
             farmer_id=user.id,
-            is_available=True
+            is_available=True,
+            is_sold=False
         ).limit(5).all()
         
         if not listings:
@@ -1766,7 +1769,8 @@ class USSDService:
     def _show_sabibuy_produce_selection(self, session, user, lang: str) -> Tuple[str, bool]:
         """Show available produce for SabiBuy campaign"""
         produce_list = self.Produce.query.filter(
-            self.Produce.status == 'available'
+            self.Produce.is_available == True,
+            self.Produce.is_sold == False
         ).limit(10).all()
         
         if not produce_list:
@@ -1777,7 +1781,7 @@ class USSDService:
         for i, p in enumerate(produce_list, 1):
             farmer = self.User.query.get(p.farmer_id) if p.farmer_id else None
             farmer_tag = "*" if farmer and farmer.is_verified_account() else ""
-            produce_options.append(f"{i}. {p.crop_type}{farmer_tag} @ ₦{p.price:,.0f}/{p.quantity_unit}")
+            produce_options.append(f"{i}. {p.name}{farmer_tag} @ ₦{p.price:,.0f}/{p.quantity}")
             produce_ids.append(p.id)
         
         session.update_session_data('produce_ids', produce_ids)
@@ -1813,9 +1817,9 @@ class USSDService:
                     
                     if produce:
                         session.update_session_data('produce_id', produce_id)
-                        session.update_session_data('produce_name', produce.crop_type)
+                        session.update_session_data('produce_name', produce.name)
                         session.update_session_data('farm_price', produce.price)
-                        session.update_session_data('unit', produce.quantity_unit)
+                        session.update_session_data('unit', produce.quantity)
                         
                         suggested = int(produce.price * 1.15)
                         margin = suggested - produce.price
@@ -1934,13 +1938,13 @@ class USSDService:
             session.current_step = 1
             
             produce = self.Produce.query.get(campaign.produce_id)
-            produce_name = produce.crop_type if produce else 'Produce'
+            produce_name = produce.name if produce else 'Produce'
             
             return get_message('sabibuy_join_quantity', lang,
                              code=code,
                              produce=produce_name,
                              price=f"{campaign.selling_price:,.0f}",
-                             unit=produce.quantity_unit if produce else 'unit'), True
+                             unit=produce.quantity if produce else 'unit'), True
         
         elif step == 1:
             try:
@@ -1961,7 +1965,7 @@ class USSDService:
                 session.current_step = 2
                 
                 produce = self.Produce.query.get(campaign.produce_id)
-                unit = produce.quantity_unit if produce else 'unit'
+                unit = produce.quantity if produce else 'unit'
                 
                 return get_message('sabibuy_join_confirm', lang,
                                  quantity=quantity,
@@ -2027,9 +2031,9 @@ class USSDService:
         campaigns_list = []
         for c in campaigns:
             produce = self.Produce.query.get(c.produce_id)
-            produce_name = produce.crop_type if produce else 'Produce'
+            produce_name = produce.name if produce else 'Produce'
             progress = int((c.current_quantity / c.minimum_quantity * 100)) if c.minimum_quantity > 0 else 0
-            campaigns_list.append(f"{c.campaign_code}: {produce_name} ({progress}%)")
+            campaigns_list.append(f"{c.code}: {produce_name} ({progress}%)")
         
         return get_message('sabibuy_my_campaigns', lang, campaigns_list="\n".join(campaigns_list)), False
     
@@ -2384,6 +2388,9 @@ class USSDService:
                 
                 if produce.farmer_id == user.id:
                     return "Cannot buy own listing. Enter ID:", True
+                
+                if not user.can_transact_amount(produce.price):
+                    return "Unverified limit: N50,000/txn.\nVisit tradoja.com/get-verified", False
                 
                 user_type = 'farmer' if user.role == 'farmer' else ('verified_trader' if user.trader_verified else 'buyer')
                 fee_info = payment_service.calculate_tiered_fee(produce.price, user_type)
