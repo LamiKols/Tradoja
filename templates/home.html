@@ -20,7 +20,7 @@
                 </a>
             </div>
             <p class="text-muted small">
-                <i class="fas fa-mobile-alt me-1"></i> No smartphone? <a href="{{ url_for('sms_simulator') }}">Try SMS Simulator</a> or <a href="{{ url_for('ussd_simulator') }}">USSD Simulator</a>
+                <i class="fas fa-mobile-alt me-1"></i> No smartphone? <a href="{{ url_for('sms_simulator') }}">Try SMS Simulator</a>, <a href="{{ url_for('ussd_simulator') }}">USSD Simulator</a> or <a href="{{ url_for('whatsapp_simulator') }}"><i class="fab fa-whatsapp"></i> WhatsApp Simulator</a>
             </p>
         </div>
         <div class="col-md-6 text-center">
@@ -158,8 +158,8 @@
 <!-- SMS & USSD Access Highlight -->
 <section class="py-5" style="background: linear-gradient(135deg, #198754 0%, #0d6efd 100%);">
     <div class="container text-center text-white">
-        <h3 class="fw-bold mb-4"><i class="fas fa-mobile-alt me-2"></i>No Smartphone? No Problem!</h3>
-        <p class="lead mb-4">Tradoja works on any phone. Access the marketplace using SMS or USSD.</p>
+        <h3 class="fw-bold mb-4"><i class="fas fa-mobile-alt me-2"></i>Trade From Any Phone!</h3>
+        <p class="lead mb-4">Tradoja works on any phone. Access the marketplace using SMS, USSD, or WhatsApp.</p>
         <div class="row justify-content-center g-4">
             <div class="col-md-4">
                 <div class="bg-white bg-opacity-10 rounded-3 p-4">
@@ -181,13 +181,26 @@
                     <p class="mt-3 small"><a href="{{ url_for('ussd_simulator') }}" class="text-white">Try USSD Simulator</a></p>
                 </div>
             </div>
+            <div class="col-md-4">
+                <div class="bg-white bg-opacity-10 rounded-3 p-4">
+                    <h4 class="mb-3"><i class="fab fa-whatsapp me-2"></i>WhatsApp</h4>
+                    <p class="mb-2">Rich media & payment links</p>
+                    <p class="mb-2">SELL, BUY, SABIBUY campaigns</p>
+                    <p class="mb-2">Market prices & trust scores</p>
+                    <p class="mb-0">Full trading experience</p>
+                    <p class="mt-3 small"><a href="{{ url_for('whatsapp_simulator') }}" class="text-white">Try WhatsApp Simulator</a></p>
+                </div>
+            </div>
         </div>
         <div class="mt-4">
             <a href="{{ url_for('ussd_simulator') }}" class="btn btn-light btn-lg me-2">
                 <i class="fas fa-play me-2"></i>Try USSD Simulator
             </a>
-            <a href="{{ url_for('sms_simulator') }}" class="btn btn-outline-light btn-lg">
+            <a href="{{ url_for('sms_simulator') }}" class="btn btn-outline-light btn-lg me-2">
                 <i class="fas fa-comment me-2"></i>Try SMS Simulator
+            </a>
+            <a href="{{ url_for('whatsapp_simulator') }}" class="btn btn-outline-light btn-lg" style="border-color: #25D366; color: #25D366;">
+                <i class="fab fa-whatsapp me-2"></i>Try WhatsApp Simulator
             </a>
         </div>
     </div>
@@ -259,7 +272,7 @@
                     </h2>
                     <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
                         <div class="accordion-body">
-                            Simple! Use our <a href="{{ url_for('sms_simulator') }}">SMS Simulator</a> or <a href="{{ url_for('ussd_simulator') }}">USSD Simulator</a> to try it out. 
+                            Simple! Use our <a href="{{ url_for('sms_simulator') }}">SMS Simulator</a>, <a href="{{ url_for('ussd_simulator') }}">USSD Simulator</a>, or <a href="{{ url_for('whatsapp_simulator') }}">WhatsApp Simulator</a> to try it out. 
                             Once we go live with a telco partner, you'll be able to register, list produce, and find buyers without ever using the internet.
                         </div>
                     </div>
