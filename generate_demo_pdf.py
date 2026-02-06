@@ -250,20 +250,22 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     toc_items = [
-        ("1.", "Executive Summary & Telco Value Proposition"),
+        ("1.", "Executive Summary & Value Proposition"),
         ("2.", "Quick Start: Demo Credentials & Access"),
-        ("3.", "USSD Access (*712*55#) - Feature Phone Trading [TELCO PRIORITY]"),
-        ("4.", "SMS Trading Engine - 15+ Commands [TELCO PRIORITY]"),
-        ("5.", "AI-Powered Escrow & Transaction Intelligence [TELCO PRIORITY]"),
-        ("6.", "Blockchain-Style Traceability"),
-        ("7.", "SabiBuy Group-Buy Engine"),
-        ("8.", "Anti-Reseller & Farmer Protection"),
-        ("9.", "Web Platform & Dashboards"),
-        ("10.", "Payment Infrastructure (Paystack + T2 Wallet)"),
-        ("11.", "Digital Inclusion & Multi-Channel Analytics"),
-        ("12.", "Complete Test Script: Step-by-Step Demo Flow"),
-        ("13.", "Revenue Model & Telco Partnership Opportunities"),
-        ("14.", "Technical Architecture Summary"),
+        ("3.", "USSD Access (*712*55#) - Feature Phone Trading"),
+        ("4.", "SMS Trading Engine - 15+ Commands"),
+        ("5.", "WhatsApp Trading Channel - Rich Media Trading [NEW]"),
+        ("6.", "TradojaIQ AI Market Intelligence Engine [NEW]"),
+        ("7.", "AI-Powered Escrow & Transaction Intelligence"),
+        ("8.", "Blockchain-Style Traceability"),
+        ("9.", "SabiBuy Group-Buy Engine"),
+        ("10.", "Anti-Reseller & Farmer Protection"),
+        ("11.", "Web Platform & Dashboards"),
+        ("12.", "Payment Infrastructure (Paystack + Telco Wallet)"),
+        ("13.", "Digital Inclusion & Multi-Channel Analytics"),
+        ("14.", "Complete Test Script: Step-by-Step Demo Flow"),
+        ("15.", "Revenue Model & Telco Partnership Opportunities"),
+        ("16.", "Technical Architecture Summary"),
     ]
     for num, title in toc_items:
         elements.append(Paragraph(f"<b>{num}</b>  {title}", styles['TOCItem']))
@@ -275,9 +277,15 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
 
     elements.append(Paragraph(
         "Tradoja is Africa's first farmer-first agricultural marketplace designed to work on <b>any device</b> - "
-        "from basic feature phones (via SMS and USSD) to smartphones and desktops. The platform connects "
+        "from basic feature phones (via SMS and USSD) to WhatsApp and web browsers. The platform connects "
         "smallholder farmers directly with buyers, eliminates exploitative middlemen, and ensures safe "
         "transactions through AI-powered escrow.",
+        styles['BodyText2']
+    ))
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph(
+        "<b>TradojaIQ</b> is the AI brain powering the entire marketplace - providing smart price discovery, "
+        "dynamic trust scores, demand forecasting, and farmer alerts across every channel.",
         styles['BodyText2']
     ))
     elements.append(Spacer(1, 8))
@@ -296,8 +304,9 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         ['SMS Commands', '15+ trading commands', 'Per-message revenue'],
         ['USSD Sessions', 'Full trading via *712*55#', 'Session-based billing'],
         ['Transaction Volume', 'N4k-N15k per batch trade', '1.5-5% platform fees'],
-        ['Channels', 'SMS + USSD + Web + WhatsApp', 'Multi-channel engagement'],
+        ['Channels', 'SMS + USSD + WhatsApp + Web (all live)', 'Multi-channel engagement'],
         ['Escrow Payments', 'AI-verified release', 'Payment float revenue'],
+        ['AI Intelligence', 'TradojaIQ Engine', 'Price guidance, trust scores, demand insights'],
     ]
     kpi_table = Table(kpi_data, colWidths=[1.8 * inch, 2 * inch, 2.2 * inch])
     kpi_table.setStyle(TableStyle([
@@ -357,6 +366,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         ['Marketplace', '/marketplace', 'No'],
         ['SabiBuy Group-Buy', '/sabibuy', 'No'],
         ['Traceability Viewer', '/trace/<code>', 'No'],
+        ['WhatsApp Simulator', '/simulator/whatsapp', 'No'],
+        ['TradojaIQ Intelligence', '/intelligence', 'No'],
         ['Admin Dashboard', '/admin/dashboard', 'Admin'],
         ['SMS Dashboard', '/admin/sms-dashboard', 'Admin'],
         ['USSD Dashboard', '/admin/ussd-dashboard', 'Admin'],
@@ -365,6 +376,7 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         ['Farmer Dashboard', '/farmer/dashboard', 'Farmer'],
         ['Buyer Dashboard', '/buyer/dashboard', 'Buyer'],
         ['Payment Analytics', '/admin/payments', 'Admin'],
+        ['TradojaIQ Dashboard', '/intelligence', 'No'],
         ['Advanced Analytics', '/admin/analytics', 'Admin'],
     ]
     links_table = Table(links_data, colWidths=[2 * inch, 2.2 * inch, 1.3 * inch])
@@ -562,8 +574,173 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     ))
     elements.append(PageBreak())
 
-    # ==================== SECTION 5: ESCROW ====================
-    elements.append(Paragraph("5. AI-POWERED ESCROW & TRANSACTION INTELLIGENCE", styles['SectionHeader']))
+    # ==================== SECTION 5: WHATSAPP ====================
+    elements.append(Paragraph("5. WHATSAPP TRADING CHANNEL", styles['SectionHeader']))
+    elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
+
+    elements.append(Paragraph(
+        "WhatsApp is the game-changer channel for Tradoja. With 90M+ WhatsApp users in Nigeria, "
+        "this channel provides rich media trading with photos, payment links, interactive messages, "
+        "and the same full trading experience as SMS - but with a richer, more intuitive interface. "
+        "All WhatsApp transactions sync with SMS, USSD, and Web in real-time.",
+        styles['BodyText2']
+    ))
+    elements.append(Spacer(1, 8))
+
+    elements.append(Paragraph("HOW TO TEST: WHATSAPP SIMULATOR", styles['SubHeader']))
+    elements.append(Paragraph(f"Open: {base_url}/simulator/whatsapp", styles['URLStyle']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("<b>Step-by-Step WhatsApp Demo:</b>", styles['BodyText2']))
+
+    wa_steps = [
+        "<b>1.</b> Navigate to the WhatsApp Simulator page",
+        "<b>2.</b> The simulator shows an authentic WhatsApp-style phone interface",
+        "<b>3.</b> Enter any phone number (e.g., +2348012345678)",
+        "<b>4.</b> Type <font face='Courier' color='#0d6efd'>HI</font> or <font face='Courier' color='#0d6efd'>HELLO</font> - Get a welcome message with your trust badge",
+        "<b>5.</b> Type <font face='Courier' color='#0d6efd'>HELP</font> - See all available commands",
+        "<b>6.</b> Try: <font face='Courier' color='#0d6efd'>MARKET</font> - Browse produce with trust badges and price guidance",
+        "<b>7.</b> Try: <font face='Courier' color='#0d6efd'>PRICE Tomatoes</font> - Get TradojaIQ market intelligence",
+        "<b>8.</b> Try: <font face='Courier' color='#0d6efd'>SELL Tomatoes 50KG 8000 Lagos</font> - List produce with AI price guidance",
+        "<b>9.</b> Try: <font face='Courier' color='#0d6efd'>BUY [listing_id]</font> - Purchase with escrow protection",
+        "<b>10.</b> Try: <font face='Courier' color='#0d6efd'>SABIBUY LIST</font> - Browse group-buy campaigns",
+    ]
+    for step in wa_steps:
+        elements.append(Paragraph(step, styles['StepStyle']))
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph("COMPLETE WHATSAPP COMMAND REFERENCE", styles['SubHeader']))
+
+    wa_commands = [
+        ['Command', 'Format', 'Description'],
+        ['Register', 'REG [name] [state] [crop]', 'Create LITE account instantly'],
+        ['Sell', 'SELL [crop] [qty] [price] [location]', 'List produce with AI price guidance'],
+        ['Market', 'MARKET or MARKET [crop]', 'Browse listings with trust badges'],
+        ['Buy', 'BUY [listing_id]', 'Purchase with escrow protection'],
+        ['My Listings', 'MYLIST', 'View your active produce listings'],
+        ['Orders', 'ORDERS', 'View all buy/sell orders'],
+        ['Track', 'TRACK [order_code]', 'Track order status and delivery'],
+        ['Accept', 'ACCEPT [order_code]', 'Farmer accepts an order (generates OTP)'],
+        ['Price Check', 'PRICE [crop]', 'TradojaIQ market intelligence'],
+        ['Balance', 'BAL', 'Check wallet balance'],
+        ['SabiBuy List', 'SABIBUY LIST', 'View active group-buy campaigns'],
+        ['SabiBuy Join', 'SABIBUY JOIN [code] [qty]', 'Join a campaign'],
+        ['SabiBuy Create', 'SABIBUY CREATE [id] [price] [qty] [loc]', 'Start a campaign'],
+        ['Rate', 'RATE [order_code] [1-5] [comment]', 'Rate a transaction'],
+        ['Verify', 'VERIFY', 'Start identity verification (LITE to VERIFIED)'],
+        ['Status', 'STATUS', 'Account summary and trust score'],
+        ['Complaint', 'COMPLAINT [text]', 'File a complaint or dispute'],
+        ['Help', 'HELP', 'Show all available commands'],
+    ]
+    wa_cmd_table = Table(wa_commands, colWidths=[1.1 * inch, 2.2 * inch, 2.5 * inch])
+    wa_cmd_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#25D366')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (1, 1), (1, -1), 'Courier'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, SOFT_BG]),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(wa_cmd_table)
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph("CROSS-CHANNEL SYNC", styles['SubHeader']))
+    elements.append(Paragraph(
+        "All WhatsApp transactions are fully synchronized with SMS, USSD, and Web channels. "
+        "A farmer can list produce via WhatsApp, a buyer can purchase via SMS, and the admin can "
+        "track everything on the web dashboard. The same wallet, escrow, and order system powers all channels.",
+        styles['BodyText2']
+    ))
+    elements.append(Spacer(1, 6))
+    elements.append(Paragraph(
+        "<b>Production Readiness:</b> The WhatsApp service uses an abstraction layer - currently running "
+        "in simulation mode for demos. When Twilio WhatsApp credentials are added, it activates as a "
+        "production channel with zero code changes. The webhook endpoint is ready at /webhook/whatsapp.",
+        styles['Highlight']
+    ))
+    elements.append(PageBreak())
+
+    # ==================== SECTION 6: TRADOJAIQ ====================
+    elements.append(Paragraph("6. TRADOJAIQ AI MARKET INTELLIGENCE", styles['SectionHeader']))
+    elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
+
+    elements.append(Paragraph(
+        "TradojaIQ is the AI brain of the Tradoja marketplace. It analyzes every transaction, listing, "
+        "and user interaction to provide real-time market intelligence that empowers farmers to get fair "
+        "prices and helps buyers find quality produce. TradojaIQ works across all channels - Web, SMS, "
+        "USSD, and WhatsApp.",
+        styles['BodyText2']
+    ))
+    elements.append(Spacer(1, 8))
+
+    elements.append(Paragraph("FOUR PILLARS OF TRADOJAIQ", styles['SubHeader']))
+
+    iq_pillars = [
+        "<b>1. Smart Price Discovery</b> - Analyzes transaction history to calculate fair market prices "
+        "per crop, per region. Tells farmers if their price is above, below, or at market rate. "
+        "Shows price trends (rising/falling/stable).",
+        "<b>2. Dynamic Trust Scores</b> - Every user gets a 0-100 trust score with tiers: "
+        "Bronze (0+), Silver (40+), Gold (70+), Platinum (90+). Scores are based on verification status, "
+        "completed transactions, ratings, dispute history, account age, and verification extras.",
+        "<b>3. Demand Forecasting</b> - Identifies which crops are most in-demand based on buyer search "
+        "patterns and purchase history. Shows demand trends to help farmers plan what to grow.",
+        "<b>4. Farmer Alerts</b> - Proactive notifications when crops are in high demand, when prices "
+        "spike in a region, or when a farmer's listing is priced significantly below market value.",
+    ]
+    for pillar in iq_pillars:
+        elements.append(Paragraph(pillar, styles['StepStyle']))
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph("HOW TO TEST TRADOJAIQ", styles['SubHeader']))
+
+    iq_test_steps = [
+        f"<b>Web Dashboard:</b> Open <font face='Courier'>{base_url}/intelligence</font> - Full intelligence dashboard",
+        f"<b>Price API:</b> Visit <font face='Courier'>{base_url}/api/tradojaiq/price/Tomatoes</font> - Price intelligence for any crop",
+        f"<b>Trust API:</b> Visit <font face='Courier'>{base_url}/api/tradojaiq/trust/1</font> - Trust score for any user",
+        f"<b>Demand API:</b> Visit <font face='Courier'>{base_url}/api/tradojaiq/demand</font> - Top demanded crops",
+        f"<b>Summary API:</b> Visit <font face='Courier'>{base_url}/api/tradojaiq/summary</font> - Full marketplace intelligence",
+        "<b>WhatsApp:</b> Send <font face='Courier' color='#0d6efd'>PRICE Tomatoes</font> in WhatsApp simulator",
+        "<b>SMS:</b> Send <font face='Courier' color='#0d6efd'>PRICE Tomatoes</font> in SMS simulator",
+        "<b>During Listing:</b> When a farmer lists produce (SELL), TradojaIQ automatically shows price guidance",
+    ]
+    for step in iq_test_steps:
+        elements.append(Paragraph(step, styles['StepStyle']))
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph("TRUST SCORE BREAKDOWN", styles['SubHeader']))
+
+    trust_data = [
+        ['Component', 'Max Points', 'How It Works'],
+        ['Verification Status', '20', 'LITE=5, Pending=10, Verified=20'],
+        ['Completed Transactions', '25', '3 points per completed order (max 25)'],
+        ['User Ratings', '20', 'Based on average star rating (1-5)'],
+        ['Dispute Record', '+15/-15', '+15 if clean, -5 per unresolved dispute'],
+        ['Account Tenure', '10', '1 point per month (max 10)'],
+        ['Verification Extras', '10', 'Phone verified +3, Agent verified +4, ID verified +3'],
+    ]
+    trust_table = Table(trust_data, colWidths=[1.5 * inch, 1 * inch, 3.3 * inch])
+    trust_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND_GREEN),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, SOFT_BG]),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(trust_table)
+    elements.append(PageBreak())
+
+    # ==================== SECTION 7: ESCROW ====================
+    elements.append(Paragraph("7. AI-POWERED ESCROW & TRANSACTION INTELLIGENCE", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -630,10 +807,23 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         styles['BodyText2']
     ))
     elements.append(Paragraph(f"Admin Scam Dashboard: {base_url}/admin/scams", styles['URLStyle']))
+
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("TELCO PARTNERSHIP FOR LICENSED ESCROW", styles['SubHeader']))
+    elements.append(Paragraph(
+        "Holding customer funds in escrow requires a CBN (Central Bank of Nigeria) Payment Service Provider "
+        "license. Nigerian telcos like MTN (MoMo), Airtel (Smartcash), and 9mobile (T2) already hold these licenses "
+        "through their fintech subsidiaries. A telco partnership provides: (1) Licensed escrow infrastructure - "
+        "they legally hold the funds, (2) Free or subsidized SMS/USSD channels, (3) Mobile money integration for "
+        "unbanked farmers, (4) Access to their subscriber base. Tradoja provides the marketplace, farmer network, "
+        "and technology. The current escrow system demonstrates the complete flow and is ready to integrate with "
+        "a licensed telco partner's payment infrastructure.",
+        styles['BodyText2']
+    ))
     elements.append(PageBreak())
 
-    # ==================== SECTION 6: TRACEABILITY ====================
-    elements.append(Paragraph("6. BLOCKCHAIN-STYLE TRACEABILITY", styles['SectionHeader']))
+    # ==================== SECTION 8: TRACEABILITY ====================
+    elements.append(Paragraph("8. BLOCKCHAIN-STYLE TRACEABILITY", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -683,8 +873,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(trace_table)
     elements.append(PageBreak())
 
-    # ==================== SECTION 7: SABIBUY ====================
-    elements.append(Paragraph("7. SABIBUY GROUP-BUY ENGINE", styles['SectionHeader']))
+    # ==================== SECTION 9: SABIBUY ====================
+    elements.append(Paragraph("9. SABIBUY GROUP-BUY ENGINE", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -722,8 +912,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(sb_table)
     elements.append(PageBreak())
 
-    # ==================== SECTION 8: ANTI-RESELLER ====================
-    elements.append(Paragraph("8. ANTI-RESELLER & FARMER PROTECTION", styles['SectionHeader']))
+    # ==================== SECTION 10: ANTI-RESELLER ====================
+    elements.append(Paragraph("10. ANTI-RESELLER & FARMER PROTECTION", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -749,8 +939,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(Paragraph(f"Buyer Dashboard (shows verification): {base_url}/buyer/dashboard", styles['URLStyle']))
     elements.append(PageBreak())
 
-    # ==================== SECTION 9: WEB PLATFORM ====================
-    elements.append(Paragraph("9. WEB PLATFORM & DASHBOARDS", styles['SectionHeader']))
+    # ==================== SECTION 11: WEB PLATFORM ====================
+    elements.append(Paragraph("11. WEB PLATFORM & DASHBOARDS", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph("ADMIN DASHBOARD", styles['SubHeader']))
@@ -802,8 +992,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         elements.append(Paragraph(f"  * {page}", styles['StepStyle']))
     elements.append(PageBreak())
 
-    # ==================== SECTION 10: PAYMENTS ====================
-    elements.append(Paragraph("10. PAYMENT INFRASTRUCTURE", styles['SectionHeader']))
+    # ==================== SECTION 12: PAYMENTS ====================
+    elements.append(Paragraph("12. PAYMENT INFRASTRUCTURE", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -862,8 +1052,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(fee_table)
     elements.append(PageBreak())
 
-    # ==================== SECTION 11: DIGITAL INCLUSION ====================
-    elements.append(Paragraph("11. DIGITAL INCLUSION & MULTI-CHANNEL ANALYTICS", styles['SectionHeader']))
+    # ==================== SECTION 13: DIGITAL INCLUSION ====================
+    elements.append(Paragraph("13. DIGITAL INCLUSION & MULTI-CHANNEL ANALYTICS", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
@@ -877,7 +1067,7 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         ['USSD (*712*55#)', 'Any phone', 'Full', 'Full', 'Simulator Ready'],
         ['SMS', 'Any phone', 'Full (REG)', 'Full (15+ cmds)', 'Simulator Ready'],
         ['Web', 'Smartphone/PC', 'Full', 'Full', 'Live'],
-        ['WhatsApp', 'Smartphone', 'Planned', 'Planned', 'Foundation Built'],
+        ['WhatsApp', 'Smartphone', 'Full (REG)', 'Full (15+ cmds)', 'Simulator Ready'],
         ['Agent-Assisted', 'Agent phone', 'Full', 'Via agent', 'Live'],
     ]
     ch_table = Table(channels, colWidths=[1.3 * inch, 1 * inch, 0.9 * inch, 0.9 * inch, 1.2 * inch])
@@ -908,12 +1098,12 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
     elements.append(Paragraph(f"Digital Inclusion Dashboard: {base_url}/admin/digital-inclusion", styles['URLStyle']))
     elements.append(PageBreak())
 
-    # ==================== SECTION 12: TEST SCRIPT ====================
-    elements.append(Paragraph("12. COMPLETE TEST SCRIPT: STEP-BY-STEP DEMO", styles['SectionHeader']))
+    # ==================== SECTION 14: TEST SCRIPT ====================
+    elements.append(Paragraph("14. COMPLETE TEST SCRIPT: STEP-BY-STEP DEMO", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph(
-        "Follow this script for a compelling 15-20 minute demo. Each section includes the exact "
+        "Follow this script for a compelling 20-25 minute demo. Each section includes the exact "
         "steps, commands, and expected results.",
         styles['BodyText2']
     ))
@@ -1026,17 +1216,46 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         elements.append(Paragraph(step, styles['StepStyle']))
 
     elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("DEMO PART 6: WHATSAPP TRADING (3 min)", styles['SubHeader']))
+    demo6_steps = [
+        f"<b>1.</b> Open WhatsApp Simulator: <font face='Courier'>{base_url}/simulator/whatsapp</font>",
+        "<b>2.</b> Type <font face='Courier' color='#0d6efd'>HI</font> - Shows welcome with trust badge",
+        "<b>3.</b> Type <font face='Courier' color='#0d6efd'>MARKET</font> - Browse produce with trust badges and prices",
+        "<b>4.</b> Type <font face='Courier' color='#0d6efd'>PRICE Tomatoes</font> - TradojaIQ market intelligence",
+        "<b>5.</b> Type <font face='Courier' color='#0d6efd'>SELL Rice 100KG 25000 Lagos</font> - List with price guidance",
+        "<b>6.</b> Type <font face='Courier' color='#0d6efd'>SABIBUY LIST</font> - Show cross-channel SabiBuy access",
+        "<b>7.</b> Point out: Same database, same escrow, same wallet as SMS/USSD/Web",
+    ]
+    for step in demo6_steps:
+        elements.append(Paragraph(step, styles['StepStyle']))
+
+    elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("DEMO PART 7: TRADOJAIQ INTELLIGENCE (2 min)", styles['SubHeader']))
+    demo7_steps = [
+        f"<b>1.</b> Open TradojaIQ Dashboard: <font face='Courier'>{base_url}/intelligence</font>",
+        "<b>2.</b> Show marketplace summary: total users, listings, transactions, avg trust score",
+        "<b>3.</b> Show demand insights: which crops are most in-demand",
+        "<b>4.</b> Show trust score breakdown: Bronze/Silver/Gold/Platinum distribution",
+        "<b>5.</b> Show top crops: most active crops on the platform",
+        "<b>6.</b> Point out: This intelligence powers price guidance on ALL channels automatically",
+    ]
+    for step in demo7_steps:
+        elements.append(Paragraph(step, styles['StepStyle']))
+
+    elements.append(Spacer(1, 12))
     elements.append(Paragraph("DEMO CLOSING STATEMENT", styles['SubHeader']))
     elements.append(Paragraph(
         '<font color="#ff6b35"><b>KEY MESSAGE:</b></font> "Tradoja transforms every agricultural trade into telco revenue. '
-        'With SMS, USSD, and AI-powered escrow, we\'re building the infrastructure for Africa\'s food security - '
+        'With SMS, USSD, WhatsApp, and AI-powered TradojaIQ intelligence, we\'re building the infrastructure for Africa\'s food security - '
         'and your shortcode activation is the key to unlocking this for 38 million farming households."',
         styles['TelcoHighlight']
     ))
     elements.append(PageBreak())
 
-    # ==================== SECTION 13: REVENUE MODEL ====================
-    elements.append(Paragraph("13. REVENUE MODEL & TELCO PARTNERSHIP", styles['SectionHeader']))
+    # ==================== SECTION 15: REVENUE MODEL ====================
+    elements.append(Paragraph("15. REVENUE MODEL & TELCO PARTNERSHIP", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     elements.append(Paragraph("JOINT REVENUE STREAMS", styles['SubHeader']))
@@ -1075,13 +1294,14 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         "<b>4. T2 Wallet API Access</b> - For USSD-based payments (9mobile)",
         "<b>5. Revenue Share Agreement</b> - Fair split on SMS/USSD revenue generated",
         "<b>6. Go-to-Market Support</b> - Joint farmer outreach in pilot states (Lagos, Oyo, Kano)",
+        "<b>7. Escrow License Partnership</b> - Telco's PSP/MMO license for legal fund holding in escrow",
     ]
     for need in needs:
         elements.append(Paragraph(need, styles['StepStyle']))
     elements.append(PageBreak())
 
-    # ==================== SECTION 14: TECHNICAL ARCHITECTURE ====================
-    elements.append(Paragraph("14. TECHNICAL ARCHITECTURE", styles['SectionHeader']))
+    # ==================== SECTION 16: TECHNICAL ARCHITECTURE ====================
+    elements.append(Paragraph("16. TECHNICAL ARCHITECTURE", styles['SectionHeader']))
     elements.append(HRFlowable(width="100%", thickness=2, color=BRAND_GREEN, spaceAfter=15))
 
     arch_data = [
@@ -1097,6 +1317,8 @@ def build_pdf(filename='static/tradoja_demo_guide.pdf'):
         ['Escrow', 'Platform-managed + AI', 'Secure payment holding and release'],
         ['Scam Detection', '8-rule scoring engine', 'Fraud prevention'],
         ['Frontend', 'Bootstrap 5 + Jinja2', 'Responsive dark theme UI'],
+        ['WhatsApp Gateway', 'Twilio (simulator mode)', 'Rich media trading channel'],
+        ['Market Intelligence', 'TradojaIQ Engine', 'Price discovery, trust scores, demand insights'],
         ['Hosting', 'Replit Cloud', 'Auto-scaling deployment'],
     ]
     arch_table = Table(arch_data, colWidths=[1.5 * inch, 1.8 * inch, 2.5 * inch])
