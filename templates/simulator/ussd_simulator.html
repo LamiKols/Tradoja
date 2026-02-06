@@ -13,6 +13,31 @@
                 <p class="text-muted small">Type <strong>*712*55#</strong> and press Call to start</p>
             </div>
             
+            <div class="phone-number-selector mx-auto mb-3" style="max-width: 320px;">
+                <label class="form-label text-muted small mb-1">
+                    <i class="fas fa-phone me-1"></i>Simulating as phone number:
+                </label>
+                <div class="d-flex gap-2 align-items-center">
+                    <select class="form-select form-select-sm bg-dark text-white border-secondary" id="phoneSelect">
+                        <option value="new">New Number (fresh user)</option>
+                        <option value="+2348123456789">+234 812 345 6789 (Buyer - Adebayo)</option>
+                        <option value="+2348012345671">+234 801 234 5671 (Farmer - Adebayo)</option>
+                        <option value="+2348012345672">+234 801 234 5672 (Buyer - Chidi)</option>
+                        <option value="+2348012345679">+234 801 234 5679 (Farmer - Emeka)</option>
+                        <option value="+23480123456711">+234 801 234 56711 (Farmer - Amina)</option>
+                        <option value="custom">Enter custom number</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-success" id="randomizeBtn" title="Generate random number">
+                        <i class="fas fa-random"></i>
+                    </button>
+                </div>
+                <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary mt-2 d-none" 
+                       id="customPhone" placeholder="+234XXXXXXXXXX" maxlength="14">
+                <div class="mt-1" id="phoneDisplay">
+                    <small class="text-success"><i class="fas fa-sim-card me-1"></i><span id="activeNumber">+234 NEW</span></small>
+                </div>
+            </div>
+            
             <div class="phone-frame mx-auto">
                 <div class="phone-screen">
                     <div class="phone-header">
@@ -289,9 +314,54 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputModeBtn = document.getElementById('inputMode');
     const pendingCharDisplay = document.getElementById('pendingChar');
     const keys = document.querySelectorAll('.key[data-value]');
+    const phoneSelect = document.getElementById('phoneSelect');
+    const customPhoneInput = document.getElementById('customPhone');
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    const activeNumberDisplay = document.getElementById('activeNumber');
     
     let sessionId = 'SIM_' + Date.now();
     let isSessionActive = false;
+    
+    function generateRandomPhone() {
+        const prefixes = ['803', '805', '806', '807', '808', '809', '810', '813', '814', '816', '903', '906', '913'];
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const suffix = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
+        return '+234' + prefix + suffix;
+    }
+    
+    let currentPhone = generateRandomPhone();
+    activeNumberDisplay.textContent = currentPhone.replace(/(\+234)(\d{3})(\d{3})(\d{4})/, '$1 $2 $3 $4');
+    
+    phoneSelect.addEventListener('change', function() {
+        if (this.value === 'new') {
+            currentPhone = generateRandomPhone();
+            customPhoneInput.classList.add('d-none');
+        } else if (this.value === 'custom') {
+            customPhoneInput.classList.remove('d-none');
+            customPhoneInput.focus();
+            return;
+        } else {
+            currentPhone = this.value;
+            customPhoneInput.classList.add('d-none');
+        }
+        activeNumberDisplay.textContent = currentPhone.replace(/(\+234)(\d{3})(\d{3,4})(\d{4,})/, '$1 $2 $3 $4');
+        resetSession();
+    });
+    
+    customPhoneInput.addEventListener('input', function() {
+        let val = this.value.trim();
+        if (val && !val.startsWith('+')) val = '+234' + val.replace(/^0+/, '');
+        currentPhone = val;
+        activeNumberDisplay.textContent = val || '+234...';
+    });
+    
+    randomizeBtn.addEventListener('click', function() {
+        phoneSelect.value = 'new';
+        customPhoneInput.classList.add('d-none');
+        currentPhone = generateRandomPhone();
+        activeNumberDisplay.textContent = currentPhone.replace(/(\+234)(\d{3})(\d{3})(\d{4})/, '$1 $2 $3 $4');
+        resetSession();
+    });
     
     // T9 Text Input State
     let inputMode = 'abc'; // 'abc' for text, '123' for numbers
@@ -456,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 sessionId: sessionId,
-                phoneNumber: '+2348012345678',
+                phoneNumber: currentPhone,
                 text: isSessionActive ? input : '',
                 serviceCode: '*712*55#'
             })
