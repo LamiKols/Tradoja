@@ -2445,9 +2445,43 @@ class USSDService:
                 session.current_step = 0
                 
                 if success:
+                    from models import Order, Transaction
+                    fee = data.get('fee', 0)
+                    order = Order(
+                        farmer_id=produce.farmer_id,
+                        buyer_id=user.id,
+                        produce_id=produce.id,
+                        quantity=str(produce.quantity),
+                        total_amount=total,
+                        platform_fee=fee,
+                        status='pending',
+                        pickup_location=produce.listing_location or '',
+                        source_channel='ussd'
+                    )
+                    order.generate_order_code()
+                    db.session.add(order)
+                    
+                    transaction = Transaction(
+                        reference=ref,
+                        user_id=user.id,
+                        transaction_type='produce_sale',
+                        base_amount=data.get('amount', total),
+                        platform_fee=fee,
+                        total_amount=total,
+                        payment_method='t2_wallet',
+                        status='successful',
+                        produce_id=produce.id,
+                        payment_date=datetime.utcnow()
+                    )
+                    db.session.add(transaction)
+                    
+                    produce.is_available = False
+                    produce.buyer_id = user.id
+                    
                     db.session.commit()
                     return (f"Payment held in escrow!\n"
                            f"Item: {produce.name}\n"
+                           f"Order: {order.order_code}\n"
                            f"Amount: N{total:,.0f}\n"
                            f"Ref: {ref}\n"
                            f"Seller notified."), False
@@ -2484,6 +2518,9 @@ class USSDService:
                     session.current_step = 0
                     
                     if result.get('success'):
+                        from models import Order
+                        produce = Produce.query.get(produce_id)
+                        
                         transaction = Transaction(
                             reference=ref,
                             user_id=user.id,
@@ -2496,10 +2533,30 @@ class USSDService:
                             produce_id=produce_id
                         )
                         db.session.add(transaction)
+                        
+                        order = Order(
+                            farmer_id=produce.farmer_id if produce else user.id,
+                            buyer_id=user.id,
+                            produce_id=produce_id,
+                            quantity=str(produce.quantity) if produce else '',
+                            total_amount=total,
+                            platform_fee=data.get('fee', 0),
+                            status='pending',
+                            pickup_location=produce.listing_location or '' if produce else '',
+                            source_channel='ussd'
+                        )
+                        order.generate_order_code()
+                        db.session.add(order)
+                        
+                        if produce:
+                            produce.is_available = False
+                            produce.buyer_id = user.id
+                        
                         db.session.commit()
                         
                         return (f"Dial to pay:\n{result['ussd_code']}\n"
                                f"Amount: N{total:,.0f}\n"
+                               f"Order: {order.order_code}\n"
                                f"Ref: {ref}"), False
                     else:
                         return f"Failed: {result.get('message')}", False

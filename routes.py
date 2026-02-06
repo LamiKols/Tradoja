@@ -2,7 +2,7 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid, ScamFlag, SabiBuy, SabiBuyOrder, SabiBuyerProfile
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid, ScamFlag, SabiBuy, SabiBuyOrder, SabiBuyerProfile, Order
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm, TransportRegistrationForm, TransportRouteForm, ColdChainDeviceForm, TransportBidForm, EnhancedLogisticsRequestForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
@@ -596,13 +596,17 @@ def farmer_dashboard():
         status='pending'
     ).order_by(MatchRecommendation.sent_at.desc()).limit(5).all()
     
+    # Get farmer's orders from all channels (web, SMS, USSD)
+    farmer_orders = Order.query.filter_by(farmer_id=current_user.id).order_by(Order.created_at.desc()).limit(10).all()
+    
     return render_template('farmer_dashboard.html', 
                          title='Farmer Dashboard', 
                          produce_listings=produce_listings,
                          recent_funding=recent_funding,
                          latest_csa=latest_csa,
                          buyer_recommendations=buyer_recommendations,
-                         pending_matches=pending_matches)
+                         pending_matches=pending_matches,
+                         farmer_orders=farmer_orders)
 
 
 @app.route('/farmer/preferences', methods=['GET', 'POST'])
@@ -647,6 +651,9 @@ def buyer_dashboard():
     # Get buyer's recent purchases
     recent_purchases = Produce.query.filter_by(buyer_id=current_user.id).order_by(Produce.sale_date.desc()).limit(5).all()
     
+    # Get buyer's orders from all channels (web, SMS, USSD)
+    buyer_orders = Order.query.filter_by(buyer_id=current_user.id).order_by(Order.created_at.desc()).limit(10).all()
+    
     # Get AI-powered seller recommendations
     seller_recommendations = []
     if matchmaking_engine:
@@ -683,6 +690,7 @@ def buyer_dashboard():
     return render_template('buyer_dashboard.html', 
                          title='Buyer Dashboard', 
                          recent_purchases=recent_purchases,
+                         buyer_orders=buyer_orders,
                          seller_recommendations=seller_recommendations,
                          pending_matches=pending_matches,
                          total_purchases=total_purchases,
@@ -3875,6 +3883,20 @@ def payment_callback():
                 produce.sale_date = datetime.utcnow()
                 produce.buyer_id = current_user.id
                 produce.is_available = False
+                
+                order = Order(
+                    farmer_id=produce.farmer_id,
+                    buyer_id=transaction.user_id,
+                    produce_id=produce.id,
+                    quantity=str(produce.quantity) if produce.quantity else '',
+                    total_amount=transaction.total_amount,
+                    platform_fee=transaction.platform_fee or 0,
+                    status='pending',
+                    pickup_location=produce.listing_location or '',
+                    source_channel='web'
+                )
+                order.generate_order_code()
+                db.session.add(order)
                 
                 db.session.commit()
                 

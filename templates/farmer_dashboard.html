@@ -301,5 +301,73 @@
             </div>
         </div>
     </div>
+
+    {% if farmer_orders %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>Incoming Orders
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order Code</th>
+                                    <th>Item</th>
+                                    <th>Buyer</th>
+                                    <th>Amount</th>
+                                    <th>Channel</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in farmer_orders %}
+                                <tr>
+                                    <td><strong>{{ order.order_code }}</strong></td>
+                                    <td>{{ order.produce.name if order.produce else 'N/A' }}</td>
+                                    <td>{{ order.buyer.name if order.buyer else 'N/A' }}</td>
+                                    <td>NGN {{ "{:,.0f}".format(order.total_amount) }}</td>
+                                    <td>
+                                        {% if order.source_channel == 'sms' %}
+                                        <span class="badge bg-success">SMS</span>
+                                        {% elif order.source_channel == 'ussd' %}
+                                        <span class="badge bg-warning text-dark">USSD</span>
+                                        {% else %}
+                                        <span class="badge bg-primary">Web</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if order.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                        {% elif order.status == 'accepted' %}
+                                        <span class="badge bg-info">Accepted</span>
+                                        {% elif order.status == 'in_transit' %}
+                                        <span class="badge bg-primary">In Transit</span>
+                                        {% elif order.status == 'delivered' %}
+                                        <span class="badge bg-success">Delivered</span>
+                                        {% elif order.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% elif order.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ order.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.created_at.strftime('%b %d, %Y') if order.created_at else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

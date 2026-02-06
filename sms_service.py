@@ -2432,14 +2432,48 @@ class SMSService:
                     )
                     
                     if success:
+                        from models import Order, Transaction
+                        order = Order(
+                            farmer_id=produce.farmer_id,
+                            buyer_id=user.id,
+                            produce_id=produce.id,
+                            quantity=str(produce.quantity),
+                            total_amount=total,
+                            platform_fee=fee_info['platform_fee'],
+                            status='pending',
+                            pickup_location=produce.listing_location or '',
+                            source_channel='sms'
+                        )
+                        order.generate_order_code()
+                        db.session.add(order)
+                        
+                        transaction = Transaction(
+                            reference=ref,
+                            user_id=user.id,
+                            transaction_type='produce_sale',
+                            base_amount=amount,
+                            platform_fee=fee_info['platform_fee'],
+                            total_amount=total,
+                            payment_method='t2_wallet',
+                            status='successful',
+                            produce_id=produce.id,
+                            payment_date=datetime.utcnow()
+                        )
+                        db.session.add(transaction)
+                        
+                        produce.is_available = False
+                        produce.buyer_id = user.id
+                        
                         db.session.commit()
                         self._notify_seller_payment(produce.farmer, produce, user, total)
                         return self.send_sms(phone_number,
                             f"Payment held in escrow!\n"
                             f"Item: {produce.name}\n"
+                            f"Order: {order.order_code}\n"
                             f"Amount: N{total:,.0f}\n"
                             f"Ref: {ref}\n"
-                            f"Seller notified. Await delivery.")
+                            f"Seller notified. Await delivery.\n"
+                            f"Track: TRACK {order.order_code}")
                     else:
                         return self.send_sms(phone_number, f"Payment failed: {msg}")
                 
@@ -2458,6 +2492,7 @@ class SMSService:
                     result = payment_service.charge_ussd(email, total, ref, bank_code)
                     
                     if result.get('success'):
+                        from models import Order
                         transaction = Transaction(
                             reference=ref,
                             user_id=user.id,
@@ -2470,12 +2505,31 @@ class SMSService:
                             produce_id=produce.id
                         )
                         db.session.add(transaction)
+                        
+                        order = Order(
+                            farmer_id=produce.farmer_id,
+                            buyer_id=user.id,
+                            produce_id=produce.id,
+                            quantity=str(produce.quantity),
+                            total_amount=total,
+                            platform_fee=fee_info['platform_fee'],
+                            status='pending',
+                            pickup_location=produce.listing_location or '',
+                            source_channel='sms'
+                        )
+                        order.generate_order_code()
+                        db.session.add(order)
+                        
+                        produce.is_available = False
+                        produce.buyer_id = user.id
+                        
                         db.session.commit()
                         
                         return self.send_sms(phone_number,
                             f"Dial to pay:\n"
                             f"{result['ussd_code']}\n"
                             f"Amount: N{total:,.0f}\n"
+                            f"Order: {order.order_code}\n"
                             f"Ref: {ref}\n"
                             f"Check: STATUS {ref}")
                     else:
