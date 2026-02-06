@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}TradojaIQ Market Intelligence{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h2><i class="fas fa-brain me-2 text-info"></i>TradojaIQ</h2>
+                    <p class="text-muted mb-0">AI-Powered Market Intelligence</p>
+                </div>
+                <div>
+                    <span class="badge {{ 'bg-light text-dark' if user_trust.tier_key == 'platinum' else 'bg-warning text-dark' if user_trust.tier_key == 'gold' else 'bg-secondary' if user_trust.tier_key == 'silver' else 'bg-dark' }}" style="font-size: 1rem;">
+                        {{ user_trust.emoji }} {{ user_trust.tier }} | Score: {{ user_trust.score }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if farmer_alerts %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-success border-0" style="background: rgba(0,168,132,0.15);">
+                <h5 class="alert-heading"><i class="fas fa-bell me-2"></i>Market Alerts for You</h5>
+                {% for alert in farmer_alerts %}
+                <p class="mb-1"><i class="fas fa-arrow-right me-2 text-success"></i>{{ alert }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100" style="border-left: 4px solid #00a884;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Active Listings</p>
+                            <h3 class="mb-0">{{ summary.total_active_listings }}</h3>
+                        </div>
+                        <div class="text-success"><i class="fas fa-seedling fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100" style="border-left: 4px solid #FFD700;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Orders (30 days)</p>
+                            <h3 class="mb-0">{{ summary.total_orders_30d }}</h3>
+                        </div>
+                        <div class="text-warning"><i class="fas fa-shopping-cart fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100" style="border-left: 4px solid #4285f4;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">GMV (30 days)</p>
+                            <h3 class="mb-0">&#8358;{{ "{:,.0f}".format(summary.total_gmv_30d) }}</h3>
+                        </div>
+                        <div class="text-primary"><i class="fas fa-chart-line fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100" style="border-left: 4px solid #ea4335;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">SabiBuy Campaigns</p>
+                            <h3 class="mb-0">{{ summary.active_sabibuy_campaigns }}</h3>
+                        </div>
+                        <div class="text-danger"><i class="fas fa-handshake fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-trophy me-2 text-warning"></i>Your Trust Score
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <span style="font-size: 3rem;">{{ user_trust.emoji }}</span>
+                    </div>
+                    <h3>{{ user_trust.tier }}</h3>
+                    <div class="progress mb-3" style="height: 12px;">
+                        <div class="progress-bar bg-success" style="width: {{ user_trust.score }}%">{{ user_trust.score }}/100</div>
+                    </div>
+                    <div class="text-start small">
+                        {% if user_trust.breakdown %}
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Verification</span>
+                            <span class="text-success">+{{ user_trust.breakdown.get('verification', 0) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Transactions</span>
+                            <span class="text-success">+{{ user_trust.breakdown.get('transactions', 0) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Ratings</span>
+                            <span class="text-success">+{{ user_trust.breakdown.get('ratings', 0) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Clean Disputes</span>
+                            <span class="{{ 'text-success' if user_trust.breakdown.get('disputes', 0) >= 0 else 'text-danger' }}">{{ "{:+d}".format(user_trust.breakdown.get('disputes', 0)) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Account Tenure</span>
+                            <span class="text-success">+{{ user_trust.breakdown.get('tenure', 0) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-fire me-2 text-danger"></i>Top Crops
+                </div>
+                <div class="card-body">
+                    {% if summary.top_crops %}
+                    {% for crop, count in summary.top_crops %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>{{ crop }}</strong>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress" style="width: 100px; height: 8px;">
+                                <div class="progress-bar bg-success" style="width: {{ (count / (summary.top_crops[0][1] if summary.top_crops[0][1] > 0 else 1)) * 100 }}%"></div>
+                            </div>
+                            <span class="badge bg-secondary">{{ count }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">No crop data yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-users me-2 text-info"></i>Platform Overview
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span><i class="fas fa-tractor me-2 text-success"></i>Farmers</span>
+                        <strong>{{ summary.total_farmers }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span><i class="fas fa-shopping-bag me-2 text-primary"></i>Buyers</span>
+                        <strong>{{ summary.total_buyers }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span><i class="fas fa-store me-2 text-warning"></i>Active Listings</span>
+                        <strong>{{ summary.total_active_listings }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span><i class="fas fa-handshake me-2 text-danger"></i>SabiBuy Active</span>
+                        <strong>{{ summary.active_sabibuy_campaigns }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if demand_insights %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-2 text-primary"></i>Demand Intelligence (Last 7 Days)
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Crop</th>
+                                    <th>Orders (7d)</th>
+                                    <th>Value (7d)</th>
+                                    <th>Avg Price</th>
+                                    <th>Trend</th>
+                                    <th>Active Listings</th>
+                                    <th>Insight</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in demand_insights %}
+                                <tr>
+                                    <td><strong>{{ item.crop }}</strong></td>
+                                    <td>{{ item.demand_orders_7d }}</td>
+                                    <td>&#8358;{{ "{:,.0f}".format(item.total_value_7d) }}</td>
+                                    <td>&#8358;{{ "{:,.0f}".format(item.avg_price) }}</td>
+                                    <td>
+                                        {% if item.price_trend == 'rising' %}
+                                        <span class="text-success"><i class="fas fa-arrow-up"></i> +{{ item.trend_pct }}%</span>
+                                        {% elif item.price_trend == 'falling' %}
+                                        <span class="text-danger"><i class="fas fa-arrow-down"></i> {{ item.trend_pct }}%</span>
+                                        {% else %}
+                                        <span class="text-muted"><i class="fas fa-minus"></i> Stable</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.active_listings }}</td>
+                                    <td class="small">{{ item.recommendation[:60] }}{% if item.recommendation|length > 60 %}...{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mt-4 mb-3">
+        <div class="col-12">
+            <div class="card" style="background: linear-gradient(135deg, #0b141a, #1f2c34); border: 1px solid #00a884;">
+                <div class="card-body text-center py-4">
+                    <h4><i class="fas fa-brain me-2 text-info"></i>TradojaIQ Powers Every Channel</h4>
+                    <p class="text-muted mb-3">Price intelligence & trust scores are integrated across all channels</p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <a href="{{ url_for('whatsapp_simulator') }}" class="btn btn-outline-success">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </a>
+                        <a href="{{ url_for('sms_simulator') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-sms me-1"></i> SMS
+                        </a>
+                        <a href="{{ url_for('ussd_simulator') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-mobile-alt me-1"></i> USSD
+                        </a>
+                        <a href="{{ url_for('marketplace') }}" class="btn btn-outline-light">
+                            <i class="fas fa-store me-1"></i> Web Marketplace
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6289,6 +6289,107 @@ def sms_simulator_api():
         return jsonify({'response': f'Error processing message: {str(e)}'})
 
 
+# ==================== WHATSAPP ROUTES ====================
+
+@app.route('/simulator/whatsapp')
+def whatsapp_simulator():
+    """WhatsApp Simulator for demo and testing"""
+    return render_template('simulator/whatsapp_simulator.html', title='WhatsApp Simulator')
+
+@app.route('/simulator/whatsapp/api', methods=['POST'])
+@csrf_exempt
+def whatsapp_simulator_api():
+    """API endpoint for WhatsApp simulator"""
+    from whatsapp_service import get_whatsapp_service
+    
+    data = request.get_json(silent=True) or {}
+    phone_number = data.get('phoneNumber', '+2348012345678')
+    message = data.get('message', '')
+    media_url = data.get('mediaUrl', None)
+    
+    try:
+        wa = get_whatsapp_service()
+        response = wa.simulate_incoming(phone_number, message, media_url=media_url)
+        return jsonify({'response': response or 'Message processed'})
+    except Exception as e:
+        app.logger.error(f"WhatsApp simulator error: {e}")
+        return jsonify({'response': f'Error: {str(e)}'})
+
+@app.route('/webhook/whatsapp', methods=['POST'])
+@csrf_exempt
+def whatsapp_webhook():
+    """Twilio WhatsApp webhook - receives incoming WhatsApp messages
+    Activated when Twilio credentials are configured"""
+    from whatsapp_service import get_whatsapp_service
+    
+    phone_number = request.values.get('From', '').replace('whatsapp:', '')
+    message = request.values.get('Body', '')
+    media_url = request.values.get('MediaUrl0', None)
+    
+    try:
+        wa = get_whatsapp_service()
+        response_text = wa.process_incoming(phone_number, message, media_url=media_url)
+        
+        twiml = f'<?xml version="1.0" encoding="UTF-8"?><Response><Message>{response_text}</Message></Response>'
+        resp = make_response(twiml)
+        resp.headers['Content-Type'] = 'text/xml'
+        return resp
+    except Exception as e:
+        app.logger.error(f"WhatsApp webhook error: {e}")
+        twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Sorry, an error occurred. Please try again.</Message></Response>'
+        resp = make_response(twiml)
+        resp.headers['Content-Type'] = 'text/xml'
+        return resp
+
+@app.route('/api/tradojaiq/price/<crop_name>')
+def tradojaiq_price_api(crop_name):
+    """TradojaIQ Price Intelligence API"""
+    from services.tradojaiq_service import tradojaiq
+    intel = tradojaiq.get_price_intelligence(crop_name)
+    return jsonify(intel)
+
+@app.route('/api/tradojaiq/trust/<int:user_id>')
+def tradojaiq_trust_api(user_id):
+    """TradojaIQ Trust Score API"""
+    from services.tradojaiq_service import tradojaiq
+    user = User.query.get_or_404(user_id)
+    trust = tradojaiq.calculate_trust_score(user)
+    return jsonify(trust)
+
+@app.route('/api/tradojaiq/demand')
+def tradojaiq_demand_api():
+    """TradojaIQ Demand Insights API"""
+    from services.tradojaiq_service import tradojaiq
+    insights = tradojaiq.get_demand_insights()
+    return jsonify({'insights': insights})
+
+@app.route('/api/tradojaiq/summary')
+def tradojaiq_summary_api():
+    """TradojaIQ Marketplace Summary API"""
+    from services.tradojaiq_service import tradojaiq
+    summary = tradojaiq.get_marketplace_summary()
+    summary['top_crops'] = [{'crop': c[0], 'count': c[1]} for c in summary.get('top_crops', [])]
+    return jsonify(summary)
+
+@app.route('/intelligence')
+@login_required
+def tradojaiq_dashboard():
+    """TradojaIQ Market Intelligence Dashboard"""
+    from services.tradojaiq_service import tradojaiq
+    
+    summary = tradojaiq.get_marketplace_summary()
+    demand = tradojaiq.get_demand_insights(10)
+    trust = tradojaiq.calculate_trust_score(current_user)
+    alerts = tradojaiq.get_farmer_alert(current_user) if current_user.is_farmer() else []
+    
+    return render_template('tradojaiq_dashboard.html',
+        title='TradojaIQ Market Intelligence',
+        summary=summary,
+        demand_insights=demand,
+        user_trust=trust,
+        farmer_alerts=alerts)
+
+
 # ==================== TRACEABILITY ROUTES ====================
 
 @app.route('/trace/<code>')

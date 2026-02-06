@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Simulator - Demo{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="text-center mb-4">
+                <h2><i class="fab fa-whatsapp me-2 text-success"></i>WhatsApp Simulator</h2>
+                <p class="text-muted">Test WhatsApp commands as if messaging from WhatsApp</p>
+            </div>
+            
+            <div class="phone-number-panel mb-3 mx-auto" style="max-width: 380px;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-success">
+                            <i class="fab fa-whatsapp"></i>
+                        </span>
+                        <input type="text" class="form-control bg-dark border-secondary text-light" 
+                               id="phoneInput" value="+2349000000001" 
+                               placeholder="+234XXXXXXXXXX">
+                    </div>
+                    <button class="btn btn-sm btn-outline-success flex-shrink-0" id="newNumberBtn" title="Generate new number">
+                        <i class="fas fa-random"></i> New
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small class="text-muted" id="phoneStatus">New number - ready to register</small>
+                </div>
+            </div>
+            
+            <div class="wa-phone-frame mx-auto">
+                <div class="wa-phone-screen">
+                    <div class="wa-header">
+                        <span class="wa-back" id="backBtn">
+                            <i class="fas fa-arrow-left"></i>
+                        </span>
+                        <div class="wa-contact">
+                            <div class="wa-avatar">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <div>
+                                <div class="wa-name">Tradoja</div>
+                                <div class="wa-status-text">online</div>
+                            </div>
+                        </div>
+                        <span class="wa-actions">
+                            <i class="fas fa-video me-3"></i>
+                            <i class="fas fa-phone"></i>
+                        </span>
+                    </div>
+                    
+                    <div class="wa-chat" id="waChat">
+                        <div class="wa-wallpaper"></div>
+                        <div class="wa-welcome">
+                            <div class="wa-welcome-card">
+                                <i class="fas fa-lock mb-2" style="font-size: 12px; color: #8696a0;"></i>
+                                <p style="font-size: 12px; color: #8696a0;">Messages are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them.</p>
+                            </div>
+                            <div class="wa-date-badge">Today</div>
+                        </div>
+                    </div>
+                    
+                    <div class="wa-input-area">
+                        <button class="wa-emoji-btn">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <button class="wa-attach-btn" id="attachBtn" title="Send a photo">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <input type="text" 
+                               class="wa-input" 
+                               id="waInput" 
+                               placeholder="Type a message"
+                               autocomplete="off">
+                        <button class="wa-send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button class="btn btn-outline-secondary btn-sm" id="clearBtn">
+                    <i class="fas fa-trash me-1"></i> Clear
+                </button>
+                <button class="btn btn-outline-success btn-sm ms-2" id="newSessionBtn">
+                    <i class="fas fa-user-plus me-1"></i> New User
+                </button>
+                <a href="{{ url_for('sms_simulator') }}" class="btn btn-outline-primary btn-sm ms-2">
+                    <i class="fas fa-sms me-1"></i> SMS
+                </a>
+                <a href="{{ url_for('ussd_simulator') }}" class="btn btn-outline-warning btn-sm ms-2">
+                    <i class="fas fa-mobile-alt me-1"></i> USSD
+                </a>
+            </div>
+
+            <div class="card mt-3 mx-auto" style="max-width: 380px;">
+                <div class="card-header py-2">
+                    <i class="fas fa-users me-2"></i>Demo Accounts
+                </div>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-1">
+                        <button class="btn btn-sm btn-outline-success demo-user" data-phone="+2348011111111" data-name="Farmer Amina">
+                            <i class="fas fa-seedling"></i> Farmer
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary demo-user" data-phone="+2348022222222" data-name="Buyer Chidi">
+                            <i class="fas fa-shopping-cart"></i> Buyer
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning demo-user" data-phone="+2348033333333" data-name="Driver Musa">
+                            <i class="fas fa-truck"></i> Transport
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3 mx-auto" style="max-width: 380px;">
+                <div class="card-header py-2">
+                    <i class="fas fa-lightbulb me-2"></i>Quick Commands
+                </div>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="HI">Hi</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="HELP">HELP</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="REG Demo Lagos Tomatoes">REG</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="SELL Tomatoes 100 5000">SELL</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="MARKET ALL">MARKET</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="PRICE Tomatoes">PRICE</button>
+                        <button class="btn btn-sm btn-outline-info quick-msg" data-msg="BAL">BAL</button>
+                        <button class="btn btn-sm btn-outline-info quick-msg" data-msg="ORDERS">ORDERS</button>
+                        <button class="btn btn-sm btn-outline-info quick-msg" data-msg="STATUS">STATUS</button>
+                        <button class="btn btn-sm btn-outline-warning quick-msg" data-msg="SABIBUY LIST">SABIBUY</button>
+                        <button class="btn btn-sm btn-outline-warning quick-msg" data-msg="VERIFY">VERIFY</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.phone-number-panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 10px 15px;
+}
+
+.wa-phone-frame {
+    background: linear-gradient(145deg, #2d2d2d, #1a1a1a);
+    border-radius: 40px;
+    padding: 15px;
+    max-width: 380px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+}
+
+.wa-phone-screen {
+    background: #0b141a;
+    border-radius: 28px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 550px;
+}
+
+.wa-header {
+    background: #1f2c34;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #2a3942;
+}
+
+.wa-back {
+    color: #00a884;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.wa-contact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.wa-avatar {
+    width: 36px;
+    height: 36px;
+    background: #00a884;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.wa-name {
+    color: #e9edef;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.wa-status-text {
+    color: #8696a0;
+    font-size: 12px;
+}
+
+.wa-actions {
+    color: #aebac1;
+    font-size: 14px;
+}
+
+.wa-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 15px;
+    position: relative;
+    background-color: #0b141a;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23111b21' fill-opacity='0.6'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm-22 22v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.wa-welcome {
+    text-align: center;
+    padding: 10px;
+}
+
+.wa-welcome-card {
+    background: #182229;
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
+    display: inline-block;
+    max-width: 300px;
+}
+
+.wa-date-badge {
+    display: inline-block;
+    background: #182229;
+    color: #8696a0;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.wa-bubble {
+    max-width: 85%;
+    padding: 6px 8px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 14px;
+    line-height: 1.35;
+    word-wrap: break-word;
+    position: relative;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.13);
+}
+
+.wa-bubble.sent {
+    background: #005c4b;
+    color: #e9edef;
+    margin-left: auto;
+    border-top-right-radius: 0;
+}
+
+.wa-bubble.received {
+    background: #1f2c34;
+    color: #e9edef;
+    margin-right: auto;
+    border-top-left-radius: 0;
+}
+
+.wa-bubble .wa-bold {
+    font-weight: 600;
+}
+
+.wa-time {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    text-align: right;
+    margin-top: 2px;
+}
+
+.wa-time .fa-check-double {
+    color: #53bdeb;
+    margin-left: 3px;
+}
+
+.wa-input-area {
+    background: #1f2c34;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wa-emoji-btn, .wa-attach-btn {
+    background: none;
+    border: none;
+    color: #8696a0;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.wa-emoji-btn:hover, .wa-attach-btn:hover {
+    color: #aebac1;
+}
+
+.wa-input {
+    flex: 1;
+    background: #2a3942;
+    border: none;
+    color: #e9edef;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.wa-input:focus {
+    outline: none;
+}
+
+.wa-input::placeholder {
+    color: #8696a0;
+}
+
+.wa-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #00a884;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.wa-send-btn:hover {
+    background: #06cf9c;
+}
+
+.wa-send-btn:active {
+    transform: scale(0.95);
+}
+
+.wa-system-msg {
+    text-align: center;
+    margin: 8px 0;
+}
+
+.wa-system-msg small {
+    background: #182229;
+    color: #8696a0;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.quick-msg, .demo-user {
+    font-size: 12px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const waInput = document.getElementById('waInput');
+    const waChat = document.getElementById('waChat');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const newSessionBtn = document.getElementById('newSessionBtn');
+    const newNumberBtn = document.getElementById('newNumberBtn');
+    const phoneInput = document.getElementById('phoneInput');
+    const phoneStatus = document.getElementById('phoneStatus');
+    const quickMsgs = document.querySelectorAll('.quick-msg');
+    const demoUsers = document.querySelectorAll('.demo-user');
+    
+    let hasMessages = false;
+    
+    function getPhoneNumber() {
+        return phoneInput.value.trim() || '+2349000000001';
+    }
+    
+    function generateRandomPhone() {
+        const num = '90' + Math.floor(10000000 + Math.random() * 89999999).toString();
+        return '+234' + num;
+    }
+    
+    function clearChat() {
+        hasMessages = false;
+        waChat.innerHTML = `
+            <div class="wa-welcome">
+                <div class="wa-welcome-card">
+                    <i class="fas fa-lock mb-2" style="font-size: 12px; color: #8696a0;"></i>
+                    <p style="font-size: 12px; color: #8696a0;">Messages are end-to-end encrypted.</p>
+                </div>
+                <div class="wa-date-badge">Today</div>
+            </div>
+        `;
+    }
+    
+    newNumberBtn.addEventListener('click', function() {
+        phoneInput.value = generateRandomPhone();
+        phoneStatus.textContent = 'New number - ready to register';
+        phoneStatus.className = 'text-success small';
+        clearChat();
+    });
+    
+    newSessionBtn.addEventListener('click', function() {
+        phoneInput.value = generateRandomPhone();
+        phoneStatus.textContent = 'New number - ready to register';
+        phoneStatus.className = 'text-success small';
+        clearChat();
+    });
+    
+    demoUsers.forEach(btn => {
+        btn.addEventListener('click', function() {
+            phoneInput.value = this.dataset.phone;
+            phoneStatus.textContent = this.dataset.name;
+            phoneStatus.className = 'text-info small';
+            clearChat();
+            addMessage('Switched to ' + this.dataset.name, 'system');
+        });
+    });
+    
+    quickMsgs.forEach(btn => {
+        btn.addEventListener('click', function() {
+            waInput.value = this.dataset.msg;
+            waInput.focus();
+        });
+    });
+    
+    sendBtn.addEventListener('click', sendMessage);
+    waInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') sendMessage();
+    });
+    
+    clearBtn.addEventListener('click', clearChat);
+    
+    function formatWAText(text) {
+        text = text.replace(/\n/g, '<br>');
+        text = text.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+        text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+        return text;
+    }
+    
+    function addMessage(text, type) {
+        if (!hasMessages) {
+            const welcome = waChat.querySelector('.wa-welcome');
+            if (welcome) {
+                const dateBadge = welcome.querySelector('.wa-date-badge');
+                waChat.innerHTML = '';
+                if (dateBadge) waChat.appendChild(dateBadge.cloneNode(true));
+            }
+            hasMessages = true;
+        }
+        
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        if (type === 'system') {
+            const sysDiv = document.createElement('div');
+            sysDiv.className = 'wa-system-msg';
+            sysDiv.innerHTML = `<small><i class="fas fa-info-circle"></i> ${text}</small>`;
+            waChat.appendChild(sysDiv);
+        } else {
+            const bubble = document.createElement('div');
+            bubble.className = `wa-bubble ${type}`;
+            
+            const checkmarks = type === 'sent' ? '<i class="fas fa-check-double"></i>' : '';
+            bubble.innerHTML = `
+                ${formatWAText(text)}
+                <div class="wa-time">${time} ${checkmarks}</div>
+            `;
+            waChat.appendChild(bubble);
+        }
+        
+        waChat.scrollTop = waChat.scrollHeight;
+    }
+    
+    function sendMessage() {
+        const message = waInput.value.trim();
+        if (!message) return;
+        
+        addMessage(message, 'sent');
+        waInput.value = '';
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'wa-bubble received';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = '<em style="color: #8696a0;">typing...</em>';
+        waChat.appendChild(typingDiv);
+        waChat.scrollTop = waChat.scrollHeight;
+        
+        fetch('{{ url_for("whatsapp_simulator_api") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phoneNumber: getPhoneNumber(),
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+            
+            setTimeout(() => {
+                addMessage(data.response || 'No response received', 'received');
+            }, 300);
+        })
+        .catch(error => {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+            
+            addMessage('Connection error: ' + error.message, 'received');
+        });
+    }
+    
+    phoneInput.value = generateRandomPhone();
+});
+</script>
+{% endblock %}
