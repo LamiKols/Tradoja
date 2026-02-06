@@ -99,6 +99,28 @@ class User(UserMixin, db.Model):
     linked_accounts = db.Column(db.Text)  # JSON list of potentially linked user IDs
     fingerprint_flags = db.Column(db.Integer, default=0)  # Number of fingerprint collisions
     
+    # IDENTITY VERIFICATION (Smile ID Preparation)
+    id_type = db.Column(db.String(30))  # 'nin', 'bvn', 'voters_card', 'drivers_license', 'intl_passport'
+    id_number = db.Column(db.String(30))  # NIN, BVN, or other ID number
+    id_document_front = db.Column(db.String(500))  # Upload path for ID front
+    id_document_back = db.Column(db.String(500))  # Upload path for ID back
+    selfie_photo = db.Column(db.String(500))  # Upload path for selfie (for Smile ID face match)
+    id_verification_status = db.Column(db.String(20), default='not_submitted')  # 'not_submitted', 'pending', 'verified', 'rejected'
+    id_verification_date = db.Column(db.DateTime)
+    
+    # BUSINESS INFORMATION
+    is_registered_business = db.Column(db.Boolean, default=False)
+    business_name = db.Column(db.String(200))
+    business_reg_number = db.Column(db.String(50))  # CAC registration number
+    business_type = db.Column(db.String(50))  # 'sole_proprietorship', 'partnership', 'limited_company', 'cooperative'
+    business_document = db.Column(db.String(500))  # Upload path for CAC cert or business doc
+    
+    # ADDRESS INFORMATION
+    street_address = db.Column(db.String(300))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    lga = db.Column(db.String(100))  # Local Government Area
+    
     # FARMER LISTING PREFERENCES (Farmer-First Control)
     farmer_listing_preference = db.Column(db.String(30), default='all_buyers')  # 'all_buyers', 'verified_only', 'direct_only', 'sabibuy_only'
     

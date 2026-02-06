@@ -289,10 +289,14 @@ def complete_registration():
             flash(f'This account ({user_to_verify.name}) is already verified!', 'info')
             return redirect(url_for('login'))
         else:
-            # Pre-fill the complete form
             complete_form.phone_number.data = phone
             complete_form.name.data = user_to_verify.name
-            complete_form.location.data = user_to_verify.location or ''
+            location = user_to_verify.location or ''
+            if ',' in location:
+                parts = [p.strip() for p in location.split(',', 1)]
+                complete_form.city.data = parts[0]
+            else:
+                complete_form.city.data = location
             complete_form.role.data = user_to_verify.role
     
     # Step 2: Complete the registration
@@ -307,20 +311,63 @@ def complete_registration():
             return redirect(url_for('login'))
         else:
             try:
-                # Update user profile with complete information
                 user_to_verify.name = complete_form.name.data
                 user_to_verify.email = complete_form.email.data.lower()
                 user_to_verify.set_password(complete_form.password.data)
-                user_to_verify.location = complete_form.location.data
                 user_to_verify.role = complete_form.role.data
                 
                 if complete_form.role.data == 'buyer' and complete_form.buyer_type.data:
                     user_to_verify.buyer_type = complete_form.buyer_type.data
                 
-                # Upgrade to VERIFIED status
+                user_to_verify.street_address = complete_form.street_address.data
+                user_to_verify.city = complete_form.city.data
+                user_to_verify.state = complete_form.state.data
+                user_to_verify.lga = complete_form.lga.data
+                user_to_verify.location = f"{complete_form.city.data}, {complete_form.state.data}"
+                
+                user_to_verify.is_registered_business = (complete_form.is_registered_business.data == 'yes')
+                if user_to_verify.is_registered_business:
+                    user_to_verify.business_name = complete_form.business_name.data
+                    user_to_verify.business_reg_number = complete_form.business_reg_number.data
+                    user_to_verify.business_type = complete_form.business_type.data
+                
+                user_to_verify.id_type = complete_form.id_type.data
+                user_to_verify.id_number = complete_form.id_number.data
+                user_to_verify.id_verification_status = 'pending'
+                
+                upload_dir = os.path.join('static', 'uploads', 'verification', str(user_to_verify.id))
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                if complete_form.id_document_front.data:
+                    f = complete_form.id_document_front.data
+                    filename = secure_filename(f"{user_to_verify.id}_id_front_{f.filename}")
+                    filepath = os.path.join(upload_dir, filename)
+                    f.save(filepath)
+                    user_to_verify.id_document_front = filepath
+                
+                if complete_form.id_document_back.data:
+                    f = complete_form.id_document_back.data
+                    filename = secure_filename(f"{user_to_verify.id}_id_back_{f.filename}")
+                    filepath = os.path.join(upload_dir, filename)
+                    f.save(filepath)
+                    user_to_verify.id_document_back = filepath
+                
+                if complete_form.selfie_photo.data:
+                    f = complete_form.selfie_photo.data
+                    filename = secure_filename(f"{user_to_verify.id}_selfie_{f.filename}")
+                    filepath = os.path.join(upload_dir, filename)
+                    f.save(filepath)
+                    user_to_verify.selfie_photo = filepath
+                
+                if user_to_verify.is_registered_business and complete_form.business_document.data:
+                    f = complete_form.business_document.data
+                    filename = secure_filename(f"{user_to_verify.id}_business_{f.filename}")
+                    filepath = os.path.join(upload_dir, filename)
+                    f.save(filepath)
+                    user_to_verify.business_document = filepath
+                
                 user_to_verify.upgrade_to_verified()
                 
-                # Capture device fingerprint
                 client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
                 if client_ip and ',' in client_ip:
                     client_ip = client_ip.split(',')[0].strip()

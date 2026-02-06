@@ -1039,11 +1039,6 @@ class CompleteRegistrationForm(FlaskForm):
         EqualTo('password', message="Passwords must match")
     ])
     
-    location = StringField('Location (Town/City)', validators=[
-        DataRequired(),
-        Length(min=2, max=200, message="Please enter your location")
-    ])
-    
     role = SelectField('Your Role', choices=[
         ('farmer', 'Farmer - I grow/produce crops'),
         ('buyer', 'Buyer - I buy produce for personal/business use'),
@@ -1069,11 +1064,100 @@ class CompleteRegistrationForm(FlaskForm):
         Length(max=50)
     ], render_kw={'placeholder': 'e.g., 2 hectares, 5 acres'})
     
+    street_address = StringField('Street Address', validators=[
+        DataRequired(),
+        Length(min=5, max=300, message="Please enter a valid street address")
+    ], render_kw={'placeholder': 'e.g., 15 Oba Akran Avenue'})
+    
+    city = StringField('City/Town', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ], render_kw={'placeholder': 'e.g., Ikeja'})
+    
+    state = SelectField('State', choices=[
+        ('', 'Select State'),
+        ('Abia', 'Abia'), ('Adamawa', 'Adamawa'), ('Akwa Ibom', 'Akwa Ibom'),
+        ('Anambra', 'Anambra'), ('Bauchi', 'Bauchi'), ('Bayelsa', 'Bayelsa'),
+        ('Benue', 'Benue'), ('Borno', 'Borno'), ('Cross River', 'Cross River'),
+        ('Delta', 'Delta'), ('Ebonyi', 'Ebonyi'), ('Edo', 'Edo'),
+        ('Ekiti', 'Ekiti'), ('Enugu', 'Enugu'), ('FCT', 'FCT - Abuja'),
+        ('Gombe', 'Gombe'), ('Imo', 'Imo'), ('Jigawa', 'Jigawa'),
+        ('Kaduna', 'Kaduna'), ('Kano', 'Kano'), ('Katsina', 'Katsina'),
+        ('Kebbi', 'Kebbi'), ('Kogi', 'Kogi'), ('Kwara', 'Kwara'),
+        ('Lagos', 'Lagos'), ('Nasarawa', 'Nasarawa'), ('Niger', 'Niger'),
+        ('Ogun', 'Ogun'), ('Ondo', 'Ondo'), ('Osun', 'Osun'),
+        ('Oyo', 'Oyo'), ('Plateau', 'Plateau'), ('Rivers', 'Rivers'),
+        ('Sokoto', 'Sokoto'), ('Taraba', 'Taraba'), ('Yobe', 'Yobe'),
+        ('Zamfara', 'Zamfara')
+    ], validators=[DataRequired(message="Please select your state")])
+    
+    lga = StringField('Local Government Area (LGA)', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ], render_kw={'placeholder': 'e.g., Ikeja, Alimosho'})
+    
+    is_registered_business = SelectField('Are you a registered business?', choices=[
+        ('no', 'No - Individual/Informal'),
+        ('yes', 'Yes - Registered with CAC')
+    ], validators=[DataRequired()])
+    
+    business_name = StringField('Business Name', validators=[
+        Optional(),
+        Length(max=200)
+    ], render_kw={'placeholder': 'e.g., Ade Farms Ltd'})
+    
+    business_reg_number = StringField('CAC Registration Number', validators=[
+        Optional(),
+        Length(max=50)
+    ], render_kw={'placeholder': 'e.g., RC-123456 or BN-789012'})
+    
+    business_type = SelectField('Business Type', choices=[
+        ('', 'Select Business Type'),
+        ('sole_proprietorship', 'Sole Proprietorship (Business Name)'),
+        ('partnership', 'Partnership'),
+        ('limited_company', 'Limited Company (Ltd/PLC)'),
+        ('cooperative', 'Cooperative Society'),
+        ('ngo', 'NGO / Non-Profit')
+    ], validators=[Optional()])
+    
+    business_document = FileField('Business Registration Document (CAC Certificate)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    
+    id_type = SelectField('ID Type', choices=[
+        ('', 'Select ID Type'),
+        ('nin', 'National Identification Number (NIN)'),
+        ('bvn', 'Bank Verification Number (BVN)'),
+        ('voters_card', "Voter's Card (PVC)"),
+        ('drivers_license', "Driver's License"),
+        ('intl_passport', 'International Passport')
+    ], validators=[DataRequired(message="Please select an ID type")])
+    
+    id_number = StringField('ID Number', validators=[
+        DataRequired(),
+        Length(min=5, max=30, message="Please enter a valid ID number")
+    ], render_kw={'placeholder': 'Enter your ID number'})
+    
+    id_document_front = FileField('ID Document (Front)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    
+    id_document_back = FileField('ID Document (Back)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    
+    selfie_photo = FileField('Selfie Photo (for identity verification)', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Only image files are allowed')
+    ])
+    
     def validate_email(self, email):
         """Check if email is already used by another account"""
         user = User.query.filter_by(email=email.data).first()
         if user:
-            # Allow if it's the same account (LITE account using temp email)
             if '@sms.tradoja.com' in user.email or '@ussd.tradoja.com' in user.email:
                 return
             raise ValidationError('This email is already registered.')

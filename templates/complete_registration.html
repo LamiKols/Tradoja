@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-10 col-lg-8">
             <div class="card">
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
@@ -13,7 +13,6 @@
                     </div>
                     
                     {% if not user_to_verify %}
-                    <!-- Step 1: Phone Lookup -->
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Already registered via SMS or USSD?</strong><br>
@@ -57,7 +56,6 @@
                     </div>
                     
                     {% else %}
-                    <!-- Step 2: Complete Registration -->
                     <div class="alert alert-success">
                         <i class="fas fa-user-check me-2"></i>
                         <strong>Account Found!</strong><br>
@@ -80,110 +78,304 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>1. Account</span>
+                            <span><i class="fas fa-circle me-1"></i>2. Address</span>
+                            <span><i class="fas fa-circle me-1"></i>3. Business</span>
+                            <span><i class="fas fa-circle me-1"></i>4. Identity</span>
+                        </div>
+                        <div class="progress mt-2" style="height: 4px;">
+                            <div class="progress-bar bg-success" style="width: 25%"></div>
+                        </div>
+                    </div>
                     
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
                         {{ complete_form.hidden_tag() }}
                         {{ complete_form.phone_number }}
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ complete_form.name.id }}" class="form-label">
-                                    <i class="fas fa-user me-1"></i>Full Name
-                                </label>
-                                {{ complete_form.name(class="form-control" + (" is-invalid" if complete_form.name.errors else "")) }}
-                                {% if complete_form.name.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in complete_form.name.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
+
+                        <div class="card mb-4 border-success">
+                            <div class="card-header bg-success bg-opacity-10">
+                                <h5 class="mb-0"><i class="fas fa-user me-2 text-success"></i>Step 1: Personal Details</h5>
                             </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ complete_form.email.id }}" class="form-label">
-                                    <i class="fas fa-envelope me-1"></i>Email Address
-                                </label>
-                                {{ complete_form.email(class="form-control" + (" is-invalid" if complete_form.email.errors else "")) }}
-                                {% if complete_form.email.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in complete_form.email.errors %}{{ error }}{% endfor %}
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.name.id }}" class="form-label">
+                                            <i class="fas fa-user me-1"></i>Full Name <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.name(class="form-control" + (" is-invalid" if complete_form.name.errors else "")) }}
+                                        {% if complete_form.name.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.name.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ complete_form.password.id }}" class="form-label">
-                                    <i class="fas fa-lock me-1"></i>Create Password
-                                </label>
-                                {{ complete_form.password(class="form-control" + (" is-invalid" if complete_form.password.errors else "")) }}
-                                {% if complete_form.password.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in complete_form.password.errors %}{{ error }}{% endfor %}
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.email.id }}" class="form-label">
+                                            <i class="fas fa-envelope me-1"></i>Email Address <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.email(class="form-control" + (" is-invalid" if complete_form.email.errors else "")) }}
+                                        {% if complete_form.email.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.email.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ complete_form.password2.id }}" class="form-label">
-                                    <i class="fas fa-lock me-1"></i>Confirm Password
-                                </label>
-                                {{ complete_form.password2(class="form-control" + (" is-invalid" if complete_form.password2.errors else "")) }}
-                                {% if complete_form.password2.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in complete_form.password2.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="{{ complete_form.location.id }}" class="form-label">
-                                <i class="fas fa-map-marker-alt me-1"></i>Location (Town/City)
-                            </label>
-                            {{ complete_form.location(class="form-control" + (" is-invalid" if complete_form.location.errors else "")) }}
-                            {% if complete_form.location.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in complete_form.location.errors %}{{ error }}{% endfor %}
                                 </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="{{ complete_form.role.id }}" class="form-label">
-                                <i class="fas fa-users me-1"></i>Your Role
-                            </label>
-                            {{ complete_form.role(class="form-select" + (" is-invalid" if complete_form.role.errors else ""), id="role-select") }}
-                            {% if complete_form.role.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in complete_form.role.errors %}{{ error }}{% endfor %}
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.password.id }}" class="form-label">
+                                            <i class="fas fa-lock me-1"></i>Create Password <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.password(class="form-control" + (" is-invalid" if complete_form.password.errors else "")) }}
+                                        {% if complete_form.password.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.password.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.password2.id }}" class="form-label">
+                                            <i class="fas fa-lock me-1"></i>Confirm Password <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.password2(class="form-control" + (" is-invalid" if complete_form.password2.errors else "")) }}
+                                        {% if complete_form.password2.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.password2.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="mb-3" id="buyer-type-section" style="display: none;">
-                            <label for="{{ complete_form.buyer_type.id }}" class="form-label">
-                                <i class="fas fa-tag me-1"></i>Buyer Category
-                            </label>
-                            {{ complete_form.buyer_type(class="form-select" + (" is-invalid" if complete_form.buyer_type.errors else "")) }}
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ complete_form.main_crop.id }}" class="form-label">
-                                    <i class="fas fa-seedling me-1"></i>Main Crop/Produce
-                                </label>
-                                {{ complete_form.main_crop(class="form-control") }}
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.role.id }}" class="form-label">
+                                            <i class="fas fa-users me-1"></i>Your Role <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.role(class="form-select" + (" is-invalid" if complete_form.role.errors else ""), id="role-select") }}
+                                        {% if complete_form.role.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.role.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3" id="buyer-type-section" style="display: none;">
+                                        <label for="{{ complete_form.buyer_type.id }}" class="form-label">
+                                            <i class="fas fa-tag me-1"></i>Buyer Category
+                                        </label>
+                                        {{ complete_form.buyer_type(class="form-select" + (" is-invalid" if complete_form.buyer_type.errors else "")) }}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.main_crop.id }}" class="form-label">
+                                            <i class="fas fa-seedling me-1"></i>Main Crop/Produce
+                                        </label>
+                                        {{ complete_form.main_crop(class="form-control") }}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3" id="farm-size-section">
+                                        <label for="{{ complete_form.farm_size.id }}" class="form-label">
+                                            <i class="fas fa-ruler me-1"></i>Farm Size (if farmer)
+                                        </label>
+                                        {{ complete_form.farm_size(class="form-control") }}
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-3" id="farm-size-section">
-                                <label for="{{ complete_form.farm_size.id }}" class="form-label">
-                                    <i class="fas fa-ruler me-1"></i>Farm Size (if farmer)
-                                </label>
-                                {{ complete_form.farm_size(class="form-control") }}
+                        </div>
+
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2 text-info"></i>Step 2: Address Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="{{ complete_form.street_address.id }}" class="form-label">
+                                        <i class="fas fa-road me-1"></i>Street Address <span class="text-danger">*</span>
+                                    </label>
+                                    {{ complete_form.street_address(class="form-control" + (" is-invalid" if complete_form.street_address.errors else "")) }}
+                                    {% if complete_form.street_address.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in complete_form.street_address.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.city.id }}" class="form-label">
+                                            <i class="fas fa-city me-1"></i>City/Town <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.city(class="form-control" + (" is-invalid" if complete_form.city.errors else "")) }}
+                                        {% if complete_form.city.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.city.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.state.id }}" class="form-label">
+                                            <i class="fas fa-flag me-1"></i>State <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.state(class="form-select" + (" is-invalid" if complete_form.state.errors else "")) }}
+                                        {% if complete_form.state.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.state.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ complete_form.lga.id }}" class="form-label">
+                                        <i class="fas fa-map me-1"></i>Local Government Area (LGA) <span class="text-danger">*</span>
+                                    </label>
+                                    {{ complete_form.lga(class="form-control" + (" is-invalid" if complete_form.lga.errors else "")) }}
+                                    {% if complete_form.lga.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in complete_form.lga.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
-                        
+
+                        <div class="card mb-4 border-warning">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h5 class="mb-0"><i class="fas fa-briefcase me-2 text-warning"></i>Step 3: Business Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="{{ complete_form.is_registered_business.id }}" class="form-label">
+                                        <i class="fas fa-building me-1"></i>Are you a registered business? <span class="text-danger">*</span>
+                                    </label>
+                                    {{ complete_form.is_registered_business(class="form-select", id="business-select") }}
+                                </div>
+
+                                <div id="business-fields" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ complete_form.business_name.id }}" class="form-label">
+                                                <i class="fas fa-store me-1"></i>Business Name
+                                            </label>
+                                            {{ complete_form.business_name(class="form-control" + (" is-invalid" if complete_form.business_name.errors else "")) }}
+                                            {% if complete_form.business_name.errors %}
+                                                <div class="invalid-feedback">
+                                                    {% for error in complete_form.business_name.errors %}{{ error }}{% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ complete_form.business_reg_number.id }}" class="form-label">
+                                                <i class="fas fa-hashtag me-1"></i>CAC Registration Number
+                                            </label>
+                                            {{ complete_form.business_reg_number(class="form-control" + (" is-invalid" if complete_form.business_reg_number.errors else "")) }}
+                                            {% if complete_form.business_reg_number.errors %}
+                                                <div class="invalid-feedback">
+                                                    {% for error in complete_form.business_reg_number.errors %}{{ error }}{% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ complete_form.business_type.id }}" class="form-label">
+                                                <i class="fas fa-sitemap me-1"></i>Business Type
+                                            </label>
+                                            {{ complete_form.business_type(class="form-select") }}
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ complete_form.business_document.id }}" class="form-label">
+                                                <i class="fas fa-file-upload me-1"></i>CAC Certificate / Business Doc
+                                            </label>
+                                            {{ complete_form.business_document(class="form-control") }}
+                                            <div class="form-text">PDF, JPG, or PNG (max 5MB)</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="individual-note" class="alert alert-light border small">
+                                    <i class="fas fa-info-circle text-muted me-1"></i>
+                                    No problem! Individual sellers and farmers are welcome. You can register your business later.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <h5 class="mb-0"><i class="fas fa-id-card me-2 text-primary"></i>Step 4: Identity Verification</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-light border small mb-3">
+                                    <i class="fas fa-shield-alt text-success me-1"></i>
+                                    Your identity information is encrypted and used only for verification purposes. This helps protect you and other users from fraud.
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.id_type.id }}" class="form-label">
+                                            <i class="fas fa-id-badge me-1"></i>ID Type <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.id_type(class="form-select" + (" is-invalid" if complete_form.id_type.errors else "")) }}
+                                        {% if complete_form.id_type.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.id_type.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.id_number.id }}" class="form-label">
+                                            <i class="fas fa-key me-1"></i>ID Number <span class="text-danger">*</span>
+                                        </label>
+                                        {{ complete_form.id_number(class="form-control" + (" is-invalid" if complete_form.id_number.errors else "")) }}
+                                        {% if complete_form.id_number.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in complete_form.id_number.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.id_document_front.id }}" class="form-label">
+                                            <i class="fas fa-image me-1"></i>ID Document (Front)
+                                        </label>
+                                        {{ complete_form.id_document_front(class="form-control") }}
+                                        <div class="form-text">Upload a clear photo of the front of your ID</div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ complete_form.id_document_back.id }}" class="form-label">
+                                            <i class="fas fa-image me-1"></i>ID Document (Back)
+                                        </label>
+                                        {{ complete_form.id_document_back(class="form-control") }}
+                                        <div class="form-text">Upload a clear photo of the back of your ID</div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ complete_form.selfie_photo.id }}" class="form-label">
+                                        <i class="fas fa-camera me-1"></i>Selfie Photo
+                                    </label>
+                                    {{ complete_form.selfie_photo(class="form-control") }}
+                                    <div class="form-text">Take a clear selfie for identity matching. Hold your ID next to your face if possible.</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="alert alert-light border mb-4">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-shield-alt text-success fa-2x me-3"></i>
@@ -221,8 +413,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var roleSelect = document.getElementById('role-select');
     var buyerTypeSection = document.getElementById('buyer-type-section');
     var farmSizeSection = document.getElementById('farm-size-section');
+    var businessSelect = document.getElementById('business-select');
+    var businessFields = document.getElementById('business-fields');
+    var individualNote = document.getElementById('individual-note');
     
-    function toggleFields() {
+    function toggleRoleFields() {
         if (roleSelect) {
             var selectedRole = roleSelect.value;
             
@@ -235,10 +430,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    function toggleBusinessFields() {
+        if (businessSelect) {
+            var isBusiness = businessSelect.value === 'yes';
+            if (businessFields) {
+                businessFields.style.display = isBusiness ? 'block' : 'none';
+            }
+            if (individualNote) {
+                individualNote.style.display = isBusiness ? 'none' : 'block';
+            }
+        }
+    }
     
     if (roleSelect) {
-        roleSelect.addEventListener('change', toggleFields);
-        toggleFields();
+        roleSelect.addEventListener('change', toggleRoleFields);
+        toggleRoleFields();
+    }
+
+    if (businessSelect) {
+        businessSelect.addEventListener('change', toggleBusinessFields);
+        toggleBusinessFields();
     }
 });
 </script>

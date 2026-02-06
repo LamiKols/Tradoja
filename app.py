@@ -29,6 +29,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload size
 app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF globally for now
 
 # Initialize extensions
