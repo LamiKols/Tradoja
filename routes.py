@@ -167,18 +167,16 @@ def partner_proposal_docx():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """User registration route"""
+    """Full registration route - web users get VERIFIED status immediately"""
     if current_user.is_authenticated:
         return redirect(url_for('home'))
     
     form = RegistrationForm()
     if form.validate_on_submit():
-        # Get client IP for scam detection
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         if client_ip and ',' in client_ip:
             client_ip = client_ip.split(',')[0].strip()
         
-        # Check for scam patterns before registration (Layer 5)
         scam_reason = None
         scam_score = 0
         if scam_detector:
@@ -197,31 +195,95 @@ def register():
                 scam_reason = reason
                 scam_score = score
         
-        # Create new user
+        phone = form.phone_number.data.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        if not phone.startswith('+'):
+            if phone.startswith('0'):
+                phone = '+234' + phone[1:]
+            else:
+                phone = '+' + phone
+        
         user = User(
             name=form.name.data,
             email=form.email.data.lower(),
+            phone_number=phone,
             role=form.role.data,
             last_ip=client_ip,
+            registration_ip=client_ip,
+            source_channel='web',
             scam_score=scam_score if scam_score >= 50 else 0
         )
         
-        # Set buyer_type if user is a buyer
         if form.role.data == 'buyer' and form.buyer_type.data:
             user.buyer_type = form.buyer_type.data
         
         user.set_password(form.password.data)
         
+        user.street_address = form.street_address.data
+        user.city = form.city.data
+        user.state = form.state.data
+        user.lga = form.lga.data
+        user.location = f"{form.city.data}, {form.state.data}"
+        
+        if form.main_crop.data:
+            user.main_crop = form.main_crop.data
+        if form.farm_size.data:
+            user.farm_size = form.farm_size.data
+        
+        user.is_registered_business = (form.is_registered_business.data == 'yes')
+        if user.is_registered_business:
+            user.business_name = form.business_name.data
+            user.business_reg_number = form.business_reg_number.data
+            user.business_type = form.business_type.data
+        
+        user.id_type = form.id_type.data
+        user.id_number = form.id_number.data
+        user.id_verification_status = 'pending'
+        
         try:
             db.session.add(user)
+            db.session.flush()
+            
+            upload_dir = os.path.join('static', 'uploads', 'verification', str(user.id))
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            if form.id_document_front.data:
+                f = form.id_document_front.data
+                filename = secure_filename(f"{user.id}_id_front_{f.filename}")
+                filepath = os.path.join(upload_dir, filename)
+                f.save(filepath)
+                user.id_document_front = filepath
+            
+            if form.id_document_back.data:
+                f = form.id_document_back.data
+                filename = secure_filename(f"{user.id}_id_back_{f.filename}")
+                filepath = os.path.join(upload_dir, filename)
+                f.save(filepath)
+                user.id_document_back = filepath
+            
+            if form.selfie_photo.data:
+                f = form.selfie_photo.data
+                filename = secure_filename(f"{user.id}_selfie_{f.filename}")
+                filepath = os.path.join(upload_dir, filename)
+                f.save(filepath)
+                user.selfie_photo = filepath
+            
+            if user.is_registered_business and form.business_document.data:
+                f = form.business_document.data
+                filename = secure_filename(f"{user.id}_business_{f.filename}")
+                filepath = os.path.join(upload_dir, filename)
+                f.save(filepath)
+                user.business_document = filepath
+            
+            user.upgrade_to_verified()
+            
             db.session.commit()
             
-            # Flag medium-score users after creation (Layer 5 post-registration hook)
             if scam_detector and scam_score >= 50:
                 scam_detector.flag_new_user(user, scam_reason, scam_score, client_ip)
             
-            flash(f'Registration successful! Welcome to Tradoja Lagos, {user.name}!', 'success')
-            return redirect(url_for('login'))
+            flash(f'Registration complete! You are now VERIFIED. Welcome to Tradoja, {user.name}!', 'success')
+            login_user(user)
+            return redirect(url_for('home'))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Registration error: {e}")

@@ -7,7 +7,7 @@ from models import User
 from datetime import date, time
 
 class RegistrationForm(FlaskForm):
-    """User registration form"""
+    """Full registration form - web users get VERIFIED status immediately"""
     name = StringField('Full Name', validators=[
         DataRequired(), 
         Length(min=2, max=100, message="Name must be between 2 and 100 characters")
@@ -16,23 +16,27 @@ class RegistrationForm(FlaskForm):
         DataRequired(), 
         Email(message="Please enter a valid email address")
     ])
+    phone_number = StringField('Phone Number', validators=[
+        DataRequired(),
+        Length(min=10, max=15, message="Please enter a valid phone number")
+    ], render_kw={'placeholder': '+234 XXX XXX XXXX'})
     role = SelectField('Role', choices=[
-        ('farmer', 'Farmer'),
-        ('aggregator', 'Aggregator'),
-        ('transport_company', 'Transport Company'),
-        ('bulk_trader', 'Bulk Trader'),
+        ('farmer', 'Farmer - I grow/produce crops'),
+        ('buyer', 'Buyer - I buy produce for personal/business use'),
+        ('bulk_trader', 'Trader - I buy to resell (requires verification)'),
+        ('aggregator', 'Aggregator - I aggregate from multiple farmers'),
+        ('transport_company', 'Transporter - I provide logistics services'),
         ('retailer', 'Retailer'),
         ('input_supplier', 'Input Supplier'),
         ('investor', 'Investor'),
         ('government_agency', 'Government Agency'),
-        ('ngo_dev_partner', 'NGO/Development Partner'),
-        ('buyer', 'Buyer')  # Keep buyer for backwards compatibility
+        ('ngo_dev_partner', 'NGO/Development Partner')
     ], validators=[DataRequired()])
     buyer_type = SelectField('Buyer Category', choices=[
-        ('retail_buyer', 'Retail Buyer'),
-        ('bulk_trader', 'Bulk Trader'),  
-        ('institutional_buyer', 'Institutional Buyer'),
-        ('agro_processor', 'Agro Processor')
+        ('retail_buyer', 'Retail Buyer (personal/household)'),
+        ('institutional_buyer', 'Institutional (restaurant, hotel, school)'),
+        ('bulk_trader', 'Bulk Trader (for resale)'),
+        ('agro_processor', 'Agro Processor (food processing)')
     ], validators=[Optional()])
     password = PasswordField('Password', validators=[
         DataRequired(), 
@@ -42,12 +46,108 @@ class RegistrationForm(FlaskForm):
         DataRequired(), 
         EqualTo('password', message="Passwords must match")
     ])
+    main_crop = StringField('Main Crop/Produce', validators=[
+        Optional(),
+        Length(max=100)
+    ], render_kw={'placeholder': 'e.g., Rice, Tomatoes, Yam'})
+    farm_size = StringField('Farm Size (for farmers)', validators=[
+        Optional(),
+        Length(max=50)
+    ], render_kw={'placeholder': 'e.g., 2 hectares, 5 acres'})
+    street_address = StringField('Street Address', validators=[
+        DataRequired(),
+        Length(min=5, max=300, message="Please enter a valid street address")
+    ], render_kw={'placeholder': 'e.g., 15 Oba Akran Avenue'})
+    city = StringField('City/Town', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ], render_kw={'placeholder': 'e.g., Ikeja'})
+    state = SelectField('State', choices=[
+        ('', 'Select State'),
+        ('Abia', 'Abia'), ('Adamawa', 'Adamawa'), ('Akwa Ibom', 'Akwa Ibom'),
+        ('Anambra', 'Anambra'), ('Bauchi', 'Bauchi'), ('Bayelsa', 'Bayelsa'),
+        ('Benue', 'Benue'), ('Borno', 'Borno'), ('Cross River', 'Cross River'),
+        ('Delta', 'Delta'), ('Ebonyi', 'Ebonyi'), ('Edo', 'Edo'),
+        ('Ekiti', 'Ekiti'), ('Enugu', 'Enugu'), ('FCT', 'FCT - Abuja'),
+        ('Gombe', 'Gombe'), ('Imo', 'Imo'), ('Jigawa', 'Jigawa'),
+        ('Kaduna', 'Kaduna'), ('Kano', 'Kano'), ('Katsina', 'Katsina'),
+        ('Kebbi', 'Kebbi'), ('Kogi', 'Kogi'), ('Kwara', 'Kwara'),
+        ('Lagos', 'Lagos'), ('Nasarawa', 'Nasarawa'), ('Niger', 'Niger'),
+        ('Ogun', 'Ogun'), ('Ondo', 'Ondo'), ('Osun', 'Osun'),
+        ('Oyo', 'Oyo'), ('Plateau', 'Plateau'), ('Rivers', 'Rivers'),
+        ('Sokoto', 'Sokoto'), ('Taraba', 'Taraba'), ('Yobe', 'Yobe'),
+        ('Zamfara', 'Zamfara')
+    ], validators=[DataRequired(message="Please select your state")])
+    lga = StringField('Local Government Area (LGA)', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ], render_kw={'placeholder': 'e.g., Ikeja, Alimosho'})
+    is_registered_business = SelectField('Are you a registered business?', choices=[
+        ('no', 'No - Individual/Informal'),
+        ('yes', 'Yes - Registered with CAC')
+    ], validators=[DataRequired()])
+    business_name = StringField('Business Name', validators=[
+        Optional(),
+        Length(max=200)
+    ], render_kw={'placeholder': 'e.g., Ade Farms Ltd'})
+    business_reg_number = StringField('CAC Registration Number', validators=[
+        Optional(),
+        Length(max=50)
+    ], render_kw={'placeholder': 'e.g., RC-123456 or BN-789012'})
+    business_type = SelectField('Business Type', choices=[
+        ('', 'Select Business Type'),
+        ('sole_proprietorship', 'Sole Proprietorship (Business Name)'),
+        ('partnership', 'Partnership'),
+        ('limited_company', 'Limited Company (Ltd/PLC)'),
+        ('cooperative', 'Cooperative Society'),
+        ('ngo', 'NGO / Non-Profit')
+    ], validators=[Optional()])
+    business_document = FileField('Business Registration Document (CAC Certificate)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    id_type = SelectField('ID Type', choices=[
+        ('', 'Select ID Type'),
+        ('nin', 'National Identification Number (NIN)'),
+        ('bvn', 'Bank Verification Number (BVN)'),
+        ('voters_card', "Voter's Card (PVC)"),
+        ('drivers_license', "Driver's License"),
+        ('intl_passport', 'International Passport')
+    ], validators=[DataRequired(message="Please select an ID type")])
+    id_number = StringField('ID Number', validators=[
+        DataRequired(),
+        Length(min=5, max=30, message="Please enter a valid ID number")
+    ], render_kw={'placeholder': 'Enter your ID number'})
+    id_document_front = FileField('ID Document (Front)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    id_document_back = FileField('ID Document (Back)', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 'Only PDF and image files are allowed')
+    ])
+    selfie_photo = FileField('Selfie Photo (for identity verification)', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Only image files are allowed')
+    ])
     
     def validate_email(self, email):
         """Check if email is already registered"""
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError('Email already registered. Please choose a different one.')
+
+    def validate_phone_number(self, phone_number):
+        """Check if phone number is already registered (with normalization)"""
+        phone = phone_number.data.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        if not phone.startswith('+'):
+            if phone.startswith('0'):
+                phone = '+234' + phone[1:]
+            else:
+                phone = '+' + phone
+        user = User.query.filter_by(phone_number=phone).first()
+        if user:
+            raise ValidationError('This phone number is already registered. Please use a different one or log in.')
 
 class LoginForm(FlaskForm):
     """User login form"""
