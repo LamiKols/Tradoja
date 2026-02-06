@@ -172,7 +172,7 @@ class SMSService:
                 return self._handle_doc_request(phone_number)
             elif command == 'SABIBUY' or command == 'SABI' or command == 'SB':
                 return self._handle_sabibuy_command(phone_number, command_parts)
-            elif command == 'MYSABIBUY' or command == 'MYSB':
+            elif command == 'CAMPAIGNS' or command == 'MYSABIBUY' or command == 'MYSB':
                 return self._handle_my_sabibuy(phone_number)
             elif '-SABIBUY-' in command or command.startswith('SB-'):
                 return self._handle_sabibuy_join_code(phone_number, command, command_parts)

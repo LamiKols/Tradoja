@@ -391,13 +391,18 @@ class TraceabilityService:
                 
                 farmer = User.query.get(produce.farmer_id)
                 
+                crop_name = getattr(produce, 'name', None) or getattr(produce, 'crop_type', 'Unknown')
+                qty = float(produce.quantity) if produce.quantity else 0
+                farm_name = getattr(farmer, 'farm_name', None) or getattr(farmer, 'name', 'Farm') if farmer else 'Farm'
+                origin = getattr(farmer, 'location', None) or getattr(produce, 'listing_location', None) or 'Nigeria'
+                
                 return self.create_chain(
                     produce_id=produce_id,
                     farmer_id=produce.farmer_id,
-                    crop_type=produce.crop_type,
-                    quantity_kg=float(produce.quantity) if produce.quantity else 0,
-                    origin_farm=farmer.farm_name if farmer and hasattr(farmer, 'farm_name') else 'Farm',
-                    origin_state=farmer.location if farmer else produce.location,
+                    crop_type=crop_name,
+                    quantity_kg=qty,
+                    origin_farm=farm_name,
+                    origin_state=origin,
                     gi_certified=getattr(produce, 'gi_certified', False)
                 )
                 

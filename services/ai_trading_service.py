@@ -75,8 +75,7 @@ If unclear or not matching these commands, set confidence < 0.5."""
                         "content": message
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.3
+                response_format={"type": "json_object"}
             )
             
             result = json.loads(response.choices[0].message.content)
@@ -93,6 +92,17 @@ If unclear or not matching these commands, set confidence < 0.5."""
                 "original_intent": "Could not parse message"
             }
     
+    def _safe_price_per_kg(self, produce):
+        try:
+            import re
+            price = float(produce.price) if produce.price else 0
+            qty_str = str(produce.quantity) if produce.quantity else '0'
+            qty_num = re.findall(r'[\d.]+', qty_str)
+            qty = float(qty_num[0]) if qty_num else 0
+            return price / qty if qty > 0 else None
+        except (ValueError, TypeError, ZeroDivisionError):
+            return None
+
     def get_price_advice(self, crop: str, quantity_kg: float, location: str = None) -> dict:
         """
         Analyze market trends and provide pricing/timing recommendations.
@@ -103,17 +113,17 @@ If unclear or not matching these commands, set confidence < 0.5."""
             
             with app.app_context():
                 recent_listings = Produce.query.filter(
-                    Produce.crop_type.ilike(f"%{crop}%"),
-                    Produce.status == 'available'
-                ).order_by(Produce.timestamp.desc()).limit(20).all()
+                    Produce.name.ilike(f"%{crop}%"),
+                    Produce.is_available == True
+                ).order_by(Produce.date_listed.desc()).limit(20).all()
                 
                 market_data = []
                 for p in recent_listings:
                     market_data.append({
-                        "price_per_kg": p.price_per_kg if hasattr(p, 'price_per_kg') else None,
-                        "location": p.location,
+                        "price_per_kg": getattr(p, 'price_per_kg', None) or self._safe_price_per_kg(p),
+                        "location": getattr(p, 'listing_location', None) or 'Nigeria',
                         "quantity": p.quantity,
-                        "listed_at": p.timestamp.isoformat() if p.timestamp else None
+                        "listed_at": p.date_listed.isoformat() if p.date_listed else None
                     })
             
             response = client.chat.completions.create(
@@ -145,8 +155,7 @@ Return JSON:
                         "content": f"Crop: {crop}\nQuantity: {quantity_kg}kg\nLocation: {location or 'Nigeria'}\nRecent market data: {json.dumps(market_data[:10])}"
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.4
+                response_format={"type": "json_object"}
             )
             
             result = json.loads(response.choices[0].message.content)
@@ -242,8 +251,7 @@ Return JSON:
                         "content": f"Buyer: {json.dumps(buyer_data)}\nSeller: {json.dumps(seller_data)}\nOrder: {json.dumps(order_data)}"
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.2
+                response_format={"type": "json_object"}
             )
             
             result = json.loads(response.choices[0].message.content)
@@ -327,8 +335,7 @@ Return JSON:
                         "content": f"Order signals: {json.dumps(signals)}"
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.1
+                response_format={"type": "json_object"}
             )
             
             result = json.loads(response.choices[0].message.content)
@@ -414,8 +421,7 @@ Return JSON:
                         "content": f"Dispute: {json.dumps(dispute_data)}\nOrder: {json.dumps(order_data)}"
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.3
+                response_format={"type": "json_object"}
             )
             
             result = json.loads(response.choices[0].message.content)

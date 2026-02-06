@@ -279,7 +279,7 @@ class ResellerDetector:
                 recommendations.append('Improve your service to farmers to maintain good standing')
         
         # Rule 10: Device fingerprint collision
-        if (user.fingerprint_flags or 0) > 0:
+        if (int(user.fingerprint_flags) if user.fingerprint_flags else 0) > 0:
             score += 15
             triggered_rules.append({
                 'rule': 'device_collision',
