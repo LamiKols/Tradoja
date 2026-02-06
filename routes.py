@@ -272,6 +272,8 @@ def complete_registration():
     # Step 1: Look up LITE account by phone number
     if lookup_form.validate_on_submit() and 'lookup' in request.form:
         phone = lookup_form.phone_number.data.strip()
+        # Remove all spaces, dashes, and parentheses from phone number
+        phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
         # Normalize phone number
         if not phone.startswith('+'):
             if phone.startswith('0'):
@@ -282,7 +284,7 @@ def complete_registration():
         user_to_verify = User.query.filter_by(phone_number=phone).first()
         
         if not user_to_verify:
-            flash('No account found with this phone number. Please register first via SMS or USSD.', 'warning')
+            lookup_form.phone_number.errors.append('No account found with this phone number. Please register first via SMS or USSD.')
         elif user_to_verify.is_verified_account():
             flash(f'This account ({user_to_verify.name}) is already verified!', 'info')
             return redirect(url_for('login'))
