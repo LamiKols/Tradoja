@@ -10,8 +10,11 @@
                     <small class="text-muted">Listed by {{ produce.farmer.name }}
                         {% if produce.farmer.is_verified_account() %}
                         <i class="fas fa-check-circle text-primary" title="Verified Account"></i>
+                        <span class="badge bg-success ms-1">Verified</span>
                         {% elif produce.farmer.is_lite_account() %}
                         <span class="badge bg-warning text-dark ms-1">LITE</span>
+                        {% else %}
+                        <span class="badge bg-secondary ms-1">Unverified</span>
                         {% endif %}
                     </small>
                 </div>
@@ -32,6 +35,8 @@
                                 <span class="badge bg-success ms-1">Verified</span>
                                 {% elif produce.farmer.is_lite_account() %}
                                 <span class="badge bg-warning text-dark ms-1">LITE</span>
+                                {% else %}
+                                <span class="badge bg-secondary ms-1">Unverified</span>
                                 {% endif %}
                             </p>
                             <p><strong>Role:</strong> {{ produce.farmer.role.title() }}</p>

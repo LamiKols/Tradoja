@@ -12,6 +12,13 @@ from models import db, User, Produce, SMSInteraction
 from sqlalchemy import func
 
 class SMSService:
+    @staticmethod
+    def _verified_name(user):
+        """Return user's name with [VERIFIED] tag if account is verified"""
+        if user and hasattr(user, 'is_verified_account') and user.is_verified_account():
+            return f"{user.name} [VERIFIED]"
+        return user.name if user else "Unknown"
+
     def __init__(self, username, api_key):
         """Initialize Africa's Talking SMS service"""
         self.username = username
@@ -495,7 +502,7 @@ class SMSService:
             
             if other_user:
                 contact = other_user.phone_number or other_user.email
-                msg = f"Match accepted! {role}: {other_user.name}\nContact: {contact}"
+                msg = f"Match accepted! {role}: {self._verified_name(other_user)}\nContact: {contact}"
             else:
                 msg = "Match accepted! You'll receive contact details shortly."
             
@@ -2591,10 +2598,10 @@ class SMSService:
             if success:
                 db.session.commit()
                 self.send_sms(to_phone,
-                    f"Received N{amount:,.0f} from {user.name}\n"
+                    f"Received N{amount:,.0f} from {self._verified_name(user)}\n"
                     f"New balance: N{wallet_service.get_balance(to_user):,.0f}")
                 return self.send_sms(phone_number,
-                    f"Sent N{amount:,.0f} to {to_user.name}\n"
+                    f"Sent N{amount:,.0f} to {self._verified_name(to_user)}\n"
                     f"Ref: {ref}\n"
                     f"Balance: N{wallet_service.get_balance(user):,.0f}")
             else:
@@ -2799,7 +2806,7 @@ class SMSService:
                     f"Payment received!\n"
                     f"Item: {produce.name}\n"
                     f"Amount: N{amount:,.0f}\n"
-                    f"Buyer: {buyer.name}\n"
+                    f"Buyer: {self._verified_name(buyer)}\n"
                     f"Phone: {buyer.phone_number}\n"
                     f"Funds held in escrow until delivery confirmed.")
         except Exception as e:
@@ -2873,7 +2880,7 @@ class SMSService:
                         f"Payment released!\n"
                         f"Item: {produce.name if produce else 'Item'}\n"
                         f"Amount: N{escrow.amount:,.0f}\n"
-                        f"Buyer: {user.name}\n"
+                        f"Buyer: {self._verified_name(user)}\n"
                         f"Balance: N{wallet_service.get_balance(seller):,.0f}")
                 except:
                     pass
@@ -2881,7 +2888,7 @@ class SMSService:
             return self.send_sms(phone_number,
                 f"Delivery confirmed!\n"
                 f"Released: N{escrow.amount:,.0f}\n"
-                f"To: {seller.name}\n"
+                f"To: {self._verified_name(seller)}\n"
                 f"Thank you!")
         else:
             return self.send_sms(phone_number, f"Confirmation failed: {msg}")
@@ -3347,7 +3354,7 @@ class SMSService:
             if farmer and farmer.phone_number:
                 self.send_sms(farmer.phone_number,
                     f"Transporter assigned for {order_code}!\n"
-                    f"Name: {user.farm_name or user.username}\n"
+                    f"Name: {self._verified_name(user)}\n"
                     f"Phone: {phone_number}\n"
                     f"Prepare goods for pickup.")
             

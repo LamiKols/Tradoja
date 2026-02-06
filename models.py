@@ -30,12 +30,18 @@ class User(UserMixin, db.Model):
     registered_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # If agent-assisted
     
     # REGISTRATION STATUS (Lite vs Verified)
-    # lite = SMS/USSD quick registration, verified = completed full web registration
-    registration_status = db.Column(db.String(20), default='verified')  # 'lite', 'pending', 'verified'
+    # lite = SMS/USSD quick registration, pending = registered but not paid, verified = paid verification fee
+    registration_status = db.Column(db.String(20), default='pending')  # 'lite', 'pending', 'verified'
     lite_registration_date = db.Column(db.DateTime)  # When lite account was created
     full_registration_date = db.Column(db.DateTime)  # When full registration was completed
     verified_by_agent_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Agent who helped complete registration
     verification_completed_date = db.Column(db.DateTime)  # When verification was completed
+    
+    # Verification payment tracking
+    verification_paid = db.Column(db.Boolean, default=False)
+    verification_payment_reference = db.Column(db.String(100))
+    verification_payment_date = db.Column(db.DateTime)
+    verification_amount = db.Column(db.Float, default=0.0)
     
     # Subscription fields
     is_premium = db.Column(db.Boolean, default=False)
@@ -216,14 +222,35 @@ class User(UserMixin, db.Model):
         if verified_by_agent_id:
             self.verified_by_agent_id = verified_by_agent_id
     
+    def is_pending_account(self):
+        """Check if account is registered but not yet verified (hasn't paid)"""
+        return self.registration_status == 'pending'
+    
     def get_registration_status_display(self):
         """Get human-readable registration status"""
         statuses = {
             'lite': 'Lite Account (SMS/USSD)',
-            'pending': 'Pending Verification',
+            'pending': 'Unverified',
             'verified': 'Verified ✓'
         }
         return statuses.get(self.registration_status, 'Unknown')
+    
+    def can_transact_amount(self, amount):
+        """Check if user can make a transaction of given amount (unverified: max N50,000)"""
+        if self.is_verified_account():
+            return True
+        return amount <= 50000
+    
+    def get_active_listing_count(self):
+        """Get count of active produce listings"""
+        from models import Produce
+        return Produce.query.filter_by(farmer_id=self.id, is_available=True, is_sold=False).count()
+    
+    def can_create_listing(self):
+        """Check if user can create a new listing (unverified: max 3)"""
+        if self.is_verified_account():
+            return True
+        return self.get_active_listing_count() < 3
     
     def get_value_services_list(self):
         """Get list of declared value-add services"""

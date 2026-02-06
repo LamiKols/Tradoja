@@ -133,6 +133,8 @@
                                     {{ produce.date_listed.strftime('%b %d, %Y') }}
                                     {% if produce.farmer.is_lite_account() %}
                                     <span class="badge bg-warning text-dark ms-1" title="LITE account - pending full verification">LITE</span>
+                                    {% elif not produce.farmer.is_verified_account() %}
+                                    <span class="badge bg-secondary ms-1" title="Unverified account">Unverified</span>
                                     {% endif %}
                                 </small>
                             </div>
@@ -159,6 +161,8 @@
                                     {{ produce.date_listed.strftime('%b %d, %Y') }}
                                     {% if produce.farmer.is_lite_account() %}
                                     <span class="badge bg-warning text-dark ms-1" title="LITE account - pending full verification">LITE</span>
+                                    {% elif not produce.farmer.is_verified_account() %}
+                                    <span class="badge bg-secondary ms-1" title="Unverified account">Unverified</span>
                                     {% endif %}
                                 </small>
                             </div>

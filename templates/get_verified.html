@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+
+            {% if current_user.is_verified_account() %}
+            <div class="card border-success">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h2 class="fw-bold text-success">You're Verified!</h2>
+                    <p class="text-muted mb-4">Your account is fully verified. You have unlimited access to all Tradoja features.</p>
+                    <div class="d-flex gap-3 justify-content-center">
+                        <a href="{{ url_for('home') }}" class="btn btn-success">
+                            <i class="fas fa-home me-2"></i>Go to Dashboard
+                        </a>
+                        <a href="{{ url_for('marketplace') }}" class="btn btn-outline-success">
+                            <i class="fas fa-store me-2"></i>Browse Marketplace
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+
+            <div class="text-center mb-4">
+                <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+                <h2 class="fw-bold">Get Verified</h2>
+                <p class="text-muted">Unlock full access to Tradoja for just <strong class="text-success">₦15,000</strong></p>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border-danger bg-danger bg-opacity-10">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger"><i class="fas fa-times-circle me-2"></i>Without Verification</h5>
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>Max ₦50,000 per transaction</li>
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>Only 3 active listings</li>
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>No SabiBuy campaigns</li>
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>No logistics services</li>
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>No funding applications</li>
+                                <li class="mb-2"><i class="fas fa-times text-danger me-2"></i>No export features</li>
+                                <li><i class="fas fa-times text-danger me-2"></i>No verified trust badge</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border-success bg-success bg-opacity-10">
+                        <div class="card-body">
+                            <h5 class="card-title text-success"><i class="fas fa-check-circle me-2"></i>With Verification</h5>
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Unlimited transaction amounts</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Unlimited produce listings</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Access SabiBuy group-buy</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Full logistics services</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Apply for funding</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Export & cross-border trade</li>
+                                <li><i class="fas fa-check text-success me-2"></i><strong>Verified trust badge</strong> <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Verified</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Your Account Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> {{ current_user.name }}</p>
+                            <p><strong>Email:</strong> {{ current_user.email }}</p>
+                            <p><strong>Phone:</strong> {{ current_user.phone_number or 'Not set' }}</p>
+                            <p><strong>Role:</strong> {{ current_user.role|capitalize }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Location:</strong> {{ current_user.location or 'Not set' }}</p>
+                            <p><strong>ID Type:</strong> {{ current_user.id_type|upper if current_user.id_type else 'Not set' }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-clock me-1"></i>{{ current_user.get_registration_status_display() }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-success">
+                <div class="card-body text-center py-4">
+                    <h4 class="mb-2">Verification Fee</h4>
+                    <div class="display-4 text-success fw-bold mb-3">₦15,000</div>
+                    <p class="text-muted mb-4">One-time payment. No recurring charges.</p>
+                    
+                    <button id="pay-btn" class="btn btn-success btn-lg px-5" onclick="payWithPaystack()">
+                        <i class="fas fa-lock me-2"></i>Pay & Get Verified
+                    </button>
+                    
+                    <div class="mt-3 small text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>Secured by Paystack
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{{ url_for('home') }}" class="text-muted text-decoration-none">
+                    <i class="fas fa-arrow-left me-1"></i>Skip for now, I'll verify later
+                </a>
+            </div>
+
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not current_user.is_verified_account() %}
+<script src="https://js.paystack.co/v2/inline.js"></script>
+<script>
+function payWithPaystack() {
+    var btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+    
+    var popup = new PaystackPop();
+    popup.newTransaction({
+        key: '{{ paystack_public_key }}',
+        email: '{{ current_user.email }}',
+        amount: 1500000,
+        currency: 'NGN',
+        ref: 'VER_{{ current_user.id }}_' + Date.now(),
+        metadata: {
+            custom_fields: [
+                {
+                    display_name: "Payment Type",
+                    variable_name: "payment_type",
+                    value: "verification"
+                },
+                {
+                    display_name: "User ID",
+                    variable_name: "user_id",
+                    value: "{{ current_user.id }}"
+                },
+                {
+                    display_name: "User Name",
+                    variable_name: "user_name",
+                    value: "{{ current_user.name }}"
+                }
+            ]
+        },
+        onSuccess: function(transaction) {
+            window.location.href = '/verify-payment/callback?reference=' + transaction.reference + '&trxref=' + transaction.reference;
+        },
+        onCancel: function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lock me-2"></i>Pay & Get Verified';
+        }
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

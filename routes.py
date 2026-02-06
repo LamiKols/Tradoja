@@ -274,16 +274,14 @@ def register():
                 f.save(filepath)
                 user.business_document = filepath
             
-            user.upgrade_to_verified()
-            
             db.session.commit()
             
             if scam_detector and scam_score >= 50:
                 scam_detector.flag_new_user(user, scam_reason, scam_score, client_ip)
             
-            flash(f'Registration complete! You are now VERIFIED. Welcome to Tradoja, {user.name}!', 'success')
+            flash(f'Registration successful! Welcome to Tradoja, {user.name}! Get verified to unlock full access.', 'success')
             login_user(user)
-            return redirect(url_for('home'))
+            return redirect(url_for('get_verified'))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Registration error: {e}")
@@ -428,8 +426,6 @@ def complete_registration():
                     f.save(filepath)
                     user_to_verify.business_document = filepath
                 
-                user_to_verify.upgrade_to_verified()
-                
                 client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
                 if client_ip and ',' in client_ip:
                     client_ip = client_ip.split(',')[0].strip()
@@ -438,9 +434,9 @@ def complete_registration():
                 
                 db.session.commit()
                 
-                flash(f'Registration complete! You are now VERIFIED. Welcome, {user_to_verify.name}!', 'success')
+                flash(f'Registration details saved! Pay the verification fee to get fully verified, {user_to_verify.name}.', 'success')
                 login_user(user_to_verify)
-                return redirect(url_for('home'))
+                return redirect(url_for('get_verified'))
                 
             except Exception as e:
                 db.session.rollback()
@@ -452,6 +448,90 @@ def complete_registration():
                          lookup_form=lookup_form,
                          complete_form=complete_form,
                          user_to_verify=user_to_verify)
+
+
+@app.route('/get-verified')
+@login_required
+def get_verified():
+    """Get Verified page - pay verification fee to unlock full access"""
+    paystack_public_key = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
+    return render_template('get_verified.html', 
+                         title='Get Verified',
+                         paystack_public_key=paystack_public_key)
+
+
+@app.route('/verify-payment/callback')
+@login_required
+def verify_payment_callback():
+    """Handle Paystack verification payment callback"""
+    import requests as http_requests
+    
+    reference = request.args.get('reference')
+    if not reference:
+        flash('Payment reference not found.', 'danger')
+        return redirect(url_for('get_verified'))
+    
+    paystack_secret = os.environ.get('PAYSTACK_SECRET_KEY', '')
+    
+    try:
+        response = http_requests.get(
+            f'https://api.paystack.co/transaction/verify/{reference}',
+            headers={'Authorization': f'Bearer {paystack_secret}'}
+        )
+        data = response.json()
+        
+        if data.get('status') and data['data'].get('status') == 'success':
+            customer_email = data['data'].get('customer', {}).get('email', '')
+            if customer_email.lower() != current_user.email.lower():
+                flash('Payment email does not match your account. Please contact support.', 'danger')
+                return redirect(url_for('get_verified'))
+            
+            amount = data['data'].get('amount', 0) / 100
+            
+            if amount >= 15000:
+                current_user.verification_paid = True
+                current_user.verification_payment_reference = reference
+                current_user.verification_payment_date = datetime.utcnow()
+                current_user.verification_amount = amount
+                current_user.upgrade_to_verified()
+                
+                transaction = Transaction(
+                    reference=reference,
+                    user_id=current_user.id,
+                    transaction_type='verification',
+                    base_amount=15000,
+                    platform_fee=0,
+                    total_amount=amount,
+                    payment_method='paystack',
+                    status='successful',
+                    paystack_reference=str(data['data'].get('id', '')),
+                    payment_date=datetime.utcnow()
+                )
+                db.session.add(transaction)
+                db.session.commit()
+                
+                flash(f'Payment successful! You are now VERIFIED, {current_user.name}!', 'success')
+                
+                if current_user.phone_number and sms_service:
+                    try:
+                        sms_service.send_sms(current_user.phone_number,
+                            f"Congratulations {current_user.name}!\n"
+                            f"Your Tradoja account is now VERIFIED.\n"
+                            f"Ref: {reference}\n"
+                            f"You now have full access to all features.")
+                    except Exception as e:
+                        app.logger.error(f"Verification SMS error: {e}")
+                
+                return redirect(url_for('home'))
+            else:
+                flash('Payment amount insufficient. Verification requires ₦15,000.', 'warning')
+        else:
+            flash('Payment verification failed. Please try again.', 'danger')
+    except Exception as e:
+        app.logger.error(f"Verification payment error: {e}")
+        flash('Error processing payment. Please contact support.', 'danger')
+    
+    return redirect(url_for('get_verified'))
 
 
 @app.route('/dashboard')
@@ -846,6 +926,10 @@ def add_produce():
     if not current_user.is_farmer():
         flash('Access denied. Farmers only.', 'danger')
         return redirect(url_for('home'))
+    
+    if not current_user.can_create_listing():
+        flash('You have reached the maximum of 3 active listings for unverified accounts. Get verified to list unlimited produce.', 'warning')
+        return redirect(url_for('get_verified'))
     
     form = ProduceForm()
     # Populate GI choices
@@ -1583,6 +1667,9 @@ def reply_message(message_id):
 @login_required
 def logistics_request_form(produce_id):
     """Show logistics request form for specific produce"""
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access logistics services.', 'warning')
+        return redirect(url_for('get_verified'))
     produce = Produce.query.get_or_404(produce_id)
     form = LogisticsRequestForm()
     form.produce_id.data = produce_id
@@ -1725,6 +1812,9 @@ def funding_portal():
     if not current_user.is_farmer():
         flash('Access denied. Funding portal is only available to farmers.', 'danger')
         return redirect(url_for('home'))
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access funding.', 'warning')
+        return redirect(url_for('get_verified'))
     
     # Get farmer's applications
     applications = FundingApplication.query.filter_by(applicant_id=current_user.id)\
@@ -1741,6 +1831,9 @@ def funding_application():
     if not current_user.is_farmer():
         flash('Access denied. Only farmers can apply for funding.', 'danger')
         return redirect(url_for('home'))
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to apply for funding.', 'warning')
+        return redirect(url_for('get_verified'))
     
     # Get farmer's produce for dropdown
     user_produce = Produce.query.filter_by(farmer_id=current_user.id, is_available=True).all()
@@ -1989,6 +2082,9 @@ def csa_weather():
 @login_required
 def export_dashboard():
     """Export trade dashboard - temporarily disabled"""
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access export features.', 'warning')
+        return redirect(url_for('get_verified'))
     flash('Cross-border export trade feature is coming soon!', 'info')
     return redirect(url_for('marketplace'))
 
@@ -2005,6 +2101,9 @@ def create_export_listing():
 @login_required
 def export_listings():
     """Browse export listings - temporarily disabled"""
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access export features.', 'warning')
+        return redirect(url_for('get_verified'))
     flash('Cross-border export trade feature is coming soon!', 'info')
     return redirect(url_for('marketplace'))
 
@@ -2391,6 +2490,26 @@ def paystack_payment_webhook():
                         app.logger.info(f"Wallet top-up successful: {reference}")
                     else:
                         app.logger.error(f"Wallet credit failed: {msg}")
+                
+                elif transaction.transaction_type == 'verification':
+                    user.verification_paid = True
+                    user.verification_payment_reference = reference
+                    user.verification_payment_date = datetime.utcnow()
+                    user.verification_amount = amount
+                    user.upgrade_to_verified()
+                    db.session.commit()
+                    
+                    if user.phone_number and sms_service:
+                        try:
+                            sms_service.send_sms(user.phone_number,
+                                f"Congratulations {user.name}!\n"
+                                f"Your Tradoja account is now VERIFIED.\n"
+                                f"Ref: {reference}\n"
+                                f"Full access unlocked!")
+                        except Exception as e:
+                            app.logger.error(f"Verification SMS error: {e}")
+                    
+                    app.logger.info(f"Verification payment successful: {reference}")
                 
                 elif transaction.transaction_type == 'produce_sale':
                     from wallet_service import wallet_service
@@ -3669,6 +3788,11 @@ def process_purchase():
     
     # Calculate total amount
     base_amount = produce.price * form.quantity_to_buy.data
+    
+    if not current_user.can_transact_amount(base_amount):
+        flash('Unverified accounts are limited to ₦50,000 per transaction. Please verify your account to proceed.', 'warning')
+        return redirect(url_for('get_verified'))
+    
     logistics_fee = 2000 if form.delivery_required.data else 0
     
     if payment_service:
@@ -5248,6 +5372,9 @@ def toggle_cold_chain_device(device_id):
 @login_required
 def logistics_request_enhanced(produce_id):
     """Enhanced logistics request with bidding"""
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access logistics services.', 'warning')
+        return redirect(url_for('get_verified'))
     produce = Produce.query.get_or_404(produce_id)
     form = EnhancedLogisticsRequestForm()
     form.produce_id.data = produce_id
@@ -5721,6 +5848,12 @@ def admin_logistics_bidding():
 @app.route('/sabibuy')
 def sabibuy_home():
     """SabiBuy home page - browse active campaigns"""
+    if not current_user.is_authenticated:
+        flash('Please log in to access SabiBuy.', 'warning')
+        return redirect(url_for('login'))
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to access SabiBuy campaigns.', 'warning')
+        return redirect(url_for('get_verified'))
     campaigns = SabiBuy.query.filter_by(status='active').order_by(SabiBuy.created_at.desc()).limit(20).all()
     
     return render_template('sabibuy/index.html',
@@ -5748,6 +5881,12 @@ def sabibuy_campaign(code):
 @app.route('/sabibuy/join/<code>', methods=['GET', 'POST'])
 def sabibuy_join(code):
     """Join a SabiBuy campaign"""
+    if not current_user.is_authenticated:
+        flash('Please log in to join SabiBuy campaigns.', 'warning')
+        return redirect(url_for('login'))
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to join SabiBuy campaigns.', 'warning')
+        return redirect(url_for('get_verified'))
     campaign = SabiBuy.query.filter_by(code=code.upper()).first_or_404()
     
     if campaign.status != 'active':
@@ -5816,6 +5955,9 @@ def sabibuy_payment(order_id):
 @login_required
 def sabibuy_start():
     """Start a new SabiBuy campaign"""
+    if not current_user.is_verified_account():
+        flash('Verification required. Get verified to create SabiBuy campaigns.', 'warning')
+        return redirect(url_for('get_verified'))
     produce_list = Produce.query.filter_by(is_available=True).order_by(Produce.date_listed.desc()).limit(50).all()
     
     if request.method == 'POST':

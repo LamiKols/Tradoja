@@ -168,6 +168,13 @@ class USSDService:
         }
     }
     
+    @staticmethod
+    def _verified_name(user, short=True):
+        """Return user's name with * marker if verified (for USSD brevity)"""
+        if user and hasattr(user, 'is_verified_account') and user.is_verified_account():
+            return f"{user.name}*" if short else f"{user.name} [VERIFIED]"
+        return user.name if user else "Unknown"
+
     def __init__(self):
         """Initialize USSD service"""
         self.db = None
@@ -1768,7 +1775,9 @@ class USSDService:
         produce_options = []
         produce_ids = []
         for i, p in enumerate(produce_list, 1):
-            produce_options.append(f"{i}. {p.crop_type} @ ₦{p.price:,.0f}/{p.quantity_unit}")
+            farmer = self.User.query.get(p.farmer_id) if p.farmer_id else None
+            farmer_tag = "*" if farmer and farmer.is_verified_account() else ""
+            produce_options.append(f"{i}. {p.crop_type}{farmer_tag} @ ₦{p.price:,.0f}/{p.quantity_unit}")
             produce_ids.append(p.id)
         
         session.update_session_data('produce_ids', produce_ids)
@@ -2196,7 +2205,7 @@ class USSDService:
                 session.set_session_data(data)
                 session.current_step = 2
                 
-                return f"Send to: {to_user.name}\nEnter amount:", True
+                return f"Send to: {self._verified_name(to_user)}\nEnter amount:", True
             
             elif step == 2:
                 try:
@@ -2239,7 +2248,7 @@ class USSDService:
                     
                     if success:
                         db.session.commit()
-                        return (f"Sent N{amount:,.0f} to {to_user.name}\n"
+                        return (f"Sent N{amount:,.0f} to {self._verified_name(to_user)}\n"
                                f"Ref: {ref}\n"
                                f"Balance: N{wallet_service.get_balance(user):,.0f}"), False
                     else:
@@ -2388,7 +2397,11 @@ class USSDService:
                 
                 balance = wallet_service.get_balance(user)
                 
+                seller = self.User.query.get(produce.farmer_id) if produce.farmer_id else None
+                seller_tag = "*" if seller and seller.is_verified_account() else ""
+                
                 return (f"Item: {produce.name}\n"
+                       f"Seller: {seller.name if seller else 'N/A'}{seller_tag}\n"
                        f"Qty: {produce.quantity}\n"
                        f"Price: N{produce.price:,.0f}\n"
                        f"Fee: N{fee_info['platform_fee']:,.0f}\n"
