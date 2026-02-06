@@ -12,6 +12,26 @@
                 <p class="text-muted small">Send to shortcode <strong>20255</strong></p>
             </div>
             
+            <div class="phone-number-panel mb-3 mx-auto" style="max-width: 350px;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-success">
+                            <i class="fas fa-phone-alt"></i>
+                        </span>
+                        <input type="text" class="form-control bg-dark border-secondary text-light" 
+                               id="phoneInput" value="+2349000000001" 
+                               placeholder="+234XXXXXXXXXX">
+                    </div>
+                    <button class="btn btn-sm btn-outline-success flex-shrink-0" id="newNumberBtn" title="Generate new number">
+                        <i class="fas fa-random"></i> New
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small class="text-muted" id="phoneStatus">New number - ready to register</small>
+                    <small class="text-muted" id="phoneLabel"></small>
+                </div>
+            </div>
+            
             <div class="phone-frame mx-auto">
                 <div class="phone-screen">
                     <div class="phone-header">
@@ -32,7 +52,8 @@
                                 <i class="fas fa-leaf"></i>
                             </div>
                             <p>Welcome to Tradoja SMS</p>
-                            <p class="small">Send a command to get started</p>
+                            <p class="small">Send <strong>HELP</strong> to get started</p>
+                            <p class="small text-success">Try: JOIN YourName Lagos Tomatoes</p>
                         </div>
                     </div>
                     
@@ -53,60 +74,49 @@
                 <button class="btn btn-outline-secondary btn-sm" id="clearBtn">
                     <i class="fas fa-trash me-1"></i> Clear Chat
                 </button>
+                <button class="btn btn-outline-warning btn-sm ms-2" id="newSessionBtn">
+                    <i class="fas fa-user-plus me-1"></i> New User Session
+                </button>
                 <a href="{{ url_for('ussd_simulator') }}" class="btn btn-outline-primary btn-sm ms-2">
-                    <i class="fas fa-mobile-alt me-1"></i> Try USSD Simulator
+                    <i class="fas fa-mobile-alt me-1"></i> USSD
                 </a>
             </div>
-            
-            <div class="card mt-4">
-                <div class="card-header">
-                    <i class="fas fa-terminal me-2"></i>Available SMS Commands
+
+            <div class="card mt-3 mx-auto" style="max-width: 350px;">
+                <div class="card-header py-2">
+                    <i class="fas fa-users me-2"></i>Demo Accounts (click to load)
                 </div>
-                <div class="card-body">
-                    <div class="row small">
-                        <div class="col-6">
-                            <p class="mb-2"><strong>Registration:</strong></p>
-                            <ul class="ps-3 mb-3">
-                                <li><code>REG FARMER John</code></li>
-                                <li><code>REG BUYER Mary</code></li>
-                                <li><code>REG TRANSPORT ABC Ltd</code></li>
-                            </ul>
-                            <p class="mb-2"><strong>Listings:</strong></p>
-                            <ul class="ps-3 mb-0">
-                                <li><code>SELL Tomatoes 100 5000</code></li>
-                                <li><code>LIST</code></li>
-                            </ul>
-                        </div>
-                        <div class="col-6">
-                            <p class="mb-2"><strong>SabiBuy:</strong></p>
-                            <ul class="ps-3 mb-3">
-                                <li><code>JOIN ABC123 3</code></li>
-                                <li><code>SABIBUY Tomatoes 5000</code></li>
-                                <li><code>CAMPAIGNS</code></li>
-                            </ul>
-                            <p class="mb-2"><strong>Other:</strong></p>
-                            <ul class="ps-3 mb-0">
-                                <li><code>HELP</code></li>
-                                <li><code>BALANCE</code></li>
-                                <li><code>STATUS</code></li>
-                            </ul>
-                        </div>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-1">
+                        <button class="btn btn-sm btn-outline-success demo-user" data-phone="+2348011111111" data-name="Farmer Amina">
+                            <i class="fas fa-seedling"></i> Farmer
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary demo-user" data-phone="+2348022222222" data-name="Buyer Chidi">
+                            <i class="fas fa-shopping-cart"></i> Buyer
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning demo-user" data-phone="+2348033333333" data-name="Driver Musa">
+                            <i class="fas fa-truck"></i> Transport
+                        </button>
                     </div>
                 </div>
             </div>
             
             <div class="card mt-3">
-                <div class="card-header">
-                    <i class="fas fa-lightbulb me-2"></i>Quick Test Messages
+                <div class="card-header py-2">
+                    <i class="fas fa-lightbulb me-2"></i>Quick Commands
                 </div>
-                <div class="card-body">
+                <div class="card-body py-2">
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-sm btn-outline-success quick-msg" data-msg="HELP">HELP</button>
-                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="REG FARMER Demo User">REG FARMER</button>
-                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="LIST">LIST</button>
-                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="CAMPAIGNS">CAMPAIGNS</button>
-                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="BALANCE">BALANCE</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="JOIN Demo Lagos Tomatoes">JOIN</button>
                         <button class="btn btn-sm btn-outline-success quick-msg" data-msg="SELL Tomatoes 100 5000">SELL</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="PRICE Tomatoes">PRICE</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="BALANCE">BAL</button>
+                        <button class="btn btn-sm btn-outline-success quick-msg" data-msg="STATUS">STATUS</button>
+                        <button class="btn btn-sm btn-outline-info quick-msg" data-msg="AI I want to sell 50kg of rice">AI</button>
+                        <button class="btn btn-sm btn-outline-info quick-msg" data-msg="ADVICE Rice">ADVICE</button>
+                        <button class="btn btn-sm btn-outline-warning quick-msg" data-msg="CAMPAIGNS">CAMPAIGNS</button>
+                        <button class="btn btn-sm btn-outline-warning quick-msg" data-msg="JOBS">JOBS</button>
                     </div>
                 </div>
             </div>
@@ -115,6 +125,13 @@
 </div>
 
 <style>
+.phone-number-panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 10px 15px;
+}
+
 .phone-frame {
     background: linear-gradient(145deg, #2d2d2d, #1a1a1a);
     border-radius: 40px;
@@ -256,6 +273,10 @@
 .quick-msg {
     font-size: 12px;
 }
+
+.demo-user {
+    font-size: 11px;
+}
 </style>
 
 <script>
@@ -264,10 +285,66 @@ document.addEventListener('DOMContentLoaded', function() {
     const smsDisplay = document.getElementById('smsDisplay');
     const sendBtn = document.getElementById('sendBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const newSessionBtn = document.getElementById('newSessionBtn');
+    const newNumberBtn = document.getElementById('newNumberBtn');
+    const phoneInput = document.getElementById('phoneInput');
+    const phoneStatus = document.getElementById('phoneStatus');
     const quickMsgs = document.querySelectorAll('.quick-msg');
+    const demoUsers = document.querySelectorAll('.demo-user');
     
-    const phoneNumber = '+2348012345678';
     let hasMessages = false;
+    
+    function getPhoneNumber() {
+        return phoneInput.value.trim() || '+2349000000001';
+    }
+    
+    function generateRandomPhone() {
+        const num = '90' + Math.floor(10000000 + Math.random() * 89999999).toString();
+        return '+234' + num;
+    }
+    
+    function clearChat() {
+        hasMessages = false;
+        smsDisplay.innerHTML = `
+            <div class="sms-welcome">
+                <div class="welcome-icon">
+                    <i class="fas fa-leaf"></i>
+                </div>
+                <p>Welcome to Tradoja SMS</p>
+                <p class="small">Send <strong>HELP</strong> to get started</p>
+                <p class="small text-success">Try: JOIN YourName Lagos Tomatoes</p>
+            </div>
+        `;
+    }
+    
+    newNumberBtn.addEventListener('click', function() {
+        phoneInput.value = generateRandomPhone();
+        phoneStatus.textContent = 'New number - ready to register';
+        phoneStatus.className = 'text-success small';
+        clearChat();
+    });
+    
+    newSessionBtn.addEventListener('click', function() {
+        phoneInput.value = generateRandomPhone();
+        phoneStatus.textContent = 'New number - ready to register';
+        phoneStatus.className = 'text-success small';
+        clearChat();
+    });
+    
+    demoUsers.forEach(btn => {
+        btn.addEventListener('click', function() {
+            phoneInput.value = this.dataset.phone;
+            phoneStatus.textContent = this.dataset.name;
+            phoneStatus.className = 'text-info small';
+            clearChat();
+            addMessage('Switched to ' + this.dataset.name + ' (' + this.dataset.phone + ')', 'system');
+        });
+    });
+    
+    phoneInput.addEventListener('change', function() {
+        phoneStatus.textContent = 'Custom number';
+        phoneStatus.className = 'text-muted small';
+    });
     
     quickMsgs.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -281,18 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') sendSms();
     });
     
-    clearBtn.addEventListener('click', function() {
-        hasMessages = false;
-        smsDisplay.innerHTML = `
-            <div class="sms-welcome">
-                <div class="welcome-icon">
-                    <i class="fas fa-leaf"></i>
-                </div>
-                <p>Welcome to Tradoja SMS</p>
-                <p class="small">Send a command to get started</p>
-            </div>
-        `;
-    });
+    clearBtn.addEventListener('click', clearChat);
     
     function addMessage(text, type) {
         if (!hasMessages) {
@@ -301,13 +367,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const bubble = document.createElement('div');
-        bubble.className = `sms-bubble ${type}`;
         
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        bubble.innerHTML = `
-            ${text.replace(/\n/g, '<br>')}
-            <div class="sms-time">${time}</div>
-        `;
+        if (type === 'system') {
+            bubble.className = 'text-center my-2';
+            bubble.innerHTML = `<small class="text-muted"><i class="fas fa-info-circle"></i> ${text}</small>`;
+        } else {
+            bubble.className = `sms-bubble ${type}`;
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            bubble.innerHTML = `
+                ${text.replace(/\n/g, '<br>')}
+                <div class="sms-time">${time}</div>
+            `;
+        }
         
         smsDisplay.appendChild(bubble);
         smsDisplay.scrollTop = smsDisplay.scrollHeight;
@@ -326,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                phoneNumber: phoneNumber,
+                phoneNumber: getPhoneNumber(),
                 message: message
             })
         })
@@ -342,6 +413,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 500);
         });
     }
+    
+    // Generate a fresh number on page load so demos always start clean
+    phoneInput.value = generateRandomPhone();
 });
 </script>
 {% endblock %}

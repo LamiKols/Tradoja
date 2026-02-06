@@ -249,11 +249,35 @@ class SMSService:
         # Check if user already exists
         existing_user = User.query.filter_by(phone_number=phone_number).first()
         if existing_user:
-            if existing_user.is_lite_account():
-                return self.send_sms(phone_number, 
-                    f"Welcome back {existing_user.name}! Complete registration at tradoja.com to get verified. Send HELP for commands.")
-            return self.send_sms(phone_number, 
-                f"Welcome back {existing_user.name}! You're verified. Send HELP for commands.")
+            if len(command_parts) >= 4:
+                try:
+                    existing_user.name = command_parts[1]
+                    existing_user.location = command_parts[2]
+                    db.session.commit()
+                    return self.send_sms(phone_number,
+                        f"Profile updated, {existing_user.name}!\n"
+                        f"Location: {command_parts[2]}\n"
+                        f"Crop: {' '.join(command_parts[3:])}\n"
+                        f"Send HELP for commands.")
+                except Exception as e:
+                    current_app.logger.error(f"Profile update error: {e}")
+                    db.session.rollback()
+            
+            status = "LITE" if existing_user.is_lite_account() else "Verified"
+            produce_count = 0
+            try:
+                from models import Produce
+                produce_count = Produce.query.filter_by(farmer_id=existing_user.id).count()
+            except Exception:
+                pass
+            
+            msg = (f"Hi {existing_user.name}! You're already registered ({status}).\n"
+                   f"Location: {existing_user.location or 'Not set'}\n")
+            if produce_count > 0:
+                msg += f"Listings: {produce_count}\n"
+            msg += f"\nCommands: SELL, PRICE, HELP\n"
+            msg += f"Update profile: JOIN [name] [location] [crop]"
+            return self.send_sms(phone_number, msg)
         
         if len(command_parts) == 1:
             # Initial JOIN command - ask for details
