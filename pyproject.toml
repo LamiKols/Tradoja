@@ -22,4 +22,5 @@ dependencies = [
     "python-docx>=1.2.0",
     "htmldocx>=0.0.6",
     "openai>=2.16.0",
+    "reportlab>=4.4.9",
 ]

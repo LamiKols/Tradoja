@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request, abort, jsonify, make_response
+from flask import render_template, url_for, flash, redirect, request, abort, jsonify, make_response, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
@@ -111,6 +111,21 @@ def logo_comparison():
 def partner_proposal():
     """Partner proposal page for telecommunications companies"""
     return render_template('partner_proposal.html')
+
+@app.route('/demo-guide.pdf')
+def demo_guide_pdf():
+    """Download the comprehensive demo guide PDF"""
+    import os
+    pdf_path = os.path.join(app.static_folder, 'tradoja_demo_guide.pdf')
+    if not os.path.exists(pdf_path):
+        from generate_demo_pdf import build_pdf
+        build_pdf()
+    return send_file(
+        pdf_path,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='Tradoja_Demo_Guide_Telco_Partnership.pdf'
+    )
 
 @app.route('/proposal.pdf')
 def partner_proposal_pdf():
