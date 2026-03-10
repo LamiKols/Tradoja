@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h1 class="fw-bold">
+                        <i class="fas fa-file-contract me-2 text-primary"></i>Partnership Proposals
+                    </h1>
+                    <p class="text-muted mb-0">Create and manage professional partnership proposals for states, banks, and organizations</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <form method="POST" action="{{ url_for('admin_seed_default_proposals') }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-info">
+                            <i class="fas fa-magic me-1"></i>Seed Default Proposals
+                        </button>
+                    </form>
+                    <a href="{{ url_for('admin_proposal_create') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Create Proposal
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-alt fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ proposals|length }}</h3>
+                    <small>Total Proposals</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-globe fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ proposals|selectattr('status', 'equalto', 'published')|list|length }}</h3>
+                    <small>Published</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-pencil-alt fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ proposals|selectattr('status', 'equalto', 'draft')|list|length }}</h3>
+                    <small>Drafts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-tags fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ proposals|map(attribute='proposal_type')|unique|list|length }}</h3>
+                    <small>Types</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Proposals</h5>
+                </div>
+                <div class="card-body">
+                    {% if proposals %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Target Organization</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proposal in proposals %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ proposal.title }}</div>
+                                        <small class="text-muted">/proposal/{{ proposal.slug }}</small>
+                                    </td>
+                                    <td>{{ proposal.target_organization }}</td>
+                                    <td>
+                                        {% if proposal.proposal_type == 'state' %}
+                                            <span class="badge bg-primary"><i class="fas fa-landmark me-1"></i>State</span>
+                                        {% elif proposal.proposal_type == 'bank' %}
+                                            <span class="badge bg-success"><i class="fas fa-university me-1"></i>Bank</span>
+                                        {% else %}
+                                            <span class="badge bg-info"><i class="fas fa-building me-1"></i>Organization</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if proposal.status == 'published' %}
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Published</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-edit me-1"></i>Draft</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ proposal.created_at.strftime('%d %b %Y') if proposal.created_at else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('view_proposal', slug=proposal.slug) }}" class="btn btn-outline-primary" title="Preview" target="_blank">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('admin_proposal_edit', proposal_id=proposal.id) }}" class="btn btn-outline-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('admin_proposal_delete', proposal_id=proposal.id) }}" class="d-inline" onsubmit="return confirm('Delete this proposal?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-contract fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Proposals Yet</h4>
+                        <p class="text-muted mb-4">Create your first partnership proposal or seed the default templates.</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ url_for('admin_proposal_create') }}" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i>Create New Proposal
+                            </a>
+                            <form method="POST" action="{{ url_for('admin_seed_default_proposals') }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-info">
+                                    <i class="fas fa-magic me-1"></i>Generate Default Proposals
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

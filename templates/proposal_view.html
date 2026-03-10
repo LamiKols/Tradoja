@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ proposal.title }} — Tradoja</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --brand-green: #198754;
+            --brand-green-dark: #146c43;
+            --brand-green-light: #d1e7dd;
+            --brand-gold: #f0ad4e;
+            --brand-blue: #0d6efd;
+            --brand-dark: #1a1a2e;
+            --brand-gray: #6c757d;
+            --section-bg-alt: #f8faf9;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #2d3436;
+            line-height: 1.7;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .proposal-cover {
+            background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand-green-dark) 50%, var(--brand-green) 100%);
+            color: #fff;
+            padding: 5rem 2rem 4rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .proposal-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .proposal-cover .cover-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .proposal-cover .logo-area {
+            margin-bottom: 2.5rem;
+        }
+
+        .proposal-cover .logo-area img {
+            height: 48px;
+            filter: brightness(0) invert(1);
+        }
+
+        .proposal-cover h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .proposal-cover .target-org {
+            font-size: 1.15rem;
+            opacity: 0.9;
+            margin-bottom: 1.5rem;
+            font-weight: 300;
+        }
+
+        .proposal-cover .proposal-type-badge {
+            display: inline-block;
+            padding: 0.4rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .badge-state { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+        .badge-bank { background: rgba(240,173,78,0.3); border: 1px solid rgba(240,173,78,0.6); }
+        .badge-organization { background: rgba(13,110,253,0.3); border: 1px solid rgba(13,110,253,0.6); }
+
+        .proposal-cover .cover-date {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .executive-summary {
+            background: var(--brand-green-light);
+            border-left: 5px solid var(--brand-green);
+            padding: 2.5rem 3rem;
+            margin: 0 auto;
+            max-width: 900px;
+            transform: translateY(-2rem);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            position: relative;
+            z-index: 2;
+        }
+
+        .executive-summary h2 {
+            color: var(--brand-green-dark);
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1rem;
+        }
+
+        .executive-summary p {
+            font-size: 1.05rem;
+            color: #2d3436;
+            margin: 0;
+        }
+
+        .proposal-body {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem 2rem 3rem;
+        }
+
+        .proposal-section {
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .proposal-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: #fff;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
+        }
+
+        .section-header h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin: 0;
+        }
+
+        .section-body {
+            font-size: 1rem;
+            color: #444;
+        }
+
+        .section-body p { margin-bottom: 0.8rem; }
+
+        .diagram-container {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+
+        .diagram-container svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .journey-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem 0;
+        }
+
+        .journey-step .step-num {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--brand-green);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, var(--brand-dark), var(--brand-green-dark));
+            color: #fff;
+            padding: 3rem;
+            border-radius: 16px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .cta-section h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section a {
+            color: var(--brand-gold);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .cta-section a:hover {
+            text-decoration: underline;
+        }
+
+        .proposal-footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--brand-gray);
+            font-size: 0.85rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .print-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-top: 1px solid #dee2e6;
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .print-bar .btn { font-size: 0.9rem; }
+
+        @media print {
+            .print-bar { display: none !important; }
+
+            body {
+                font-size: 11pt;
+                color: #000;
+                line-height: 1.5;
+            }
+
+            .proposal-cover {
+                background: var(--brand-green) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                padding: 3rem 2rem;
+                page-break-after: always;
+            }
+
+            .proposal-cover::before { display: none; }
+
+            .executive-summary {
+                transform: none;
+                margin-top: 1rem;
+                page-break-after: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .proposal-section {
+                page-break-inside: avoid;
+            }
+
+            .diagram-container {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .section-icon {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .cta-section {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                page-break-inside: avoid;
+            }
+
+            a { color: inherit !important; text-decoration: none !important; }
+        }
+
+        @media (max-width: 768px) {
+            .proposal-cover { padding: 3rem 1.5rem 2.5rem; }
+            .proposal-cover h1 { font-size: 1.8rem; }
+            .executive-summary { padding: 1.5rem; margin: 0 1rem; transform: translateY(-1.5rem); }
+            .proposal-body { padding: 1rem 1rem 3rem; }
+            .section-header h3 { font-size: 1.25rem; }
+            .cta-section { padding: 2rem 1.5rem; }
+        }
+
+        body { padding-bottom: 70px; }
+    </style>
+</head>
+<body>
+
+<div class="proposal-cover">
+    <div class="cover-content">
+        <div class="logo-area">
+            <img src="{{ url_for('static', filename='images/tradoja-logo.svg') }}" alt="Tradoja">
+        </div>
+        <h1>{{ proposal.title }}</h1>
+        <div class="target-org">
+            <i class="fas fa-building me-2"></i>Prepared for: {{ proposal.target_organization }}
+        </div>
+        <span class="proposal-type-badge badge-{{ proposal.proposal_type }}">
+            {% if proposal.proposal_type == 'state' %}
+                <i class="fas fa-landmark me-1"></i>Government Partnership
+            {% elif proposal.proposal_type == 'bank' %}
+                <i class="fas fa-university me-1"></i>Financial Partnership
+            {% else %}
+                <i class="fas fa-handshake me-1"></i>Organization Partnership
+            {% endif %}
+        </span>
+        <div class="cover-date">
+            {{ proposal.created_at.strftime('%B %Y') if proposal.created_at else 'Confidential' }}
+        </div>
+    </div>
+</div>
+
+{% if proposal.executive_summary %}
+<div class="executive-summary">
+    <h2><i class="fas fa-file-alt me-2"></i>Executive Summary</h2>
+    <p>{{ proposal.executive_summary }}</p>
+</div>
+{% endif %}
+
+<div class="proposal-body">
+    {% for section in sections %}
+    <div class="proposal-section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="{{ section.icon|default('fas fa-circle') }}"></i>
+            </div>
+            <h3>{{ section.title }}</h3>
+        </div>
+
+        {% if section.diagram_type == 'farmer_journey' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 100" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#198754;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#146c43;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                {% set steps = ['Register', 'List Produce', 'Get Matched', 'Negotiate', 'Trade', 'Rate'] %}
+                {% for step in steps %}
+                {% set x = 20 + loop.index0 * 130 %}
+                <circle cx="{{ x + 30 }}" cy="35" r="22" fill="url(#grad1)"/>
+                <text x="{{ x + 30 }}" y="40" text-anchor="middle" fill="white" font-size="12" font-weight="bold">{{ loop.index }}</text>
+                <text x="{{ x + 30 }}" y="75" text-anchor="middle" fill="#2d3436" font-size="11" font-weight="600">{{ step }}</text>
+                {% if not loop.last %}
+                <line x1="{{ x + 52 }}" y1="35" x2="{{ x + 108 }}" y2="35" stroke="#198754" stroke-width="2" stroke-dasharray="4,3"/>
+                <polygon points="{{ x + 105 }},30 {{ x + 115 }},35 {{ x + 105 }},40" fill="#198754"/>
+                {% endif %}
+                {% endfor %}
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'escrow_journey' or section.diagram_type == 'escrow_flow' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 120" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="escrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#0d6efd;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#198754;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                {% set escrow_steps = ['Buyer Pays', 'Escrow Holds', 'Farmer Ships', 'Buyer Confirms', 'Funds Released'] %}
+                {% set escrow_icons = ['💳', '🔒', '🚛', '✅', '💰'] %}
+                {% for step in escrow_steps %}
+                {% set x = 15 + loop.index0 * 158 %}
+                <rect x="{{ x }}" y="10" width="120" height="55" rx="10" fill="{{ '#0d6efd' if loop.index0 < 2 else '#f0ad4e' if loop.index0 == 2 else '#198754' }}" opacity="0.15"/>
+                <rect x="{{ x }}" y="10" width="120" height="55" rx="10" fill="none" stroke="{{ '#0d6efd' if loop.index0 < 2 else '#f0ad4e' if loop.index0 == 2 else '#198754' }}" stroke-width="2"/>
+                <text x="{{ x + 60 }}" y="35" text-anchor="middle" font-size="18">{{ escrow_icons[loop.index0] }}</text>
+                <text x="{{ x + 60 }}" y="55" text-anchor="middle" fill="#2d3436" font-size="10" font-weight="600">{{ step }}</text>
+                {% if not loop.last %}
+                <line x1="{{ x + 125 }}" y1="37" x2="{{ x + 148 }}" y2="37" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <polygon points="{{ x + 146 }},33 {{ x + 153 }},37 {{ x + 146 }},41" fill="#6c757d"/>
+                {% endif %}
+                {% endfor %}
+                <text x="400" y="100" text-anchor="middle" fill="#6c757d" font-size="11" font-style="italic">Funds are protected at every stage — neither party bears undue risk</text>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'sabibuy_flow' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 110" xmlns="http://www.w3.org/2000/svg">
+                {% set sabi_steps = ['Captain Creates Campaign', 'Buyers Join & Pay', 'Bulk Order to Farmer', 'Produce Distributed', 'Everyone Saves'] %}
+                {% for step in sabi_steps %}
+                {% set x = 10 + loop.index0 * 158 %}
+                <rect x="{{ x }}" y="15" width="130" height="50" rx="25" fill="#198754" opacity="0.12"/>
+                <rect x="{{ x }}" y="15" width="130" height="50" rx="25" fill="none" stroke="#198754" stroke-width="2"/>
+                <text x="{{ x + 65 }}" y="45" text-anchor="middle" fill="#146c43" font-size="9.5" font-weight="600">{{ step }}</text>
+                {% if not loop.last %}
+                <line x1="{{ x + 135 }}" y1="40" x2="{{ x + 153 }}" y2="40" stroke="#198754" stroke-width="1.5"/>
+                <polygon points="{{ x + 150 }},36 {{ x + 158 }},40 {{ x + 150 }},44" fill="#198754"/>
+                {% endif %}
+                {% endfor %}
+                <text x="400" y="95" text-anchor="middle" fill="#6c757d" font-size="11" font-style="italic">Zero inventory risk — orders collected before purchasing</text>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'channels' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 160" xmlns="http://www.w3.org/2000/svg">
+                <rect x="300" y="40" width="200" height="80" rx="12" fill="#198754" opacity="0.15"/>
+                <rect x="300" y="40" width="200" height="80" rx="12" fill="none" stroke="#198754" stroke-width="2"/>
+                <text x="400" y="75" text-anchor="middle" fill="#146c43" font-size="16" font-weight="700">TRADOJA</text>
+                <text x="400" y="100" text-anchor="middle" fill="#146c43" font-size="11">Marketplace Engine</text>
+
+                {% set channels = [('SMS', '📱', 30), ('USSD', '📞', 30), ('WhatsApp', '💬', 130), ('Web', '🌐', 130)] %}
+                {% for name, icon, y_pos in channels %}
+                {% set x_pos = 60 + loop.index0 * 190 if loop.index0 < 2 else 60 + (loop.index0 - 2) * 190 %}
+                {% set actual_y = y_pos if loop.index0 < 2 else y_pos %}
+                {% if loop.index0 == 0 %}
+                <rect x="40" y="20" width="110" height="40" rx="8" fill="#0d6efd" opacity="0.12"/>
+                <text x="95" y="45" text-anchor="middle" fill="#0d6efd" font-size="12" font-weight="600">📱 SMS</text>
+                <line x1="150" y1="40" x2="300" y2="65" stroke="#0d6efd" stroke-width="1.5" stroke-dasharray="4,3"/>
+                {% elif loop.index0 == 1 %}
+                <rect x="40" y="90" width="110" height="40" rx="8" fill="#6f42c1" opacity="0.12"/>
+                <text x="95" y="115" text-anchor="middle" fill="#6f42c1" font-size="12" font-weight="600">📞 USSD</text>
+                <line x1="150" y1="110" x2="300" y2="95" stroke="#6f42c1" stroke-width="1.5" stroke-dasharray="4,3"/>
+                {% elif loop.index0 == 2 %}
+                <rect x="650" y="20" width="110" height="40" rx="8" fill="#198754" opacity="0.12"/>
+                <text x="705" y="45" text-anchor="middle" fill="#198754" font-size="12" font-weight="600">💬 WhatsApp</text>
+                <line x1="500" y1="65" x2="650" y2="40" stroke="#198754" stroke-width="1.5" stroke-dasharray="4,3"/>
+                {% elif loop.index0 == 3 %}
+                <rect x="650" y="90" width="110" height="40" rx="8" fill="#f0ad4e" opacity="0.12"/>
+                <text x="705" y="115" text-anchor="middle" fill="#dc8a00" font-size="12" font-weight="600">🌐 Web</text>
+                <line x1="500" y1="95" x2="650" y2="110" stroke="#dc8a00" stroke-width="1.5" stroke-dasharray="4,3"/>
+                {% endif %}
+                {% endfor %}
+                <text x="400" y="150" text-anchor="middle" fill="#6c757d" font-size="11" font-style="italic">Every phone type supported — no farmer left behind</text>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'implementation_phases' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="20" width="230" height="55" rx="8" fill="#0d6efd" opacity="0.12"/>
+                <rect x="20" y="20" width="230" height="55" rx="8" fill="none" stroke="#0d6efd" stroke-width="2"/>
+                <text x="135" y="42" text-anchor="middle" fill="#0d6efd" font-size="13" font-weight="700">Phase 1: Pilot</text>
+                <text x="135" y="62" text-anchor="middle" fill="#0d6efd" font-size="10">Months 1–3 · 3 LGAs</text>
+
+                <rect x="285" y="20" width="230" height="55" rx="8" fill="#198754" opacity="0.12"/>
+                <rect x="285" y="20" width="230" height="55" rx="8" fill="none" stroke="#198754" stroke-width="2"/>
+                <text x="400" y="42" text-anchor="middle" fill="#198754" font-size="13" font-weight="700">Phase 2: State-Wide</text>
+                <text x="400" y="62" text-anchor="middle" fill="#198754" font-size="10">Months 4–8 · 33 LGAs</text>
+
+                <rect x="550" y="20" width="230" height="55" rx="8" fill="#f0ad4e" opacity="0.12"/>
+                <rect x="550" y="20" width="230" height="55" rx="8" fill="none" stroke="#dc8a00" stroke-width="2"/>
+                <text x="665" y="42" text-anchor="middle" fill="#dc8a00" font-size="13" font-weight="700">Phase 3: Cross-State</text>
+                <text x="665" y="62" text-anchor="middle" fill="#dc8a00" font-size="10">Months 9–12 · Multi-State</text>
+
+                <line x1="250" y1="47" x2="285" y2="47" stroke="#6c757d" stroke-width="2"/>
+                <polygon points="282,42 290,47 282,52" fill="#6c757d"/>
+                <line x1="515" y1="47" x2="550" y2="47" stroke="#6c757d" stroke-width="2"/>
+                <polygon points="547,42 555,47 547,52" fill="#6c757d"/>
+
+                <text x="400" y="95" text-anchor="middle" fill="#6c757d" font-size="11" font-style="italic">Phased rollout minimizes risk while maximizing learning</text>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'impact_metrics' %}
+        <div class="diagram-container">
+            <div class="row text-center g-3">
+                <div class="col-6 col-md-3">
+                    <div class="p-3">
+                        <div style="font-size: 2rem; font-weight: 800; color: var(--brand-green);">20,000</div>
+                        <div style="font-size: 0.85rem; color: var(--brand-gray); font-weight: 600;">Farmers Onboarded</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3">
+                        <div style="font-size: 2rem; font-weight: 800; color: var(--brand-blue);">₦500M+</div>
+                        <div style="font-size: 0.85rem; color: var(--brand-gray); font-weight: 600;">Trade Facilitated</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3">
+                        <div style="font-size: 2rem; font-weight: 800; color: var(--brand-gold);">30%</div>
+                        <div style="font-size: 0.85rem; color: var(--brand-gray); font-weight: 600;">Reduced Post-Harvest Loss</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3">
+                        <div style="font-size: 2rem; font-weight: 800; color: #dc3545;">500+</div>
+                        <div style="font-size: 0.85rem; color: var(--brand-gray); font-weight: 600;">Jobs Created</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'revenue_projections' %}
+        <div class="diagram-container">
+            <div class="row text-center g-3">
+                <div class="col-4">
+                    <div class="p-3">
+                        <div style="font-size: 0.75rem; color: var(--brand-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Year 1</div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: var(--brand-blue);">₦500M–₦1B</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray);">Transaction Volume</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-3">
+                        <div style="font-size: 0.75rem; color: var(--brand-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Year 2</div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: var(--brand-green);">₦2B–₦5B</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray);">Transaction Volume</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-3">
+                        <div style="font-size: 0.75rem; color: var(--brand-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Year 3</div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: var(--brand-gold);">₦10B+</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray);">Transaction Volume</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'tech_architecture' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 140" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="10" width="160" height="120" rx="10" fill="#0d6efd" opacity="0.08"/>
+                <text x="100" y="35" text-anchor="middle" fill="#0d6efd" font-size="12" font-weight="700">Payment Channels</text>
+                <text x="100" y="55" text-anchor="middle" fill="#555" font-size="9">Bank Transfer (NIBSS)</text>
+                <text x="100" y="70" text-anchor="middle" fill="#555" font-size="9">USSD Banking</text>
+                <text x="100" y="85" text-anchor="middle" fill="#555" font-size="9">Mobile Money</text>
+                <text x="100" y="100" text-anchor="middle" fill="#555" font-size="9">Card Payments</text>
+
+                <line x1="180" y1="70" x2="270" y2="70" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <polygon points="267,66 275,70 267,74" fill="#6c757d"/>
+
+                <rect x="270" y="20" width="260" height="100" rx="12" fill="#198754" opacity="0.1"/>
+                <rect x="270" y="20" width="260" height="100" rx="12" fill="none" stroke="#198754" stroke-width="2"/>
+                <text x="400" y="50" text-anchor="middle" fill="#198754" font-size="14" font-weight="700">TRADOJA PLATFORM</text>
+                <text x="400" y="70" text-anchor="middle" fill="#555" font-size="10">RESTful API · Webhooks</text>
+                <text x="400" y="88" text-anchor="middle" fill="#555" font-size="10">End-to-End Encryption</text>
+                <text x="400" y="106" text-anchor="middle" fill="#555" font-size="10">OTP Verification · Audit Trail</text>
+
+                <line x1="530" y1="70" x2="620" y2="70" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <polygon points="617,66 625,70 617,74" fill="#6c757d"/>
+
+                <rect x="620" y="10" width="160" height="120" rx="10" fill="#f0ad4e" opacity="0.08"/>
+                <text x="700" y="35" text-anchor="middle" fill="#dc8a00" font-size="12" font-weight="700">Bank Escrow</text>
+                <text x="700" y="55" text-anchor="middle" fill="#555" font-size="9">Escrow Account</text>
+                <text x="700" y="70" text-anchor="middle" fill="#555" font-size="9">Fund Hold/Release</text>
+                <text x="700" y="85" text-anchor="middle" fill="#555" font-size="9">Settlement (NIBSS)</text>
+                <text x="700" y="100" text-anchor="middle" fill="#555" font-size="9">Float Management</text>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'partnership_models' %}
+        <div class="diagram-container">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="p-3 text-center rounded-3" style="border: 2px solid #0d6efd; background: rgba(13,110,253,0.05);">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🤝</div>
+                        <div style="font-weight: 700; color: #0d6efd; margin-bottom: 0.3rem;">Option A</div>
+                        <div style="font-size: 0.95rem; font-weight: 600;">Revenue Share</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); margin-top: 0.3rem;">60/40 fee split · Bank retains float</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 text-center rounded-3" style="border: 2px solid #198754; background: rgba(25,135,84,0.05);">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🏷️</div>
+                        <div style="font-weight: 700; color: #198754; margin-bottom: 0.3rem;">Option B</div>
+                        <div style="font-size: 0.95rem; font-weight: 600;">White-Label</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); margin-top: 0.3rem;">Bank-branded payment experience</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 text-center rounded-3" style="border: 2px solid #f0ad4e; background: rgba(240,173,78,0.05);">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔌</div>
+                        <div style="font-weight: 700; color: #dc8a00; margin-bottom: 0.3rem;">Option C</div>
+                        <div style="font-size: 0.95rem; font-weight: 600;">API Partner</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); margin-top: 0.3rem;">Per-transaction pricing · Minimal effort</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'problem_stats' %}
+        <div class="diagram-container">
+            <div class="row text-center g-3">
+                <div class="col-6 col-md-3">
+                    <div class="p-2">
+                        <div style="font-size: 1.8rem; font-weight: 800; color: #dc3545;">30-50%</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); font-weight: 600;">Post-Harvest Losses</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2">
+                        <div style="font-size: 1.8rem; font-weight: 800; color: #dc3545;">70%+</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); font-weight: 600;">Feature Phone Users</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2">
+                        <div style="font-size: 1.8rem; font-weight: 800; color: #dc3545;">80%+</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); font-weight: 600;">Cash-Only Transactions</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2">
+                        <div style="font-size: 1.8rem; font-weight: 800; color: #dc3545;">20-30%</div>
+                        <div style="font-size: 0.8rem; color: var(--brand-gray); font-weight: 600;">Farmer Price Share</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'tradojaiq' %}
+        <div class="diagram-container">
+            <svg viewBox="0 0 800 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="280" y="10" width="240" height="80" rx="12" fill="#6f42c1" opacity="0.1"/>
+                <rect x="280" y="10" width="240" height="80" rx="12" fill="none" stroke="#6f42c1" stroke-width="2"/>
+                <text x="400" y="40" text-anchor="middle" fill="#6f42c1" font-size="15" font-weight="700">🧠 TradojaIQ</text>
+                <text x="400" y="60" text-anchor="middle" fill="#555" font-size="10">AI-Powered Intelligence Layer</text>
+                <text x="400" y="78" text-anchor="middle" fill="#555" font-size="9">Scam Detection · Matchmaking · Pricing</text>
+
+                <rect x="20" y="25" width="120" height="50" rx="8" fill="#dc3545" opacity="0.1"/>
+                <text x="80" y="48" text-anchor="middle" fill="#dc3545" font-size="10" font-weight="600">🛡️ Scam Detection</text>
+                <text x="80" y="63" text-anchor="middle" fill="#555" font-size="8">8-Rule AI Scoring</text>
+                <line x1="140" y1="50" x2="280" y2="50" stroke="#dc3545" stroke-width="1" stroke-dasharray="3,2"/>
+
+                <rect x="660" y="25" width="120" height="50" rx="8" fill="#198754" opacity="0.1"/>
+                <text x="720" y="48" text-anchor="middle" fill="#198754" font-size="10" font-weight="600">📊 Market Intel</text>
+                <text x="720" y="63" text-anchor="middle" fill="#555" font-size="8">Real-Time Prices</text>
+                <line x1="520" y1="50" x2="660" y2="50" stroke="#198754" stroke-width="1" stroke-dasharray="3,2"/>
+            </svg>
+        </div>
+        {% endif %}
+
+        {% if section.diagram_type == 'contact' %}
+        <div class="cta-section">
+            <h3>{{ section.title }}</h3>
+            <div class="section-body" style="color: rgba(255,255,255,0.9);">
+                {{ section.body|replace('**', '')|replace('\n\n', '<br><br>')|replace('\n', '<br>')|safe }}
+            </div>
+        </div>
+        {% else %}
+        <div class="section-body">
+            {% for paragraph in section.body.split('\n\n') %}
+                <p>{{ paragraph.replace('\n', '<br>')|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('**', '<strong>', 1)|replace('**', '</strong>', 1)|replace('• ', '<br>• ')|safe }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="proposal-footer">
+    <img src="{{ url_for('static', filename='images/tradoja-logo.svg') }}" alt="Tradoja" height="24" style="opacity: 0.5; margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;">
+    &copy; {{ proposal.created_at.strftime('%Y') if proposal.created_at else '2025' }} Tradoja &middot; Africa's Digital Agricultural Marketplace &middot;
+    <a href="mailto:askme@tradoja.com" style="color: var(--brand-green);">askme@tradoja.com</a>
+</div>
+
+<div class="print-bar">
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+        <i class="fas fa-print me-1"></i>Print / Save as PDF
+    </button>
+    <a href="{{ url_for('home') }}" class="btn btn-outline-success btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Back to Tradoja
+    </a>
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <a href="{{ url_for('admin_proposals') }}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-cog me-1"></i>Manage Proposals
+    </a>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

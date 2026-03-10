@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Logistics Models**: TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid.
 - **Onboarding Models**: ProduceLagosRegistration (universal onboarding), BulkOnboarding.
 - **Scam Detection Model**: ScamFlag (tracks detections with status).
+- **Proposal Model**: Proposal (partnership proposals with JSON sections, slug-based URLs, draft/published status).
 - **Complex Relationships**: Supports comprehensive marketplace operations, multi-channel integration, and universal onboarding.
 
 ### Authentication & Security

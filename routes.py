@@ -2,7 +2,7 @@ from flask import render_template, url_for, flash, redirect, request, abort, jso
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from app import app, db, csrf_exempt
-from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid, ScamFlag, SabiBuy, SabiBuyOrder, SabiBuyerProfile, Order
+from models import User, Produce, Message, LogisticsRequest, FundingApplication, CSAData, ExportListing, PrecisionField, SMSInteraction, MatchRecommendation, Transaction, Subscription, PaymentLog, ProduceLagosRegistration, BulkOnboarding, ProcessorProfile, LoanApplication, TransportProfile, ColdChainDevice, ColdChainLog, LogisticsBid, ScamFlag, SabiBuy, SabiBuyOrder, SabiBuyerProfile, Order, Proposal
 from forms import RegistrationForm, LoginForm, ProduceForm, SearchForm, MessageForm, MessageReplyForm, LogisticsRequestForm, LogisticsStatusForm, FundingApplicationForm, FundingStatusForm, CSAWeatherForm, CSASoilForm, ExportListingForm, ExportFilterForm, ExportStatusForm, GIAdminForm, PrecisionFieldForm, FieldAnalyticsForm, PurchaseForm, SubscriptionForm, LogisticsPaymentForm, OnboardingStep1Form, OnboardingStep2Form, OnboardingStep3FarmerForm, OnboardingStep3AggregatorForm, OnboardingStep3TransportForm, OnboardingStep3BulkTraderForm, OnboardingStep3RetailerForm, OnboardingStep3InputSupplierForm, OnboardingStep4Form, OnboardingAdminReviewForm, BulkOnboardingForm, ProcessorOnboardingStep1Form, ProcessorOnboardingStep2Form, ProcessorOnboardingStep3Form, ProcessorOnboardingStep4Form, ProcessorOnboardingStep5Form, BOILoanApplicationForm, TransportRegistrationForm, TransportRouteForm, ColdChainDeviceForm, TransportBidForm, EnhancedLogisticsRequestForm
 from weather_service import WeatherService
 from trade_data_service import TradeDataService
@@ -6453,3 +6453,291 @@ def trace_api(code):
     
     history = traceability_service.get_chain_history(chain_code)
     return jsonify(history)
+
+
+import json
+
+@app.route('/admin/proposals')
+@login_required
+def admin_proposals():
+    if current_user.role != 'admin':
+        abort(403)
+    proposals = Proposal.query.order_by(Proposal.created_at.desc()).all()
+    return render_template('admin/proposals_dashboard.html', proposals=proposals)
+
+@app.route('/admin/proposals/create', methods=['GET', 'POST'])
+@login_required
+def admin_proposal_create():
+    if current_user.role != 'admin':
+        abort(403)
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        target_org = request.form.get('target_organization', '').strip()
+        proposal_type = request.form.get('proposal_type', 'state')
+        executive_summary = request.form.get('executive_summary', '').strip()
+        slug = request.form.get('slug', '').strip().lower().replace(' ', '-')
+        status = request.form.get('status', 'draft')
+
+        section_titles = request.form.getlist('section_title[]')
+        section_bodies = request.form.getlist('section_body[]')
+        section_diagram_types = request.form.getlist('section_diagram_type[]')
+        section_icons = request.form.getlist('section_icon[]')
+
+        sections_data = []
+        for i in range(len(section_titles)):
+            if section_titles[i].strip():
+                sections_data.append({
+                    'title': section_titles[i].strip(),
+                    'body': section_bodies[i].strip() if i < len(section_bodies) else '',
+                    'diagram_type': section_diagram_types[i] if i < len(section_diagram_types) else 'none',
+                    'icon': section_icons[i] if i < len(section_icons) else 'fas fa-file'
+                })
+
+        existing = Proposal.query.filter_by(slug=slug).first()
+        if existing:
+            flash('A proposal with that URL slug already exists.', 'danger')
+            return redirect(url_for('admin_proposal_create'))
+
+        proposal = Proposal(
+            title=title,
+            slug=slug,
+            target_organization=target_org,
+            proposal_type=proposal_type,
+            executive_summary=executive_summary,
+            sections=json.dumps(sections_data),
+            status=status,
+            created_by_id=current_user.id
+        )
+        db.session.add(proposal)
+        db.session.commit()
+        flash('Proposal created successfully!', 'success')
+        return redirect(url_for('admin_proposals'))
+
+    return render_template('admin/proposal_form.html', proposal=None, editing=False)
+
+@app.route('/admin/proposals/edit/<int:proposal_id>', methods=['GET', 'POST'])
+@login_required
+def admin_proposal_edit(proposal_id):
+    if current_user.role != 'admin':
+        abort(403)
+    proposal = Proposal.query.get_or_404(proposal_id)
+
+    if request.method == 'POST':
+        proposal.title = request.form.get('title', '').strip()
+        proposal.target_organization = request.form.get('target_organization', '').strip()
+        proposal.proposal_type = request.form.get('proposal_type', 'state')
+        proposal.executive_summary = request.form.get('executive_summary', '').strip()
+        proposal.slug = request.form.get('slug', '').strip().lower().replace(' ', '-')
+        proposal.status = request.form.get('status', 'draft')
+
+        section_titles = request.form.getlist('section_title[]')
+        section_bodies = request.form.getlist('section_body[]')
+        section_diagram_types = request.form.getlist('section_diagram_type[]')
+        section_icons = request.form.getlist('section_icon[]')
+
+        sections_data = []
+        for i in range(len(section_titles)):
+            if section_titles[i].strip():
+                sections_data.append({
+                    'title': section_titles[i].strip(),
+                    'body': section_bodies[i].strip() if i < len(section_bodies) else '',
+                    'diagram_type': section_diagram_types[i] if i < len(section_diagram_types) else 'none',
+                    'icon': section_icons[i] if i < len(section_icons) else 'fas fa-file'
+                })
+
+        proposal.sections = json.dumps(sections_data)
+        db.session.commit()
+        flash('Proposal updated successfully!', 'success')
+        return redirect(url_for('admin_proposals'))
+
+    sections_data = json.loads(proposal.sections) if proposal.sections else []
+    return render_template('admin/proposal_form.html', proposal=proposal, editing=True, sections_data=sections_data)
+
+@app.route('/admin/proposals/delete/<int:proposal_id>', methods=['POST'])
+@login_required
+def admin_proposal_delete(proposal_id):
+    if current_user.role != 'admin':
+        abort(403)
+    proposal = Proposal.query.get_or_404(proposal_id)
+    db.session.delete(proposal)
+    db.session.commit()
+    flash('Proposal deleted.', 'success')
+    return redirect(url_for('admin_proposals'))
+
+@app.route('/proposal/<slug>')
+def view_proposal(slug):
+    proposal = Proposal.query.filter_by(slug=slug).first_or_404()
+    if proposal.status != 'published' and (not current_user.is_authenticated or current_user.role != 'admin'):
+        abort(404)
+    sections_data = json.loads(proposal.sections) if proposal.sections else []
+    return render_template('proposal_view.html', proposal=proposal, sections=sections_data)
+
+@app.route('/admin/proposals/seed-defaults', methods=['POST'])
+@login_required
+def admin_seed_default_proposals():
+    if current_user.role != 'admin':
+        abort(403)
+    _seed_oyo_state_proposal(current_user.id)
+    _seed_bank_escrow_proposal(current_user.id)
+    flash('Default proposals (Oyo State & Bank Escrow) have been created!', 'success')
+    return redirect(url_for('admin_proposals'))
+
+
+def _seed_oyo_state_proposal(admin_id):
+    if Proposal.query.filter_by(slug='oyo-state-partnership').first():
+        return
+    sections = [
+        {
+            'title': 'The Problem: Agricultural Trade Gaps in Oyo State',
+            'icon': 'fas fa-exclamation-triangle',
+            'diagram_type': 'problem_stats',
+            'body': 'Oyo State is one of Nigeria\'s agricultural powerhouses, contributing significantly to national food production. Yet farmers in Oyo face critical challenges:\n\n• **Post-harvest losses** of 30-50% due to lack of market access and storage\n• **Middleman exploitation** — farmers receive as little as 20-30% of final market price\n• **Limited market information** — farmers in Saki, Ogbomoso, and Oke-Ogun have no visibility into Ibadan or Lagos market prices\n• **No digital infrastructure** — 70%+ of farmers use feature phones, locked out of smartphone-only platforms\n• **Trust deficit** — buyers and farmers have no way to verify each other, leading to fraud and disputes\n\nThe result: food insecurity in urban centers while rural farmers struggle to sell their harvest.'
+        },
+        {
+            'title': 'The Solution: Tradoja Digital Marketplace',
+            'icon': 'fas fa-lightbulb',
+            'diagram_type': 'solution_overview',
+            'body': 'Tradoja (Trade + Oja, "market" in Yoruba) is Africa\'s first truly inclusive digital agricultural marketplace. Unlike existing platforms that require smartphones and internet, Tradoja works on every phone:\n\n• **SMS Trading** — Farmers text commands to list produce, check prices, and accept orders\n• **USSD Access** — Dial *712*55# on any phone to trade, even without data\n• **WhatsApp** — Rich media trading for smartphone users with voice note support\n• **Web Platform** — Full-featured marketplace for buyers, cooperatives, and institutions\n\nTradoja connects Oyo State\'s farmers directly to buyers in Ibadan, Lagos, and across Nigeria — eliminating unnecessary middlemen and ensuring fair prices.'
+        },
+        {
+            'title': 'How It Works: The Farmer Journey',
+            'icon': 'fas fa-route',
+            'diagram_type': 'farmer_journey',
+            'body': 'A farmer in Saki, Oyo State can start trading in under 2 minutes:\n\n**Step 1: Register** — Text "REG" or dial *712*55# → Instantly becomes a LITE user\n**Step 2: List Produce** — Text "SELL 50 bags Maize 35000" → Listing goes live immediately\n**Step 3: Get Matched** — TradojaIQ matches them with verified buyers in Ibadan/Lagos\n**Step 4: Negotiate** — Buyer contacts farmer, they agree on price and delivery\n**Step 5: Trade** — Payment happens directly (cash, transfer, or mobile money)\n**Step 6: Rate** — Both parties rate each other, building trust scores\n\nThe entire process works on a ₦500 feature phone with no internet required.'
+        },
+        {
+            'title': 'SabiBuy: Group Buying for Communities',
+            'icon': 'fas fa-users',
+            'diagram_type': 'sabibuy_flow',
+            'body': 'SabiBuy is Tradoja\'s innovative group-buying engine that empowers local entrepreneurs ("Captains") to organize bulk purchases from farmers:\n\n• **Zero Inventory Risk** — Captains collect orders before buying from farmers\n• **Better Prices** — Bulk purchasing means 15-25% savings passed to buyers\n• **Income Generation** — Captains earn ₦4,000-₦15,000 per batch\n• **Works via SMS** — Text "SABIBUY" to see active campaigns and join\n\n**Impact for Oyo State:** Each SabiBuy Captain can serve 20-50 families, creating micro-entrepreneurs while ensuring food reaches underserved communities at fair prices.'
+        },
+        {
+            'title': 'TradojaIQ: AI-Powered Market Intelligence',
+            'icon': 'fas fa-brain',
+            'diagram_type': 'tradojaiq',
+            'body': 'TradojaIQ is Tradoja\'s artificial intelligence layer that protects and empowers all users:\n\n• **Scam Detection** — 8-rule scoring system catches fraudulent listings, fake buyers, and price manipulation before they cause harm\n• **Smart Matchmaking** — AI matches buyers with the best farmers based on crop type, location, quantity, price, and reliability scores\n• **Price Intelligence** — Real-time market price data so farmers know the true value of their produce\n• **Climate-Smart Alerts** — Weather-based recommendations for planting, harvesting, and storage\n\n**For Oyo State:** TradojaIQ can provide the state government with anonymized agricultural intelligence — which crops are trending, where supply gaps exist, and price movement data to inform policy decisions.'
+        },
+        {
+            'title': 'Digital Inclusion: Reaching Every Farmer',
+            'icon': 'fas fa-mobile-alt',
+            'diagram_type': 'channels',
+            'body': 'Most agricultural platforms fail in Nigeria because they only work on smartphones. Tradoja is different:\n\n• **USSD (*712*55#)** — Works on any phone, any network, no data needed\n• **SMS Commands** — Simple text messages: REG, SELL, BUY, PRICE, HELP\n• **Multilingual Support** — English, Yoruba, Hausa, Pidgin, Igbo\n• **Voice Notes** — WhatsApp users can send voice descriptions of produce\n• **Agent Network** — Field agents help farmers who need hands-on assistance\n\n**Oyo State Coverage:** From urban Ibadan to rural Oke-Ogun, every farmer with any phone can participate in the digital economy.'
+        },
+        {
+            'title': 'Implementation Plan for Oyo State',
+            'icon': 'fas fa-calendar-alt',
+            'diagram_type': 'implementation_phases',
+            'body': '**Phase 1: Pilot (Months 1-3)** — 3 Local Government Areas\n• Target: Ibadan North, Ogbomoso North, Saki West\n• Onboard 500 farmers through cooperatives and ADP extension workers\n• Deploy 10 field agents across pilot LGAs\n• Partner with Bodija Market traders as initial buyer base\n\n**Phase 2: State-Wide Expansion (Months 4-8)**\n• Expand to all 33 LGAs in Oyo State\n• Target: 5,000 farmers, 500 buyers, 50 SabiBuy Captains\n• Integration with Oyo State ADP farmer database\n• Launch cooperative bulk onboarding program\n\n**Phase 3: Cross-State Trade (Months 9-12)**\n• Connect Oyo farmers to Lagos, Osun, Kwara, and Ogun buyers\n• Enable cross-border trade corridors\n• Target: 20,000 farmers, 2,000 buyers\n• Full logistics and cold chain integration'
+        },
+        {
+            'title': 'Projected Impact',
+            'icon': 'fas fa-chart-line',
+            'diagram_type': 'impact_metrics',
+            'body': '**Year 1 Targets for Oyo State:**\n\n• **20,000 farmers** onboarded across 33 LGAs\n• **2,000 active buyers** including restaurants, hotels, processors, and retailers\n• **₦500M+** in agricultural trade facilitated\n• **30% reduction** in post-harvest losses through better market matching\n• **25% improvement** in farmer income through direct market access\n• **200 SabiBuy Captains** creating micro-entrepreneurship opportunities\n• **500 jobs** created in logistics, agent networks, and support roles\n\n**Long-term Vision:** Make Oyo State the model for digital agricultural trade in West Africa, with data-driven policy making and food security assurance.'
+        },
+        {
+            'title': 'What Tradoja Needs from Oyo State',
+            'icon': 'fas fa-handshake',
+            'diagram_type': 'partnership_ask',
+            'body': 'We propose a public-private partnership with the following framework:\n\n**From Oyo State Government:**\n• Access to ADP farmer database for accelerated onboarding\n• Endorsement through the Ministry of Agriculture and Rural Development\n• Integration with state agricultural programs and subsidies\n• Support from extension workers for farmer training\n• Inclusion in state digital transformation initiatives\n\n**From Tradoja:**\n• Full platform deployment at no cost to the state\n• Training for ADP staff and extension workers\n• Regular agricultural data reports for policy planning\n• Priority support for Oyo State farmers and buyers\n• Revenue sharing on premium services (negotiable)\n\nThis is a zero-risk partnership — Oyo State gains a digital agricultural infrastructure with no upfront investment.'
+        },
+        {
+            'title': 'Contact & Next Steps',
+            'icon': 'fas fa-envelope',
+            'diagram_type': 'contact',
+            'body': '**Ready to digitize agricultural trade in Oyo State?**\n\nWe propose the following next steps:\n\n1. **Stakeholder Meeting** — Present Tradoja to Ministry of Agriculture leadership\n2. **Pilot Agreement** — Sign MoU for 3-LGA pilot program\n3. **Cooperative Engagement** — Joint outreach to farming cooperatives in pilot LGAs\n4. **Launch Event** — Public launch with farmer registration drive\n\n**Contact:**\nEmail: askme@tradoja.com\nWebsite: tradoja.com\n\n*Tradoja — Empowering Africa\'s Farmers, One Trade at a Time*'
+        }
+    ]
+
+    proposal = Proposal(
+        title='Partnership Proposal: Digitizing Agricultural Trade in Oyo State',
+        slug='oyo-state-partnership',
+        target_organization='Oyo State Government — Ministry of Agriculture and Rural Development',
+        proposal_type='state',
+        executive_summary='Tradoja proposes a public-private partnership with the Oyo State Government to deploy Nigeria\'s first truly inclusive digital agricultural marketplace across all 33 Local Government Areas. By leveraging SMS, USSD, and web channels, Tradoja will connect Oyo State\'s farmers directly to buyers — reducing post-harvest losses by 30%, improving farmer income by 25%, and facilitating over ₦500 million in agricultural trade within the first year. This partnership requires zero upfront investment from the state while delivering a world-class digital agricultural infrastructure.',
+        sections=json.dumps(sections),
+        status='published',
+        created_by_id=admin_id
+    )
+    db.session.add(proposal)
+    db.session.commit()
+
+
+def _seed_bank_escrow_proposal(admin_id):
+    if Proposal.query.filter_by(slug='bank-escrow-partnership').first():
+        return
+    sections = [
+        {
+            'title': 'The Trust Gap in Agricultural Trade',
+            'icon': 'fas fa-shield-alt',
+            'diagram_type': 'problem_stats',
+            'body': 'Nigeria\'s agricultural trade suffers from a fundamental trust deficit:\n\n• **Payment fraud** — Buyers receive produce but delay or default on payment\n• **Quality disputes** — Farmers ship produce that doesn\'t match agreed specifications\n• **No recourse** — Neither party has a trusted intermediary to resolve disputes\n• **Cash-heavy transactions** — 80%+ of agricultural trade happens in cash, creating security risks\n• **Financial exclusion** — Most farmers lack bank accounts, limiting payment options\n\nThe result: billions of naira in agricultural trade is lost annually to fraud, disputes, and broken trust. Both farmers and buyers need a secure payment mechanism they can rely on.'
+        },
+        {
+            'title': 'The Opportunity: Escrow for Agricultural Trade',
+            'icon': 'fas fa-lock',
+            'diagram_type': 'escrow_flow',
+            'body': 'Tradoja is a digital agricultural marketplace connecting thousands of farmers and buyers across Nigeria. We are seeking a banking partner to provide escrow services that will:\n\n• **Secure every transaction** — Buyer funds are held safely until delivery is confirmed\n• **Protect farmers** — Guaranteed payment upon successful delivery\n• **Protect buyers** — Funds released only after quality confirmation\n• **Build trust** — Both parties trade with confidence, increasing transaction volumes\n• **Formalize trade** — Move cash transactions into the banking system\n\nThis creates a new revenue stream for the bank while solving a critical market need.'
+        },
+        {
+            'title': 'How Escrow Would Work on Tradoja',
+            'icon': 'fas fa-exchange-alt',
+            'diagram_type': 'escrow_journey',
+            'body': 'The escrow process is simple and secure:\n\n**Step 1: Order Placed** — Buyer finds produce on Tradoja and places an order\n**Step 2: Payment to Escrow** — Buyer pays into the bank\'s escrow account (transfer, USSD, or mobile money)\n**Step 3: Farmer Notified** — Farmer receives SMS/USSD confirmation that funds are secured\n**Step 4: Produce Shipped** — Farmer ships produce, logistics tracked on platform\n**Step 5: Buyer Confirms** — Buyer inspects and confirms delivery via SMS or web\n**Step 6: Funds Released** — Bank releases payment to farmer\'s account within 24 hours\n\n**Dispute Resolution:** If either party disputes, Tradoja mediates with a 48-hour SLA. Funds remain in escrow until resolution.'
+        },
+        {
+            'title': 'Volume Projections & Revenue Opportunity',
+            'icon': 'fas fa-chart-bar',
+            'diagram_type': 'revenue_projections',
+            'body': '**Transaction Volume Projections:**\n\n• **Year 1:** ₦500M - ₦1B in agricultural trade\n• **Year 2:** ₦2B - ₦5B as platform scales to multiple states\n• **Year 3:** ₦10B+ with cross-border trade integration\n\n**Revenue Streams for the Bank:**\n\n• **Escrow fees** — 1-2% per transaction (split with Tradoja)\n• **Float income** — Interest earned on funds held in escrow (avg 3-7 day hold period)\n• **New customer acquisition** — Thousands of previously unbanked farmers opening accounts\n• **Cross-sell opportunities** — Agricultural loans, insurance, savings products to verified farmers\n• **Data-driven lending** — Tradoja\'s transaction history provides credit scoring data for farmer loans\n\n**Conservative Year 1 estimate:** ₦15M-₦30M in escrow fees alone, growing 3-5x annually.'
+        },
+        {
+            'title': 'Technical Integration',
+            'icon': 'fas fa-cogs',
+            'diagram_type': 'tech_architecture',
+            'body': 'Integration with Tradoja is lightweight and secure:\n\n**API-Based Integration:**\n• RESTful API for payment initiation, status checks, and fund release\n• Webhook notifications for real-time transaction updates\n• Sandbox environment for testing before go-live\n\n**Payment Channels Supported:**\n• Bank transfer (NIBSS Instant Payment)\n• USSD banking (*737#, *894#, *966#, etc.)\n• Mobile money (MTN MoMo, Airtel Smartcash, 9mobile T2)\n• Card payments (Debit/Credit via Paystack gateway)\n\n**Security:**\n• End-to-end encryption for all API calls\n• OTP verification for fund release\n• Multi-factor authentication for high-value transactions\n• Full audit trail for every transaction'
+        },
+        {
+            'title': 'Regulatory Compliance',
+            'icon': 'fas fa-balance-scale',
+            'diagram_type': 'compliance',
+            'body': 'The escrow partnership will be fully compliant with Nigerian financial regulations:\n\n• **CBN Guidelines** — Adherence to Central Bank of Nigeria escrow account regulations\n• **KYC/AML** — BVN and NIN verification for all users through Tradoja\'s verification system\n• **NDPC Compliance** — Nigeria Data Protection Commission standards for data handling\n• **NIBSS Integration** — Settlement through Nigeria Inter-Bank Settlement System\n\n**Tradoja\'s Built-in Compliance:**\n• Two-tier verification (LITE → VERIFIED with identity documents)\n• TradojaIQ scam detection flags suspicious transactions automatically\n• Transaction logging creates full audit trail\n• Dispute resolution with SLA tracking'
+        },
+        {
+            'title': 'Risk Management & Fraud Prevention',
+            'icon': 'fas fa-shield-virus',
+            'diagram_type': 'risk_management',
+            'body': 'Tradoja has built-in protections that minimize risk for the banking partner:\n\n**TradojaIQ Scam Detection:**\n• 8-rule AI scoring system catches fraud before transactions occur\n• Automatic flagging of suspicious listings, payments, and accounts\n• Admin review dashboard for high-risk transactions\n\n**Trust Score System:**\n• Both farmers and buyers build verifiable trust scores\n• Transaction history provides predictive risk assessment\n• Low-rated users face restrictions and re-verification requirements\n\n**Dispute Resolution SLA:**\n• 24-hour farmer/buyer response window\n• 48-hour trader response window\n• Auto-escalation on SLA breach\n• Clear fund disposition rules for unresolved disputes\n\n**Anti-Reseller Protections:**\n• Trader verification prevents pure resellers from inflating prices\n• Device fingerprinting detects multi-account fraud\n• Tiered fee structure discourages market manipulation'
+        },
+        {
+            'title': 'Farmer Financial Inclusion Opportunity',
+            'icon': 'fas fa-piggy-bank',
+            'diagram_type': 'financial_inclusion',
+            'body': 'Beyond escrow, this partnership opens massive financial inclusion opportunities:\n\n**New Customer Acquisition:**\n• Tradoja\'s farmer base represents thousands of potential new bank customers\n• Many are currently unbanked or underbanked\n• Escrow creates the first touchpoint for formal banking relationship\n\n**Agricultural Lending:**\n• Tradoja\'s transaction data provides credit history for farmers with no formal records\n• Seasonal lending products timed to planting/harvest cycles\n• Input financing (seeds, fertilizer) repaid from escrow proceeds\n\n**Insurance Products:**\n• Crop insurance bundled with marketplace transactions\n• Weather-indexed insurance using Tradoja\'s climate-smart agriculture data\n• Transit insurance for logistics movements tracked on platform\n\n**Savings Products:**\n• Automated savings from trade proceeds\n• Cooperative savings groups managed through platform\n• Goal-based savings for farm equipment and expansion'
+        },
+        {
+            'title': 'Partnership Model Options',
+            'icon': 'fas fa-handshake',
+            'diagram_type': 'partnership_models',
+            'body': 'We are flexible on partnership structure and propose three options:\n\n**Option A: Revenue Share**\n• Bank provides escrow account infrastructure\n• Tradoja manages the marketplace and user experience\n• Transaction fees split 60/40 (Bank/Tradoja) or negotiable\n• Bank retains all float income\n\n**Option B: White-Label Integration**\n• Bank brands the payment experience within Tradoja\n• "Powered by [Bank Name]" on all transaction screens\n• Bank gains visibility with agricultural sector\n• Custom fee structure negotiated\n\n**Option C: API Partner**\n• Bank provides escrow API as a service\n• Tradoja integrates via standard APIs\n• Per-transaction pricing model\n• Minimal integration effort for the bank\n\nAll options include co-marketing opportunities and joint PR for agricultural financial inclusion.'
+        },
+        {
+            'title': 'Contact & Next Steps',
+            'icon': 'fas fa-envelope',
+            'diagram_type': 'contact',
+            'body': '**Ready to power secure agricultural trade?**\n\nWe propose the following next steps:\n\n1. **Technical Review** — Share API documentation and agree on integration approach\n2. **Commercial Terms** — Negotiate fee structure and partnership model\n3. **Pilot Program** — Launch with 100 transactions in a controlled environment\n4. **Compliance Review** — Joint CBN compliance assessment\n5. **Full Launch** — Scale to all Tradoja users\n\n**Contact:**\nEmail: askme@tradoja.com\nWebsite: tradoja.com\n\n*Tradoja — Building Trust in Africa\'s Agricultural Trade*'
+        }
+    ]
+
+    proposal = Proposal(
+        title='Escrow & Financial Services Partnership Proposal',
+        slug='bank-escrow-partnership',
+        target_organization='Banking Partner — Escrow & Financial Services',
+        proposal_type='bank',
+        executive_summary='Tradoja is seeking a banking partner to provide escrow services for Nigeria\'s first inclusive digital agricultural marketplace. With projected transaction volumes of ₦500M-₦1B in Year 1, growing to ₦10B+ by Year 3, this partnership offers significant revenue through escrow fees, float income, and new customer acquisition from thousands of previously unbanked farmers. Tradoja\'s built-in scam detection, trust scoring, and dispute resolution minimize risk while maximizing the opportunity for agricultural financial inclusion.',
+        sections=json.dumps(sections),
+        status='published',
+        created_by_id=admin_id
+    )
+    db.session.add(proposal)
+    db.session.commit()

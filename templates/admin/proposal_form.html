@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="fw-bold">
+                        <i class="fas fa-{{ 'edit' if editing else 'plus-circle' }} me-2 text-primary"></i>
+                        {{ 'Edit Proposal' if editing else 'Create New Proposal' }}
+                    </h1>
+                    <p class="text-muted mb-0">{{ 'Update your partnership proposal' if editing else 'Build a professional partnership proposal' }}</p>
+                </div>
+                <a href="{{ url_for('admin_proposals') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Proposals
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_proposal_edit', proposal_id=proposal.id) if editing else url_for('admin_proposal_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Proposal Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="title" class="form-label fw-bold">Proposal Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required
+                                   value="{{ proposal.title if proposal else '' }}"
+                                   placeholder="e.g., Partnership Proposal: Digitizing Agricultural Trade in Oyo State">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="target_organization" class="form-label fw-bold">Target Organization</label>
+                                <input type="text" class="form-control" id="target_organization" name="target_organization" required
+                                       value="{{ proposal.target_organization if proposal else '' }}"
+                                       placeholder="e.g., Oyo State Government">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="slug" class="form-label fw-bold">URL Slug</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">/proposal/</span>
+                                    <input type="text" class="form-control" id="slug" name="slug" required
+                                           value="{{ proposal.slug if proposal else '' }}"
+                                           placeholder="oyo-state-partnership">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="executive_summary" class="form-label fw-bold">Executive Summary</label>
+                            <textarea class="form-control" id="executive_summary" name="executive_summary" rows="5"
+                                      placeholder="A compelling overview of the partnership opportunity...">{{ proposal.executive_summary if proposal else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Content Sections</h5>
+                        <button type="button" class="btn btn-sm btn-success" id="addSectionBtn">
+                            <i class="fas fa-plus me-1"></i>Add Section
+                        </button>
+                    </div>
+                    <div class="card-body" id="sectionsContainer">
+                        {% if editing and sections_data %}
+                            {% for section in sections_data %}
+                            <div class="section-block border rounded p-3 mb-3 position-relative">
+                                <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-section-btn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <div class="row">
+                                    <div class="col-md-8 mb-2">
+                                        <label class="form-label fw-bold">Section Title</label>
+                                        <input type="text" class="form-control" name="section_title[]" value="{{ section.title }}" placeholder="Section heading">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label fw-bold">Icon Class</label>
+                                        <input type="text" class="form-control" name="section_icon[]" value="{{ section.icon }}" placeholder="fas fa-file">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold">Diagram Type</label>
+                                    <select class="form-select" name="section_diagram_type[]">
+                                        <option value="none" {{ 'selected' if section.diagram_type == 'none' }}>None</option>
+                                        <option value="journey" {{ 'selected' if section.diagram_type == 'journey' }}>Journey Map</option>
+                                        <option value="flow" {{ 'selected' if section.diagram_type == 'flow' }}>Flow Diagram</option>
+                                        <option value="problem_stats" {{ 'selected' if section.diagram_type == 'problem_stats' }}>Problem Statistics</option>
+                                        <option value="features" {{ 'selected' if section.diagram_type == 'features' }}>Feature Cards</option>
+                                        <option value="phases" {{ 'selected' if section.diagram_type == 'phases' }}>Implementation Phases</option>
+                                        <option value="impact" {{ 'selected' if section.diagram_type == 'impact' }}>Impact Projections</option>
+                                        <option value="escrow_flow" {{ 'selected' if section.diagram_type == 'escrow_flow' }}>Escrow Flow</option>
+                                        <option value="revenue" {{ 'selected' if section.diagram_type == 'revenue' }}>Revenue Model</option>
+                                    </select>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label fw-bold">Body Text</label>
+                                    <textarea class="form-control" name="section_body[]" rows="4" placeholder="Section content (supports **bold** and bullet points with •)">{{ section.body }}</textarea>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="section-block border rounded p-3 mb-3 position-relative">
+                                <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-section-btn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <div class="row">
+                                    <div class="col-md-8 mb-2">
+                                        <label class="form-label fw-bold">Section Title</label>
+                                        <input type="text" class="form-control" name="section_title[]" placeholder="Section heading">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label fw-bold">Icon Class</label>
+                                        <input type="text" class="form-control" name="section_icon[]" value="fas fa-file" placeholder="fas fa-file">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold">Diagram Type</label>
+                                    <select class="form-select" name="section_diagram_type[]">
+                                        <option value="none" selected>None</option>
+                                        <option value="journey">Journey Map</option>
+                                        <option value="flow">Flow Diagram</option>
+                                        <option value="problem_stats">Problem Statistics</option>
+                                        <option value="features">Feature Cards</option>
+                                        <option value="phases">Implementation Phases</option>
+                                        <option value="impact">Impact Projections</option>
+                                        <option value="escrow_flow">Escrow Flow</option>
+                                        <option value="revenue">Revenue Model</option>
+                                    </select>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label fw-bold">Body Text</label>
+                                    <textarea class="form-control" name="section_body[]" rows="4" placeholder="Section content (supports **bold** and bullet points with •)"></textarea>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="proposal_type" class="form-label fw-bold">Proposal Type</label>
+                            <select class="form-select" id="proposal_type" name="proposal_type">
+                                <option value="state" {{ 'selected' if proposal and proposal.proposal_type == 'state' }}>State Government</option>
+                                <option value="bank" {{ 'selected' if proposal and proposal.proposal_type == 'bank' }}>Bank / Financial</option>
+                                <option value="organization" {{ 'selected' if proposal and proposal.proposal_type == 'organization' }}>Organization</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="status" class="form-label fw-bold">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="draft" {{ 'selected' if not proposal or proposal.status == 'draft' }}>Draft</option>
+                                <option value="published" {{ 'selected' if proposal and proposal.status == 'published' }}>Published</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Tips</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Use <strong>**bold**</strong> for emphasis in body text</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Start lines with <strong>•</strong> for bullet points</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Choose diagram types to auto-generate visuals</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Use Font Awesome classes for icons (e.g., <code>fas fa-chart-line</code>)</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Set status to "Published" to make shareable</li>
+                            <li><i class="fas fa-check text-success me-2"></i>The URL slug creates the public link</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-save me-1"></i>{{ 'Update Proposal' if editing else 'Create Proposal' }}
+                    </button>
+                    {% if editing %}
+                    <a href="{{ url_for('view_proposal', slug=proposal.slug) }}" class="btn btn-outline-primary" target="_blank">
+                        <i class="fas fa-eye me-1"></i>Preview Proposal
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('admin_proposals') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var titleInput = document.getElementById('title');
+    var slugInput = document.getElementById('slug');
+    var editing = {{ 'true' if editing else 'false' }};
+
+    if (!editing) {
+        titleInput.addEventListener('input', function() {
+            slugInput.value = titleInput.value
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .substring(0, 200);
+        });
+    }
+
+    document.getElementById('addSectionBtn').addEventListener('click', function() {
+        var container = document.getElementById('sectionsContainer');
+        var block = document.createElement('div');
+        block.className = 'section-block border rounded p-3 mb-3 position-relative';
+        block.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-section-btn"><i class="fas fa-times"></i></button>' +
+            '<div class="row"><div class="col-md-8 mb-2"><label class="form-label fw-bold">Section Title</label><input type="text" class="form-control" name="section_title[]" placeholder="Section heading"></div>' +
+            '<div class="col-md-4 mb-2"><label class="form-label fw-bold">Icon Class</label><input type="text" class="form-control" name="section_icon[]" value="fas fa-file" placeholder="fas fa-file"></div></div>' +
+            '<div class="mb-2"><label class="form-label fw-bold">Diagram Type</label><select class="form-select" name="section_diagram_type[]">' +
+            '<option value="none" selected>None</option><option value="journey">Journey Map</option><option value="flow">Flow Diagram</option>' +
+            '<option value="problem_stats">Problem Statistics</option><option value="features">Feature Cards</option><option value="phases">Implementation Phases</option>' +
+            '<option value="impact">Impact Projections</option><option value="escrow_flow">Escrow Flow</option><option value="revenue">Revenue Model</option></select></div>' +
+            '<div class="mb-0"><label class="form-label fw-bold">Body Text</label><textarea class="form-control" name="section_body[]" rows="4" placeholder="Section content (supports **bold** and bullet points with •)"></textarea></div>';
+        container.appendChild(block);
+        block.querySelector('.remove-section-btn').addEventListener('click', function() { block.remove(); });
+    });
+
+    document.querySelectorAll('.remove-section-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var sections = document.querySelectorAll('.section-block');
+            if (sections.length > 1) {
+                btn.closest('.section-block').remove();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

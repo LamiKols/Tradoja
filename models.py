@@ -2607,3 +2607,22 @@ class TraceChain(db.Model):
     
     def __repr__(self):
         return f'<TraceChain {self.chain_code}: {self.crop_type} from {self.origin_state}>'
+
+
+class Proposal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(300), nullable=False)
+    slug = db.Column(db.String(200), unique=True, nullable=False)
+    target_organization = db.Column(db.String(300), nullable=False)
+    proposal_type = db.Column(db.String(50), nullable=False)
+    executive_summary = db.Column(db.Text)
+    sections = db.Column(db.Text)
+    status = db.Column(db.String(20), default='draft')
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', backref='proposals')
+
+    def __repr__(self):
+        return f'<Proposal {self.slug}: {self.title}>'
