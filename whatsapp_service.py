@@ -157,6 +157,10 @@ class WhatsAppService:
                 return self._handle_accept_order(phone_number, parts)
             elif command in ('COMPLAINT', 'DISPUTE', 'REPORT'):
                 return self._handle_complaint(phone_number, parts, original_message)
+            elif command == 'LOG':
+                return self._handle_ledger_log(phone_number, parts, original_message)
+            elif command == 'MYLOG':
+                return self._handle_ledger_summary(phone_number)
             else:
                 return self._handle_unknown(phone_number, original_message)
             
@@ -1167,6 +1171,153 @@ class WhatsAppService:
                 phone = f'+{phone}'
         return phone
     
+    # ── Ledger rate-limit state (per-phone, in-memory) ─────────────────────
+    _ledger_rate: dict = {}
+
+    def _ledger_rate_ok(self, phone_number: str, max_per_minute: int = 10) -> bool:
+        now = datetime.utcnow()
+        bucket = self._ledger_rate.get(phone_number)
+        if bucket is None or (now - bucket['ts']).total_seconds() >= 60:
+            self._ledger_rate[phone_number] = {'ts': now, 'count': 1}
+            return True
+        if bucket['count'] >= max_per_minute:
+            return False
+        bucket['count'] += 1
+        return True
+
+    def _handle_ledger_log(self, phone_number, parts, original_message):
+        """Handle LOG SALE / LOG BUY / LOG STOCK via WhatsApp"""
+        try:
+            import re
+            from models import db, User, LedgerEntry
+            from sqlalchemy import func as sqlfunc
+
+            if not self._ledger_rate_ok(phone_number):
+                return self.send_message(phone_number,
+                    "Too many LOG commands. Please wait a minute and try again.")
+
+            user = self._get_user(phone_number)
+            if not user:
+                return self._prompt_register(phone_number)
+
+            if len(parts) < 4:
+                return self.send_message(phone_number,
+                    "Format:\nLOG SALE RICE 5BAGS 45000\n"
+                    "LOG BUY FERTILIZER 2BAGS 20000\n"
+                    "LOG STOCK MAIZE 18BAGS")
+
+            sub_cmd = parts[1].upper()
+            if sub_cmd == 'SALE':
+                entry_type = 'sale'
+            elif sub_cmd == 'BUY':
+                entry_type = 'expense'
+            elif sub_cmd == 'STOCK':
+                entry_type = 'stock_adjustment'
+            else:
+                return self.send_message(phone_number,
+                    "Unknown LOG type. Use: LOG SALE, LOG BUY, or LOG STOCK")
+
+            item = parts[2].title()
+            quantity = parts[3]
+            amount = None
+            if len(parts) >= 5 and entry_type != 'stock_adjustment':
+                try:
+                    amount = float(re.sub(r'[^\d.]', '', parts[4]))
+                except (ValueError, IndexError):
+                    pass
+
+            entry = LedgerEntry(
+                farmer_id=user.id,
+                entry_type=entry_type,
+                item=item,
+                quantity=quantity,
+                amount=amount,
+                unit='NGN',
+                source_channel='whatsapp',
+                raw_message=original_message,
+            )
+            db.session.add(entry)
+            db.session.commit()
+
+            week_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = week_start - timedelta(days=week_start.weekday())
+            weekly_sales = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'sale',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            if entry_type == 'stock_adjustment':
+                msg = f"✅ Logged. {item} stock: {quantity}. Week sales: ₦{weekly_sales:,.0f}."
+            elif entry_type == 'sale':
+                amt_str = f" ₦{amount:,.0f}" if amount else ""
+                msg = f"✅ Logged. {item} sale: {quantity}{amt_str}. Today's sales: ₦{weekly_sales:,.0f}."
+            else:
+                amt_str = f" ₦{amount:,.0f}" if amount else ""
+                msg = f"✅ Logged. {item} purchase: {quantity}{amt_str}."
+
+            return self.send_message(phone_number, msg)
+
+        except Exception as e:
+            logger.error(f"WhatsApp ledger log error: {e}")
+            try:
+                from models import db
+                db.session.rollback()
+            except Exception:
+                pass
+            return self.send_message(phone_number,
+                "Sorry, could not log entry. Please try again.")
+
+    def _handle_ledger_summary(self, phone_number):
+        """Handle MYLOG — last 5 entries + weekly totals via WhatsApp"""
+        try:
+            from models import db, User, LedgerEntry
+            from sqlalchemy import func as sqlfunc
+
+            if not self._ledger_rate_ok(phone_number):
+                return self.send_message(phone_number,
+                    "Too many requests. Please wait a minute and try again.")
+
+            user = self._get_user(phone_number)
+            if not user:
+                return self._prompt_register(phone_number)
+
+            recent = LedgerEntry.query.filter_by(farmer_id=user.id)\
+                .order_by(LedgerEntry.created_at.desc()).limit(5).all()
+
+            if not recent:
+                return self.send_message(phone_number,
+                    "No ledger entries yet.\nTry: LOG SALE RICE 5BAGS 45000")
+
+            week_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = week_start - timedelta(days=week_start.weekday())
+
+            weekly_sales = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'sale',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            weekly_expenses = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'expense',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            lines = ["📒 Your last entries:"]
+            for e in recent:
+                date_str = e.created_at.strftime('%d/%m')
+                amt_str = f" ₦{e.amount:,.0f}" if e.amount else ""
+                lines.append(f"{date_str} {e.entry_type.upper()} {e.item} {e.quantity or ''}{amt_str}")
+
+            lines.append(f"\nWeek: Sales ₦{weekly_sales:,.0f} | Expenses ₦{weekly_expenses:,.0f}")
+            return self.send_message(phone_number, '\n'.join(lines))
+
+        except Exception as e:
+            logger.error(f"WhatsApp ledger summary error: {e}")
+            return self.send_message(phone_number,
+                "Sorry, could not retrieve your log. Please try again.")
+
     def _log_interaction(self, phone_number, message_type, content, content_type='text', status='received'):
         """Log WhatsApp interaction"""
         try:

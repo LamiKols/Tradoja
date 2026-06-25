@@ -243,6 +243,10 @@ class SMSService:
                 return self._handle_trace_command(phone_number, command_parts)
             elif command == 'QUALITY':
                 return self._handle_quality_check(phone_number, command_parts)
+            elif command == 'LOG':
+                return self._handle_ledger_log(phone_number, command_parts, original_message)
+            elif command == 'MYLOG':
+                return self._handle_ledger_summary(phone_number)
             else:
                 # Try AI natural language parsing as fallback
                 return self._try_ai_parse(phone_number, original_message, command_parts)
@@ -3545,6 +3549,169 @@ class SMSService:
             return self.send_sms(phone_number,
                 "Error recording vouch. Try again.")
 
+    # ── Ledger rate-limit state (per-phone, in-memory) ──────────────────────
+    _ledger_rate: dict = {}
+
+    def _ledger_rate_ok(self, phone_number: str, max_per_minute: int = 10) -> bool:
+        """Return True if the phone may send another LOG/MYLOG this minute."""
+        now = datetime.utcnow()
+        bucket = self._ledger_rate.get(phone_number)
+        if bucket is None or (now - bucket['ts']).total_seconds() >= 60:
+            self._ledger_rate[phone_number] = {'ts': now, 'count': 1}
+            return True
+        if bucket['count'] >= max_per_minute:
+            return False
+        bucket['count'] += 1
+        return True
+
+    def _handle_ledger_log(self, phone_number, command_parts, raw_message=None):
+        """Handle LOG SALE / LOG BUY / LOG STOCK commands"""
+        try:
+            from models import LedgerEntry
+
+            if not self._ledger_rate_ok(phone_number):
+                return self.send_sms(phone_number,
+                    "Too many LOG commands. Please wait a minute and try again.")
+
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Not registered. Send JOIN [name] [location] to sign up.")
+
+            # command_parts: ['LOG', 'SALE'|'BUY'|'STOCK', item, qty, amount?]
+            if len(command_parts) < 4:
+                return self.send_sms(phone_number,
+                    "Format: LOG SALE RICE 5BAGS 45000\n"
+                    "Or:     LOG BUY FERTILIZER 2BAGS 20000\n"
+                    "Or:     LOG STOCK MAIZE 18BAGS")
+
+            sub_cmd = command_parts[1].upper()
+            if sub_cmd == 'SALE':
+                entry_type = 'sale'
+            elif sub_cmd == 'BUY':
+                entry_type = 'expense'
+            elif sub_cmd == 'STOCK':
+                entry_type = 'stock_adjustment'
+            else:
+                return self.send_sms(phone_number,
+                    "Unknown LOG type. Use: LOG SALE, LOG BUY, or LOG STOCK")
+
+            item = command_parts[2].title()
+            quantity = command_parts[3]
+            amount = None
+            if len(command_parts) >= 5 and entry_type != 'stock_adjustment':
+                try:
+                    amount = float(re.sub(r'[^\d.]', '', command_parts[4]))
+                except (ValueError, IndexError):
+                    pass
+
+            # Idempotency: if gateway_message_id already stored, return original confirmation
+            gateway_msg_id = None
+            if self._current_metadata:
+                gateway_msg_id = self._current_metadata.get('message_id') or \
+                                  self._current_metadata.get('id') or \
+                                  self._current_metadata.get('gateway_message_id')
+            if gateway_msg_id:
+                existing = LedgerEntry.query.filter_by(gateway_message_id=gateway_msg_id).first()
+                if existing:
+                    return self.send_sms(phone_number,
+                        f"✅ Already logged. {existing.item} {existing.entry_type} recorded.")
+
+            entry = LedgerEntry(
+                farmer_id=user.id,
+                entry_type=entry_type,
+                item=item,
+                quantity=quantity,
+                amount=amount,
+                unit='NGN',
+                source_channel='sms',
+                raw_message=raw_message or ' '.join(command_parts),
+                gateway_message_id=gateway_msg_id,
+            )
+            db.session.add(entry)
+            db.session.commit()
+
+            # Build confirmation
+            from sqlalchemy import func as sqlfunc
+            week_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = week_start - timedelta(days=week_start.weekday())
+            weekly_sales = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'sale',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            if entry_type == 'stock_adjustment':
+                msg = f"✅ Logged. {item} stock: {quantity}. Week sales: ₦{weekly_sales:,.0f}."
+            elif entry_type == 'sale':
+                msg = f"✅ Logged. {item} sale: {quantity}"
+                if amount:
+                    msg += f" ₦{amount:,.0f}"
+                msg += f". Today's sales: ₦{weekly_sales:,.0f}."
+            else:
+                msg = f"✅ Logged. {item} purchase: {quantity}"
+                if amount:
+                    msg += f" ₦{amount:,.0f}"
+                msg += "."
+
+            return self.send_sms(phone_number, msg)
+
+        except Exception as e:
+            current_app.logger.error(f"Ledger log error: {e}")
+            db.session.rollback()
+            return self._send_error_message(phone_number)
+
+    def _handle_ledger_summary(self, phone_number):
+        """Handle MYLOG — return last 5 entries + weekly totals"""
+        try:
+            from models import LedgerEntry
+            from sqlalchemy import func as sqlfunc
+
+            if not self._ledger_rate_ok(phone_number):
+                return self.send_sms(phone_number,
+                    "Too many requests. Please wait a minute and try again.")
+
+            user = User.query.filter_by(phone_number=phone_number).first()
+            if not user:
+                return self.send_sms(phone_number,
+                    "Not registered. Send JOIN [name] [location] to sign up.")
+
+            recent = LedgerEntry.query.filter_by(farmer_id=user.id)\
+                .order_by(LedgerEntry.created_at.desc()).limit(5).all()
+
+            if not recent:
+                return self.send_sms(phone_number,
+                    "No ledger entries yet. Try: LOG SALE RICE 5BAGS 45000")
+
+            week_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = week_start - timedelta(days=week_start.weekday())
+
+            weekly_sales = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'sale',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            weekly_expenses = db.session.query(sqlfunc.sum(LedgerEntry.amount)).filter(
+                LedgerEntry.farmer_id == user.id,
+                LedgerEntry.entry_type == 'expense',
+                LedgerEntry.created_at >= week_start
+            ).scalar() or 0
+
+            lines = ["Your last entries:"]
+            for e in recent:
+                date_str = e.created_at.strftime('%d/%m')
+                amt_str = f" ₦{e.amount:,.0f}" if e.amount else ""
+                lines.append(f"{date_str} {e.entry_type.upper()} {e.item} {e.quantity or ''}{amt_str}")
+
+            lines.append(f"Week: Sales ₦{weekly_sales:,.0f} | Expenses ₦{weekly_expenses:,.0f}")
+            return self.send_sms(phone_number, '\n'.join(lines))
+
+        except Exception as e:
+            current_app.logger.error(f"Ledger summary error: {e}")
+            db.session.rollback()
+            return self._send_error_message(phone_number)
+
     def _try_ai_parse(self, phone_number, original_message, command_parts):
         """Try AI natural language parsing when command not recognized"""
         try:
@@ -3553,7 +3720,7 @@ class SMSService:
             result = ai_trading_service.parse_natural_language(original_message, phone_number)
             
             # Validate command is in whitelist
-            valid_commands = {'SELL', 'PRICE', 'TRACK', 'ACCEPT', 'CANCEL', 'BAL', 'BALANCE', 'STATUS', 'HELP', 'JOBS', 'VOUCH', 'TRACE', 'QUALITY'}
+            valid_commands = {'SELL', 'PRICE', 'TRACK', 'ACCEPT', 'CANCEL', 'BAL', 'BALANCE', 'STATUS', 'HELP', 'JOBS', 'VOUCH', 'TRACE', 'QUALITY', 'LOG', 'MYLOG'}
             
             if result.get('confidence', 0) >= 0.7 and result.get('command'):
                 command = result['command'].upper()
@@ -3584,6 +3751,10 @@ class SMSService:
                     return self._handle_order_cancel(phone_number, new_parts)
                 elif command == 'JOBS':
                     return self._handle_view_jobs(phone_number)
+                elif command == 'LOG':
+                    return self._handle_ledger_log(phone_number, new_parts, original_message)
+                elif command == 'MYLOG':
+                    return self._handle_ledger_summary(phone_number)
                 else:
                     return self.send_sms(phone_number,
                         f"I understood: {result.get('original_intent', 'your request')}\n"

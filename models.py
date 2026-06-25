@@ -2609,6 +2609,32 @@ class TraceChain(db.Model):
         return f'<TraceChain {self.chain_code}: {self.crop_type} from {self.origin_state}>'
 
 
+class LedgerEntry(db.Model):
+    """Farmer-logged ledger entry — independent of marketplace listings"""
+    id = db.Column(db.Integer, primary_key=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    entry_type = db.Column(db.String(20), nullable=False)  # 'sale', 'expense', 'stock_adjustment'
+    item = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.String(50))         # e.g. "5 bags" — free text, mirrors Produce.quantity convention
+    amount = db.Column(db.Float)                 # nullable: stock_adjustment may have no amount
+    unit = db.Column(db.String(20), default='NGN')
+
+    # Provenance / audit
+    source_channel = db.Column(db.String(20), nullable=False)  # 'sms', 'whatsapp', 'ussd'
+    raw_message = db.Column(db.Text)              # original text, for audit/debugging AI parses
+    gateway_message_id = db.Column(db.String(120), unique=True)  # idempotency key
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Immutability — corrections create a new offsetting row, never edit/delete
+    reversed_entry_id = db.Column(db.Integer, db.ForeignKey('ledger_entry.id'), nullable=True)
+
+    farmer = db.relationship('User', foreign_keys=[farmer_id], backref='ledger_entries')
+
+    def __repr__(self):
+        return f'<LedgerEntry {self.entry_type} {self.item} farmer={self.farmer_id}>'
+
+
 class Proposal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(300), nullable=False)
