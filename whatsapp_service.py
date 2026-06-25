@@ -95,12 +95,13 @@ class WhatsAppService:
         finally:
             pass
     
-    def process_incoming(self, phone_number, message, media_url=None):
+    def process_incoming(self, phone_number, message, media_url=None, gateway_message_id=None):
         """Process incoming WhatsApp message and route to handler"""
         try:
             phone_number = self._normalize_phone(phone_number)
             original_message = message.strip()
             message_upper = message.strip().upper()
+            self._current_gateway_message_id = gateway_message_id
             
             self._log_interaction(
                 phone_number=phone_number,
@@ -158,7 +159,8 @@ class WhatsAppService:
             elif command in ('COMPLAINT', 'DISPUTE', 'REPORT'):
                 return self._handle_complaint(phone_number, parts, original_message)
             elif command == 'LOG':
-                return self._handle_ledger_log(phone_number, parts, original_message)
+                return self._handle_ledger_log(phone_number, parts, original_message,
+                                               gateway_message_id=gateway_message_id)
             elif command == 'MYLOG':
                 return self._handle_ledger_summary(phone_number)
             else:
@@ -1185,7 +1187,7 @@ class WhatsAppService:
         bucket['count'] += 1
         return True
 
-    def _handle_ledger_log(self, phone_number, parts, original_message):
+    def _handle_ledger_log(self, phone_number, parts, original_message, gateway_message_id=None):
         """Handle LOG SALE / LOG BUY / LOG STOCK via WhatsApp"""
         try:
             import re
@@ -1226,6 +1228,15 @@ class WhatsAppService:
                 except (ValueError, IndexError):
                     pass
 
+            # Idempotency: if we've already stored this Twilio MessageSid, return original
+            if gateway_message_id:
+                existing = LedgerEntry.query.filter_by(
+                    gateway_message_id=gateway_message_id
+                ).first()
+                if existing:
+                    return self.send_message(phone_number,
+                        f"✅ Already logged. {existing.item} {existing.entry_type} recorded.")
+
             entry = LedgerEntry(
                 farmer_id=user.id,
                 entry_type=entry_type,
@@ -1235,6 +1246,7 @@ class WhatsAppService:
                 unit='NGN',
                 source_channel='whatsapp',
                 raw_message=original_message,
+                gateway_message_id=gateway_message_id,
             )
             db.session.add(entry)
             db.session.commit()

@@ -2407,6 +2407,7 @@ def sms_webhook():
         metadata = {
             'gateway_ip': request.remote_addr,
             'user_agent': request.headers.get('User-Agent', ''),
+            'message_id': request.form.get('id', ''),   # AT idempotency key
             'link_id': request.form.get('linkId', ''),
             'network_code': request.form.get('networkCode', ''),
             'date': request.form.get('date', ''),
@@ -6325,10 +6326,14 @@ def whatsapp_webhook():
     phone_number = request.values.get('From', '').replace('whatsapp:', '')
     message = request.values.get('Body', '')
     media_url = request.values.get('MediaUrl0', None)
-    
+    gateway_message_id = request.values.get('MessageSid', '') or None  # Twilio idempotency key
+
     try:
         wa = get_whatsapp_service()
-        response_text = wa.process_incoming(phone_number, message, media_url=media_url)
+        response_text = wa.process_incoming(
+            phone_number, message, media_url=media_url,
+            gateway_message_id=gateway_message_id
+        )
         
         twiml = f'<?xml version="1.0" encoding="UTF-8"?><Response><Message>{response_text}</Message></Response>'
         resp = make_response(twiml)
