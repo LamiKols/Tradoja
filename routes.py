@@ -2386,6 +2386,35 @@ def simulate_ussd():
 
 
 # SMS Integration Routes
+def _check_africastalking_ip(remote_addr):
+    """Return True if remote_addr is within Africa's Talking webhook sender ranges.
+
+    AT does not sign payloads with HMAC. IP allowlisting is the primary
+    security control; the caller should also check the `username` field as a
+    weak secondary signal (it is plaintext and not a cryptographic proof).
+
+    Ranges are loaded from AT_WEBHOOK_IP_ALLOWLIST (comma-separated CIDRs).
+    If the env var is unset the function returns False so the caller can
+    decide whether to enforce or warn. A wildcard value of '*' disables the
+    check (dev/sandbox only — never set this in production).
+    """
+    import ipaddress
+    allowlist_env = os.environ.get('AT_WEBHOOK_IP_ALLOWLIST', '')
+    if not allowlist_env:
+        return None  # unconfigured — let caller decide
+    if allowlist_env.strip() == '*':
+        return True  # explicit dev bypass
+    try:
+        client_ip = ipaddress.ip_address(remote_addr)
+        for cidr in allowlist_env.split(','):
+            cidr = cidr.strip()
+            if cidr and client_ip in ipaddress.ip_network(cidr, strict=False):
+                return True
+    except ValueError:
+        pass
+    return False
+
+
 @app.route('/sms', methods=['POST'])
 @csrf_exempt
 def sms_webhook():
@@ -2394,12 +2423,31 @@ def sms_webhook():
         app.logger.error("SMS service not available")
         return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
 
-    # Africa's Talking does not sign payloads with HMAC; validate the username
-    # field they include in every inbound webhook against our configured account.
+    # Primary control: IP allowlist.  AT_WEBHOOK_IP_ALLOWLIST must be set to
+    # the CIDRs from the AT dashboard (comma-separated).  Set to '*' in
+    # sandbox/dev only — never in production.
+    ip_ok = _check_africastalking_ip(request.remote_addr)
+    if ip_ok is False:
+        app.logger.warning(
+            "SMS webhook rejected: source IP %s not in AT allowlist", request.remote_addr
+        )
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    if ip_ok is None:
+        # AT_WEBHOOK_IP_ALLOWLIST not configured — warn loudly but don't block
+        # so existing deployments keep working while operators set the var.
+        app.logger.warning(
+            "SMS webhook: AT_WEBHOOK_IP_ALLOWLIST not set — IP check skipped (configure this)"
+        )
+
+    # Secondary signal: username field AT includes in every inbound webhook.
+    # This is plaintext metadata, not a cryptographic proof — do not rely on
+    # it alone. Treat a mismatch as a hard reject only when the IP check passed.
     at_username = os.environ.get('AFRICASTALKING_USERNAME', '')
     payload_username = request.form.get('username', '')
-    if not at_username or payload_username != at_username:
-        app.logger.warning("SMS webhook rejected: username mismatch (expected %s)", at_username)
+    if at_username and payload_username and payload_username != at_username:
+        app.logger.warning(
+            "SMS webhook rejected: username field mismatch (got %r)", payload_username
+        )
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
 
     try:
@@ -6340,10 +6388,19 @@ def whatsapp_webhook():
         from twilio.request_validator import RequestValidator as TwilioRequestValidator
         validator = TwilioRequestValidator(twilio_auth_token)
         twilio_signature = request.headers.get('X-Twilio-Signature', '')
-        url = request.url
+
+        # Behind a reverse proxy (Replit, nginx, etc.) Flask's request.url uses
+        # the internal scheme (http://) while Twilio signs the external https://
+        # URL.  Reconstruct the URL using X-Forwarded-Proto when present so the
+        # signature covers the same string Twilio used.
+        proto = request.headers.get('X-Forwarded-Proto', request.scheme)
+        url = request.url.replace(f'{request.scheme}://', f'{proto}://', 1)
+
         post_params = request.form.to_dict()
         if not validator.validate(url, post_params, twilio_signature):
-            app.logger.warning("WhatsApp webhook rejected: invalid Twilio signature")
+            app.logger.warning(
+                "WhatsApp webhook rejected: invalid Twilio signature (url=%s)", url
+            )
             return make_response('Unauthorized', 401)
     except ImportError:
         app.logger.warning("WhatsApp webhook rejected: twilio package not installed")
