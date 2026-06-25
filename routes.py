@@ -2393,7 +2393,15 @@ def sms_webhook():
     if not sms_service:
         app.logger.error("SMS service not available")
         return jsonify({'status': 'error', 'message': 'SMS service unavailable'}), 500
-    
+
+    # Africa's Talking does not sign payloads with HMAC; validate the username
+    # field they include in every inbound webhook against our configured account.
+    at_username = os.environ.get('AFRICASTALKING_USERNAME', '')
+    payload_username = request.form.get('username', '')
+    if not at_username or payload_username != at_username:
+        app.logger.warning("SMS webhook rejected: username mismatch (expected %s)", at_username)
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
     try:
         # Get SMS data from Africa's Talking
         phone_number = request.form.get('from')
@@ -6321,11 +6329,30 @@ def whatsapp_webhook():
     """Twilio WhatsApp webhook - receives incoming WhatsApp messages
     Activated when Twilio credentials are configured"""
     from whatsapp_service import get_whatsapp_service
-    
+
+    # Verify Twilio signature using the official RequestValidator.
+    twilio_auth_token = os.environ.get('TWILIO_AUTH_TOKEN', '')
+    if not twilio_auth_token:
+        app.logger.warning("WhatsApp webhook rejected: TWILIO_AUTH_TOKEN not configured")
+        return make_response('Webhook not configured', 503)
+
+    try:
+        from twilio.request_validator import RequestValidator as TwilioRequestValidator
+        validator = TwilioRequestValidator(twilio_auth_token)
+        twilio_signature = request.headers.get('X-Twilio-Signature', '')
+        url = request.url
+        post_params = request.form.to_dict()
+        if not validator.validate(url, post_params, twilio_signature):
+            app.logger.warning("WhatsApp webhook rejected: invalid Twilio signature")
+            return make_response('Unauthorized', 401)
+    except ImportError:
+        app.logger.warning("WhatsApp webhook rejected: twilio package not installed")
+        return make_response('Server misconfiguration', 500)
+
     phone_number = request.values.get('From', '').replace('whatsapp:', '')
     message = request.values.get('Body', '')
     media_url = request.values.get('MediaUrl0', None)
-    
+
     try:
         wa = get_whatsapp_service()
         response_text = wa.process_incoming(phone_number, message, media_url=media_url)

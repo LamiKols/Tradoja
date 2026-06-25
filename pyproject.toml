@@ -23,4 +23,5 @@ dependencies = [
     "htmldocx>=0.0.6",
     "openai>=2.16.0",
     "reportlab>=4.4.9",
+    "twilio>=9.0.0",
 ]
